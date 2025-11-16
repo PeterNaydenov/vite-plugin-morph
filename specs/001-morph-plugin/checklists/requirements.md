@@ -1,8 +1,8 @@
-# Specification Quality Checklist: Vite Morph Plugin
+# Specification Quality Checklist: Helper Template Support
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2025-11-16
-**Feature**: [specs/001-morph-plugin/spec.md](spec.md)
+**Feature**: [helper-template-support.md](specs/001-morph-plugin/helper-template-support.md)
 
 ## Content Quality
 

@@ -1,6 +1,5 @@
 ---
-
-description: "Task list for Vite Morph Plugin implementation"
+description: 'Task list for Vite Morph Plugin implementation'
 ---
 
 # Tasks: Vite Morph Plugin
@@ -29,12 +28,12 @@ description: "Task list for Vite Morph Plugin implementation"
 
 **Purpose**: Project initialization and basic structure
 
-- [X] T001 Create project structure per implementation plan
-- [X] T002 Initialize JavaScript project with dependencies (@peter.naydenov/morph, Vite, parse5, Vitest)
-- [X] T003 [P] Configure package.json with build scripts and dependencies
-- [X] T004 [P] Setup JSDoc to TypeScript compilation configuration
-- [X] T005 [P] Configure Vitest for testing
-- [X] T006 [P] Setup ESLint and Prettier for code formatting
+- [x] T001 Create project structure per implementation plan
+- [x] T002 Initialize JavaScript project with dependencies (@peter.naydenov/morph, Vite, parse5, Vitest)
+- [x] T003 [P] Configure package.json with build scripts and dependencies
+- [x] T004 [P] Setup JSDoc to TypeScript compilation configuration
+- [x] T005 [P] Configure Vitest for testing
+- [x] T006 [P] Setup ESLint and Prettier for code formatting
 
 ---
 
@@ -44,14 +43,14 @@ description: "Task list for Vite Morph Plugin implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [X] T007 Create core plugin entry point in src/index.js
-- [X] T008 Implement basic Vite plugin structure in src/plugin/index.js
-- [X] T009 [P] Setup HTML AST parsing with parse5 in src/core/parser.js
-- [X] T010 [P] Implement error handling system in src/core/errors.js
-- [X] T011 [P] Create file processing cache in src/utils/cache.js
-- [X] T012 [P] Setup logging utilities in src/utils/logger.js
-- [X] T013 [P] Create JSDoc type definitions in src/types/index.js
-- [X] T014 Configure plugin options validation in src/plugin/config.js
+- [x] T007 Create core plugin entry point in src/index.js
+- [x] T008 Implement basic Vite plugin structure in src/plugin/index.js
+- [x] T009 [P] Setup HTML AST parsing with parse5 in src/core/parser.js
+- [x] T010 [P] Implement error handling system in src/core/errors.js
+- [x] T011 [P] Create file processing cache in src/utils/cache.js
+- [x] T012 [P] Setup logging utilities in src/utils/logger.js
+- [x] T013 [P] Create JSDoc type definitions in src/types/index.js
+- [x] T014 Configure plugin options validation in src/plugin/config.js
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -68,17 +67,17 @@ description: "Task list for Vite Morph Plugin implementation"
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
 - [ ] T015 [P] [US1] Unit test for HTML parsing in tests/unit/parser.test.js
-- [X] T016 [P] [US1] Unit test for template compilation in tests/unit/template.test.js
-- [X] T017 [P] [US1] Integration test for basic morph processing in tests/integration/basic.test.js
+- [x] T016 [P] [US1] Unit test for template compilation in tests/unit/template.test.js
+- [x] T017 [P] [US1] Integration test for basic morph processing in tests/integration/basic.test.js
 
 ### Implementation for User Story 1
 
-- [X] T018 [P] [US1] Implement morph file processor in src/core/processor.js
-- [X] T019 [US1] Create template content extractor in src/core/template.js
-- [X] T020 [US1] Implement script content extractor in src/core/script.js
-- [X] T021 [US1] Create morph template compiler using @peter.naydenov/morph in src/core/compiler.js
-- [X] T022 [US1] Implement Vite transform hook for .morph files in src/plugin/hooks.js
-- [X] T023 [US1] Add ES module generation in src/core/generator.js
+- [x] T018 [P] [US1] Implement morph file processor in src/core/processor.js
+- [x] T019 [US1] Create template content extractor in src/core/template.js
+- [x] T020 [US1] Implement script content extractor in src/core/script.js
+- [x] T021 [US1] Create morph template compiler using @peter.naydenov/morph in src/core/compiler.js
+- [x] T022 [US1] Implement Vite transform hook for .morph files in src/plugin/hooks.js
+- [x] T023 [US1] Add ES module generation in src/core/generator.js
 - [ ] T024 [US1] Create basic morph file fixtures in tests/fixtures/basic.morph
 - [ ] T025 [US1] Add error handling for malformed templates in src/core/errors.js
 
@@ -302,3 +301,5 @@ With multiple developers:
 - Avoid: vague tasks, same file conflicts, cross-story dependencies that break independence
 - CSS processing is entirely handled by plugin since @peter.naydenov/morph doesn't support CSS
 - JSDoc types will be compiled to d.ts for TypeScript compatibility
+- [x] T025 [P] [US1] Implement helper template support in src/core/script.js
+- [ ] T026 [P] [US1] Create unit test for helper template support in tests/unit/helper-template.test.js
