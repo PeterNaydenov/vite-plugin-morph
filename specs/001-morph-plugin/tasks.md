@@ -1,5 +1,5 @@
 ---
-description: Implementation tasks for helper template support
+description: Implement helper template support
 handoffs: 
   - label: Implement Helper Template Support
     agent: manual
@@ -9,7 +9,7 @@ handoffs:
 
 ## Feature Summary
 
-Add support for helper templates in morph file processing to align with @peter.naydenov/morph standard, where helpers can be declared as template strings using `const` declarations in script tags.
+Implement helper template support in morph file processing to align with @peter.naydenov/morph standard, where helpers can be declared as template strings using `const` declarations in script tags.
 
 ## Implementation Tasks
 
@@ -21,7 +21,7 @@ Add support for helper templates in morph file processing to align with @peter.n
 - Extract template content and variable names
 
 **Task 2**: Create helper template processor
-- Add logic to convert `const template = \'content\`` to helper objects
+- Add logic to convert `const template = \'content\\`` to helper objects
 - Preserve template content exactly (including placeholders)
 - Integrate with existing function helper processing
 
