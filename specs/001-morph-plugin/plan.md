@@ -7,7 +7,7 @@
 
 ## Summary
 
-Create a Vite plugin that processes .morph files by converting them to @peter.naydenov/morph templates using AST parsing, then compiling to ES modules via the morph library's build method. The plugin will handle HTML-like templates, script functions, CSS modules with global variable support, and JSON handshake data with production optimization.
+Add support for helper templates in morph file processing to align with @peter.naydenov/morph standard, where helpers can be declared as template strings using `const` declarations in script tags.
 
 ## Technical Context
 
@@ -23,28 +23,33 @@ Create a Vite plugin that processes .morph files by converting them to @peter.na
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
 ### Vite Plugin API Compliance ✅
+
 - Plugin will follow Vite plugin API specifications
 - TypeScript types will be properly implemented
 - Configuration validation with meaningful error messages
 
 ### Git Integration Safety ⚠️ NOT APPLICABLE
+
 - This plugin doesn't involve git operations
 - Constitution principle not relevant to this feature
 
 ### Performance Optimization ✅
+
 - <100ms compilation time goal aligns with minimizing build impact
 - Asynchronous processing for non-blocking operations
 - Hot module replacement support maintained
 
 ### Configuration Simplicity ✅
+
 - Global CSS directory configuration approach
 - Default behavior for common use cases
 - Clear error messages for configuration issues
 
 ### Error Handling ✅
+
 - Specific error location information (file, line, column)
 - Build failure prevention for malformed modules
 - Graceful handling of missing dependencies
@@ -135,12 +140,12 @@ No constitution violations identified. All applicable principles are addressed i
 
 **Complexity Justification**:
 
-| Component | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| HTML AST Parsing (parse5) | Required to parse .morph file structure with script/style tags | Simple regex parsing would be fragile and error-prone for complex HTML |
-| Complete CSS Processing | Required since @peter.naydenov/morph doesn't support CSS at all | No CSS support would make .morph files unusable for styling |
-| CSS Module Processing | Required for scoped styling and global variable support | Plain CSS would cause style conflicts between components |
-| Error Location Tracking | Required for helpful developer experience | Generic errors would make debugging difficult |
-| HMR Support | Required for good development experience | Manual rebuilds would significantly slow development |
-| Caching System | Required for performance with many files | Reprocessing all files on every change would be too slow |
+| Component                   | Why Needed                                                                  | Simpler Alternative Rejected Because                                         |
+| --------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| HTML AST Parsing (parse5)   | Required to parse .morph file structure with script/style tags              | Simple regex parsing would be fragile and error-prone for complex HTML       |
+| Complete CSS Processing     | Required since @peter.naydenov/morph doesn't support CSS at all             | No CSS support would make .morph files unusable for styling                  |
+| CSS Module Processing       | Required for scoped styling and global variable support                     | Plain CSS would cause style conflicts between components                     |
+| Error Location Tracking     | Required for helpful developer experience                                   | Generic errors would make debugging difficult                                |
+| HMR Support                 | Required for good development experience                                    | Manual rebuilds would significantly slow development                         |
+| Caching System              | Required for performance with many files                                    | Reprocessing all files on every change would be too slow                     |
 | JSDoc with d.ts compilation | Required for TypeScript compatibility while maintaining JavaScript codebase | Pure JavaScript would lose type safety; TypeScript would increase complexity |
