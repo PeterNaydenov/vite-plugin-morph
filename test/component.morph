@@ -1,0 +1,61 @@
+const contacts = {
+        template : /*template*/`
+                  {{ @all : blank, ^^, >setupData }}
+                    <h2>Contacts</h2>
+                    <p class="space">Storage for your relation's profiles. 
+                        <button data-click="nav-contacts-edit">Create a new contact</button>
+                        </p>
+
+                    <!-- TODO: some tag filtering + string search -->
+                   
+                    {{ contacts : [], #, [], contactCards, #, [], tags  }}
+                `
+        , helpers : {
+                        contactCards : `
+                                        <div class="contact">
+                                                        <h3>{{ name }}</h3>
+                                                        <p><strong>ID Token</strong>: 
+                                                             <textarea readonly>{{ id-contact }}</textarea>
+                                                        </p>
+                                                        <p><strong>Tags</strong>: 
+                                                                       {{ tags }}
+                                                        </p>
+                                                        
+                                                        <p>
+                                                                <button class="action" data-click="nav-contacts-edit" data-number="{{number}}">Edit</button>
+                                                                <button class="action">Copy ID Token</button>
+                                                                <button class="action warn" data-click="delete-contact" data-number="{{number}}">Delete</button>
+                                                        </p>
+                                                </div>
+                                        `
+                        , tags : `<span>{{text}}</span>`
+                        , blank : () => ''
+                        , setupData : function ({ data }) {
+                                        data.contacts.map ( (c,i) => { 
+                                                                c.number = i
+                                                                if ( c.tags.length === 0 ) c.tags = 'No tags selected' 
+                                                                return c
+                                                        })
+                                        return data
+                                    } // setupData func.
+                } // helpers
+        , handshake : {
+                contacts: [ // Contact organizer
+                            {
+                                 name : 'Ivan Ivanov',
+                                'id-contact': '3mwes!534-12-2fe-!2d1w',
+                                tags : [ 'project1', 'man', 'brazil' ]
+                            },
+                            {
+                                 name : 'Stoyan Lazov',
+                                'id-contact': '3mpes!534-14-4fm-!1214',
+                                tags : [ 'Paris', 'man', 'french' ]
+                            }
+                        ]
+                }
+} // contact
+
+
+export default contacts
+
+
