@@ -7,70 +7,7 @@
 
 import { createMorphError, ErrorCodes } from './errors.js';
 import { debug, warn } from '../utils/logger.js';
-
-/**
- * Extract script content from parsed document
- * @param {import('./types/processing.js').Document} document - Parsed HTML document
- * @param {string} [scriptType='text/javascript'] - Type of script to extract
- * @returns {import('./types/processing.js').ScriptContent|null} Script content or null
- */
-export function extractScriptContent(document, scriptType = 'text/javascript') {
-  try {
-    // Find script nodes with specified type
-    const scriptNodes = document.childNodes.filter(
-      (node) =>
-        node.nodeName === 'script' &&
-        node.attrs &&
-        node.attrs.some(
-          (attr) => attr.name === 'type' && attr.value === scriptType
-        )
-    );
-
-    if (scriptNodes.length === 0) {
-      debug(`No ${scriptType} script found in morph file`);
-      return null;
-    }
-
-    if (scriptNodes.length > 1) {
-      warn(`Multiple ${scriptType} scripts found, using the first one`);
-    }
-
-    // Get the first script node
-    const scriptNode = scriptNodes[0];
-
-    // Extract text content from script node
-    const textNodes = scriptNode.childNodes.filter(
-      (node) => node.nodeName === '#text'
-    );
-    const scriptContent = textNodes.map((node) => node.value).join('');
-
-    if (!scriptContent.trim()) {
-      debug(`Empty ${scriptType} script found`);
-      return null;
-    }
-
-    // Parse helper functions from script content
-    const functions = parseHelperFunctions(scriptContent);
-
-    return {
-      code: scriptContent,
-      functions,
-      sourceLocation: {
-        file: '', // Will be set by caller
-        line: getScriptLineNumber(document, scriptNode),
-        column: 1,
-        offset: getScriptOffset(document, scriptNode),
-      },
-    };
-  } catch (error) {
-    throw createMorphError(
-      `Failed to extract ${scriptType} content: ${error.message}`,
-      '',
-      null,
-      ErrorCodes.SCRIPT_ERROR
-    );
-  }
-}
+import { Document, ScriptContent } from './types/processing.js';
 
 /**
  * Parse helper functions from script content
@@ -115,143 +52,59 @@ function parseHelperFunctions(scriptContent) {
 }
 
 /**
- * Extract function body from script content
- * @param {string} scriptContent - Full script content
- * @param {number} startIndex - Start of function body
- * @returns {string} Function body
+ * Parse helper templates from script content
+ * @param {string} scriptContent - JavaScript code
+ * @returns {Object<string,string>} Parsed helper templates
  */
-function extractFunctionBody(scriptContent, startIndex) {
-  let braceCount = 0;
-  let inString = false;
-  let stringChar = '';
-  let endIndex = startIndex;
+function parseHelperTemplates(scriptContent) {
+  const templates = {};
 
-  for (let i = startIndex; i < scriptContent.length; i++) {
-    const char = scriptContent[i];
+  try {
+    // Match const template declarations: const name = `template content`
+    const templateRegex = /(?:const|let|var)\s+(\w+)\s*=\s*`([^`]+)`/g;
+    let match;
 
-    // Handle string literals
-    if (!inString && (char === '"' || char === "'" || char === '`')) {
-      inString = true;
-      stringChar = char;
-    } else if (
-      inString &&
-      char === stringChar &&
-      scriptContent[i - 1] !== '\\'
-    ) {
-      inString = false;
+    while ((match = templateRegex.exec(scriptContent)) !== null) {
+      const templateName = match[1];
+      const templateContent = match[2];
+
+      // Remove surrounding quotes if present
+      const cleanContent = templateContent.replace(
+        /^['"]|['"](.+?)['"]$/g,
+        '$1'
+      );
+
+      templates[templateName] = cleanContent;
+      debug(`Parsed helper template: ${templateName}`);
     }
-
-    // Count braces outside of strings
-    if (!inString) {
-      if (char === '{') {
-        braceCount++;
-      } else if (char === '}') {
-        braceCount--;
-        if (braceCount === 0) {
-          endIndex = i + 1;
-          break;
-        }
-      }
-    }
+  } catch (error) {
+    warn(`Error parsing helper templates: ${error.message}`);
   }
 
-  return scriptContent.substring(startIndex, endIndex).trim();
+  return templates;
 }
 
 /**
- * Get line number of script node
- * @param {import('./types/processing.js').Document} document - Parsed document
- * @param {import('./types/processing.js').Node} scriptNode - Script node
- * @returns {number} Line number
+ * Process script content to extract both functions and templates
+ * @param {string} scriptContent - JavaScript code
+ * @returns {ScriptContent} Processed script content
  */
-function getScriptLineNumber(document, scriptNode) {
-  // This is a simplified approach
-  // In practice, you'd use the AST location information
-  const allText = documentToString(document);
-  const scriptText = nodeToString(scriptNode);
-  const scriptIndex = allText.indexOf(scriptText);
+export function processScriptContent(scriptContent) {
+  // Parse helper functions
+  const functions = parseHelperFunctions(scriptContent);
 
-  if (scriptIndex === -1) {
-    return 1;
-  }
+  // Parse helper templates
+  const templates = parseHelperTemplates(scriptContent);
 
-  return allText.substring(0, scriptIndex).split('\n').length + 1;
-}
-
-/**
- * Get offset of script node
- * @param {import('./types/processing.js').Document} document - Parsed document
- * @param {import('./types/processing.js').Node} scriptNode - Script node
- * @returns {number} Character offset
- */
-function getScriptOffset(document, scriptNode) {
-  const allText = documentToString(document);
-  const scriptText = nodeToString(scriptNode);
-
-  return allText.indexOf(scriptText);
-}
-
-/**
- * Convert document to string (simplified)
- * @param {import('./types/processing.js').Document} document - Parsed document
- * @returns {string} String representation
- */
-function documentToString(document) {
-  return document.childNodes.map((node) => nodeToString(node)).join('');
-}
-
-/**
- * Convert node to string (simplified)
- * @param {import('./types/processing.js').Node} node - AST node
- * @returns {string} String representation
- */
-function nodeToString(node) {
-  if (node.nodeName === '#text') {
-    return node.value;
-  } else if (node.nodeName === '#comment') {
-    return `<!--${node.data}-->`;
-  } else {
-    const attrs = node.attrs
-      ? node.attrs.map((attr) => `${attr.name}="${attr.value}"`).join(' ')
-      : '';
-    const childContent = node.childNodes
-      ? node.childNodes.map((child) => nodeToString(child)).join('')
-      : '';
-    return `<${node.nodeName}${attrs ? ' ' + attrs : ''}>${childContent}</${node.nodeName}>`;
-  }
-}
-
-/**
- * Validate script content
- * @param {import('./types/processing.js').ScriptContent} script - Script content
- * @returns {boolean} Whether script is valid
- */
-export function validateScriptContent(script) {
-  if (!script) {
-    return true; // No script is valid
-  }
-
-  const errors = [];
-
-  // Check for syntax issues (simplified)
-  if (script.code.includes('eval(')) {
-    errors.push('Use of eval() is not recommended in helper functions');
-  }
-
-  if (script.code.includes('Function(')) {
-    errors.push('Use of Function() constructor is not recommended');
-  }
-
-  if (
-    script.code.includes('setTimeout(') ||
-    script.code.includes('setInterval(')
-  ) {
-    errors.push('Async operations in helper functions may cause issues');
-  }
-
-  if (errors.length > 0) {
-    warn(`Script validation warnings:\n${errors.join('\n')}`);
-  }
-
-  return errors.length === 0;
+  return {
+    code: scriptContent,
+    functions,
+    templates,
+    sourceLocation: {
+      file: '', // Will be set by caller
+      line: 1,
+      column: 1,
+      offset: 0,
+    },
+  };
 }
