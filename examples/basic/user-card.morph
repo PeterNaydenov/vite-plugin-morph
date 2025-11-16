@@ -1,0 +1,97 @@
+<!-- User card component with CSS modules and global variables -->
+<div class="user-card {{size}}">
+  <img class="avatar" src="{{avatar}}" alt="{{name}}" />
+  <div class="info">
+    <h3 class="name">{{name}}</h3>
+    <p class="email">{{email}}</p>
+    <p class="bio">{{bio}}</p>
+  </div>
+</div>
+
+<script>
+function formatName(name) {
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+function truncateEmail(email) {
+  if (email.length > 20) {
+    return email.substring(0, 17) + '...';
+  }
+  return email;
+}
+</script>
+
+<style>
+.user-card {
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border, #e1e5e8);
+  border-radius: var(--card-radius, 8px);
+  padding: var(--card-padding, 1rem);
+  box-shadow: var(--card-shadow, 0 2px 4px rgba(0,0,0,0.1));
+  transition: transform 0.2s ease;
+}
+
+.user-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--card-hover-shadow, 0 4px 8px rgba(0,0,0,0.15));
+}
+
+.avatar {
+  width: var(--avatar-size, 60px);
+  height: var(--avatar-size, 60px);
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--avatar-border, #fff);
+}
+
+.info {
+  margin-left: 1rem;
+}
+
+.name {
+  margin: 0 0 0.5rem 0;
+  color: var(--name-color, #333);
+  font-weight: var(--name-weight, 600);
+}
+
+.email {
+  margin: 0 0 0.25rem 0;
+  color: var(--email-color, #666);
+  font-size: var(--email-font, 0.875rem);
+}
+
+.bio {
+  margin: 0;
+  color: var(--bio-color, #555);
+  line-height: var(--bio-line-height, 1.4);
+}
+
+/* Size variants */
+.user-card.small {
+  --avatar-size: 40px;
+  --card-padding: 0.75rem;
+}
+
+.user-card.small .name {
+  font-size: 0.875rem;
+}
+
+.user-card.large {
+  --avatar-size: 80px;
+  --card-padding: 1.5rem;
+}
+
+.user-card.large .name {
+  font-size: 1.25rem;
+}
+</style>
+
+<script type="application/json">
+{
+  "name": "John Doe",
+  "email": "john.doe@example.com",
+  "bio": "Frontend developer passionate about creating beautiful user interfaces",
+  "avatar": "/avatars/john-doe.jpg",
+  "size": "medium"
+}
+</script>

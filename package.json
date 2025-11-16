@@ -1,17 +1,61 @@
 {
-  "name": "@peter.naydenov/vite-plugin-morph",
-  "version": "0.0.0",
-  "description": "Vite plugin for morph",
+  "name": "vite-plugin-morph",
+  "version": "1.0.0",
+  "description": "Vite plugin for processing .morph files with @peter.naydenov/morph",
   "license": "MIT",
   "author": "Peter Naydenov",
   "type": "module",
-  "main": "src/main.js",
+  "main": "src/index.js",
+  "exports": {
+    ".": {
+      "import": "./src/index.js",
+      "types": "./dist/types/index.d.ts"
+    }
+  },
+  "files": [
+    "src",
+    "dist",
+    "README.md"
+  ],
   "scripts": {
-    "test": "node test/01-general.test.js"
+    "test": "vitest",
+    "test:run": "vitest run",
+    "build": "npm run build:types && npm run build:lib",
+    "build:types": "jsdoc -c jsdoc.conf.json",
+    "build:lib": "vite build",
+    "dev": "vite",
+    "lint": "eslint src --ext .js",
+    "format": "prettier --write src/**/*.js"
   },
   "dependencies": {
-    "@babel/generator": "^7.28.3",
-    "@babel/parser": "^7.28.3",
-    "@babel/traverse": "^7.28.3"
+    "@peter.naydenov/morph": "^3.1.5",
+    "parse5": "^8.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.1",
+    "jsdoc": "^4.0.2",
+    "prettier": "^3.1.0",
+    "typedoc": "^0.28.14",
+    "vite": "^7.2.2",
+    "vitest": "^4.0.9"
+  },
+  "peerDependencies": {
+    "vite": "^7.2.2"
+  },
+  "directories": {
+    "doc": "docs",
+    "example": "examples",
+    "test": "tests"
+  },
+  "keywords": [
+    "vite",
+    "plugin",
+    "morph",
+    "template",
+    "css-modules",
+    "hmr"
+  ],
+  "engines": {
+    "node": ">=16.0.0"
   }
 }

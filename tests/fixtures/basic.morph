@@ -1,0 +1,38 @@
+<!-- Basic morph file for testing -->
+<div class="container">
+  <h1>{{title}}</h1>
+  <p>{{content}}</p>
+</div>
+
+<script>
+function formatTitle(title) {
+  return title.toUpperCase();
+}
+
+function formatContent(content) {
+  return content.trim();
+}
+</script>
+
+<style>
+.container {
+  padding: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+h1 {
+  color: var(--primary-color, #007bff);
+}
+
+p {
+  color: var(--text-color, #333);
+}
+</style>
+
+<script type="application/json">
+{
+  "title": "Hello World",
+  "content": "This is a test morph file"
+}
+</script>

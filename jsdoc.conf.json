@@ -1,0 +1,14 @@
+{
+  "source": {
+    "include": ["src/**/*.js"],
+    "exclude": ["src/**/*.test.js"]
+  },
+  "opts": {
+    "destination": "./dist/types/"
+  },
+  "plugins": [
+    {
+      "name": "typedoc"
+    }
+  ]
+}
