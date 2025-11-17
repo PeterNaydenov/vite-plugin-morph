@@ -5,6 +5,12 @@ import _generate from '@babel/generator';
 const traverse = _traverse.default;
 const generate = _generate.default;
 
+/**
+ * Vite plugin for removing handshake data from morph components during build
+ * @param {Object} options - Plugin options
+ * @param {RegExp} [options.include=/\.js$/] - File pattern to include
+ * @returns {import('vite').Plugin} Vite plugin
+ */
 export default function morphPlugin(options = {}) {
   const { include = /\.js$/ } = options;
   let isBuild = false;
