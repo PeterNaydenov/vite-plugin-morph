@@ -215,25 +215,18 @@ npm run build
 ```
 
 ## Requirements
-
 - Node.js 16+
 - Vite 4.x
 - @peter.naydenov/morph v3.1.5
 
-## License
 
-MIT
 
-## Documentation
+## Links
 
 - [Quickstart Guide](./specs/001-morph-plugin/quickstart.md)
 - [Transformation Examples](./docs/morph-transformation.md)
 - [API Reference](./specs/001-morph-plugin/spec.md)
-
-## Examples
-
-See the [examples](./examples/) directory for complete component examples.
-
+- See the [examples](./examples/) directory for complete component examples.
 
 
 
