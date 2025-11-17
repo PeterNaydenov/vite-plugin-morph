@@ -15,7 +15,6 @@ export default function morphPlugin(options = {}) {
       isBuild = config.command === 'build';
     },
     transform(code, id) {
-      
       if (!isBuild) return null;
       if (!include.test(id)) return null;
 
@@ -24,7 +23,7 @@ export default function morphPlugin(options = {}) {
         let transformed = false;
 
         traverse(ast, {
-          ExportDefaultDeclaration ( path ) {
+          ExportDefaultDeclaration(path) {
             let objectExpression = null;
             // console.log ( path.node.declaration )
 
@@ -35,7 +34,11 @@ export default function morphPlugin(options = {}) {
             // Case 2: Identifier (e.g., export default contacts)
             else if (path.node.declaration.type === 'Identifier') {
               const binding = path.scope.getBinding(path.node.declaration.name);
-              if (binding && binding.path.node.type === 'VariableDeclarator' && binding.path.node.init?.type === 'ObjectExpression') {
+              if (
+                binding &&
+                binding.path.node.type === 'VariableDeclarator' &&
+                binding.path.node.init?.type === 'ObjectExpression'
+              ) {
                 objectExpression = binding.path.node.init;
               }
             }
@@ -56,13 +59,13 @@ export default function morphPlugin(options = {}) {
           },
         });
 
-        if (transformed) { 
-                const output = generate(ast, {}, code);
-                return { code: output.code, map: output.map };
-          }
+        if (transformed) {
+          const output = generate(ast, {}, code);
+          return { code: output.code, map: output.map };
+        }
       } catch (e) {
-            console.log ( e )
-            // this.error (`Error transforming ${id}: ${e.message}`);
+        // Error handling will be implemented
+        // this.error (`Error transforming ${id}: ${e.message}`);
       }
 
       return null;

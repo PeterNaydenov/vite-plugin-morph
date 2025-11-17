@@ -4,3 +4,17 @@ node_modules
 .DS_Store
 .nyc_output
 coverage
+dist/
+build/
+*.log
+.env*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.vscode/
+.idea/
+*.tmp
+*.swp
+*.swo
+*~
