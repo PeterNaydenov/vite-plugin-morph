@@ -2,7 +2,7 @@
  * Main entry point for Vite Morph Plugin
  * @fileoverview Exports the plugin function for Vite integration
  * @author Peter Naydenov
- * @version 1.0.0
+ * @version 0.0.1
  */
 
 import { createMorphPlugin } from './plugin/index.js';
