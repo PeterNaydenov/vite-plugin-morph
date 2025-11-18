@@ -96,7 +96,7 @@ function isProductionMode(options) {
   return (
     process.env.NODE_ENV === 'production' ||
     process.argv.includes('--production') ||
-    options.production?.removeHandshake
+    options.production?.removeHandshake === true
   );
 }
 

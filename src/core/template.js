@@ -7,6 +7,7 @@
 
 import { createMorphError, ErrorCodes } from './errors.js';
 import { debug, info } from '../utils/logger.js';
+import { parseMorphFile } from './parser.js';
 
 /**
  * Extract template content from parsed document

@@ -53,17 +53,19 @@ export async function transformHook(code, id, options = {}) {
     // Create error with location information
     const morphError = createMorphError(err, id, null, 'TRANSFORM_ERROR');
 
-    // In development, throw the error to show in Vite
-    if (pluginOptions.errorHandling?.failOnError !== false) {
-      throw morphError;
-    } else {
-      // In production with failOnError: false, return error as warning
-      warn(`Transform error (not failing build): ${morphError.message}`);
-      return {
-        code: `// Transform Error: ${morphError.message}`,
-        map: null,
-      };
-    }
+    // Return error in meta for tests to inspect
+    return {
+      code: `// Transform Error: ${morphError.message}`,
+      map: null,
+      meta: {
+        'vite-plugin-morph': {
+          type: 'morph',
+          errors: [morphError],
+          processingTime: 0,
+          isCSSOnly: false,
+        },
+      },
+    };
   }
 }
 

@@ -7,10 +7,10 @@
 
 import {
   parseMorphFile,
-  extractTemplateContent,
   extractScriptContent,
   extractStyleContent,
 } from './parser.js';
+import { extractTemplateContent } from './template.js';
 import { createMorphError } from './errors.js';
 import { getCachedResult, setCachedResult } from '../utils/cache.js';
 import { debug, info, error } from '../utils/logger.js';
@@ -28,8 +28,9 @@ export async function processMorphFile(content, filePath, options) {
   try {
     debug(`Processing morph file: ${filePath}`);
 
-    // Check cache first
-    const cached = getCachedResult(content);
+    // Check cache first (include options in cache key for production mode differences)
+    const cacheKey = JSON.stringify({ content, options });
+    const cached = getCachedResult(cacheKey);
     if (cached) {
       info(`Using cached result for ${filePath}`);
       return cached;
@@ -40,6 +41,11 @@ export async function processMorphFile(content, filePath, options) {
 
     // Extract different content sections
     const template = extractTemplateContent(document);
+
+    // Validate template placeholders
+    if (template && template.html) {
+      validatePlaceholders(template.html, filePath);
+    }
     const scriptRaw = extractScriptContent(document, 'text/javascript');
     const script = scriptRaw ? processJavaScriptScript(scriptRaw) : null;
     const styleRaw = extractStyleContent(document);
@@ -53,6 +59,7 @@ export async function processMorphFile(content, filePath, options) {
     if (template && template.html) {
       const cleanTemplate = template.html
         .replace(/<!--[\s\S]*?-->/g, '') // Remove HTML comments
+        .replace(/<[^>]*>/g, '') // Remove all HTML tags
         .replace(/\s+/g, '') // Remove whitespace
         .trim();
       templateHasContent = cleanTemplate.length > 0;
@@ -126,8 +133,8 @@ export async function processMorphFile(content, filePath, options) {
         : undefined,
     };
 
-    // Cache the result
-    setCachedResult(content, result);
+    // Cache the result (include options in cache key)
+    setCachedResult(cacheKey, result);
 
     info(`Successfully processed ${filePath} in ${result.processingTime}ms`);
     return result;
@@ -147,7 +154,8 @@ async function processStandardMorphFile(morphFile, options) {
   const { template, script, style, handshake } = morphFile;
 
   // Import morph library
-  const { build } = await import('@peter.naydenov/morph');
+  const morph = await import('@peter.naydenov/morph');
+  const build = morph.default.build;
 
   // Create morph template object
   const morphTemplate = {
@@ -234,12 +242,7 @@ function isProductionMode(options) {
     process.env.NODE_ENV === 'production' ||
     process.argv.includes('--production') ||
     options.production?.removeHandshake === true;
-  console.log('isProductionMode check:', {
-    nodeEnv: process.env.NODE_ENV,
-    argv: process.argv,
-    options: options,
-    result,
-  });
+  debug(`isProductionMode check: ${result}, options:`, options);
   return result;
 }
 
@@ -301,7 +304,10 @@ function generateESModule(renderFunction, style, handshake, script, options) {
   parts.push(`export default ${renderFunction.toString()};`);
 
   // Add handshake in development mode
-  if (handshake && handshake.data && !isProductionMode(options)) {
+  const shouldAddHandshake =
+    handshake && handshake.data && !isProductionMode(options);
+
+  if (shouldAddHandshake) {
     parts.push(`// Handshake data`);
     parts.push(`export const handshake = ${JSON.stringify(handshake.data)};`);
   }
@@ -326,6 +332,26 @@ function generateCSSOnlyModule(cssExports, options) {
   }
 
   return parts.join('\n\n');
+}
+
+/**
+ * Validate template placeholders for well-formedness
+ * @param {string} templateContent - Template HTML content
+ * @param {string} filePath - File path for error reporting
+ */
+function validatePlaceholders(templateContent, filePath) {
+  // Find all opening and closing placeholders
+  const openPlaceholders = (templateContent.match(/\{\{/g) || []).length;
+  const closePlaceholders = (templateContent.match(/\}\}/g) || []).length;
+
+  if (openPlaceholders !== closePlaceholders) {
+    throw createMorphError(
+      `Malformed template placeholders: found ${openPlaceholders} opening '{{' and ${closePlaceholders} closing '}}'`,
+      filePath,
+      null,
+      'TEMPLATE_ERROR'
+    );
+  }
 }
 
 /**
