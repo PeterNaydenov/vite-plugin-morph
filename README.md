@@ -1,3 +1,5 @@
+<img src="morph-head.png" alt="Morph header image"  />
+
 # @peter.naydenov/vite-plugin-morph
 
 A Vite plugin for processing `.morph` files with HTML-like syntax, CSS modules, and JavaScript helpers. Built on top of `@peter.naydenov/morph` v3.1.5.
