@@ -31,6 +31,7 @@ export async function processMorphFile(content, filePath, options) {
     // Check cache first (include options in cache key for production mode differences)
     const cacheKey = JSON.stringify({ content, options });
     const cached = getCachedResult(cacheKey);
+
     if (cached) {
       info(`Using cached result for ${filePath}`);
       return cached;
@@ -39,22 +40,23 @@ export async function processMorphFile(content, filePath, options) {
     // Parse the morph file
     const document = parseMorphFile(content);
 
-    // Extract different content sections
-    const template = extractTemplateContent(document);
+    // Extract content in order: CSS first, then JS, then check what's left for template
+    const styleRaw = extractStyleContent(document);
+    const style = styleRaw ? { css: styleRaw } : null;
+    const scriptRaw = extractScriptContent(document, 'text/javascript');
+    const script = scriptRaw ? processJavaScriptScript(scriptRaw) : null;
+    const handshakeRaw = extractScriptContent(document, 'application/json');
+    const handshake = handshakeRaw ? { data: JSON.parse(handshakeRaw) } : null;
 
+    // Extract template last - whatever is left after removing CSS, JS, and comments
+    const template = extractTemplateContent(document);
     // Validate template placeholders
     if (template && template.html) {
       validatePlaceholders(template.html, filePath);
     }
-    const scriptRaw = extractScriptContent(document, 'text/javascript');
-    const script = scriptRaw ? processJavaScriptScript(scriptRaw) : null;
-    const styleRaw = extractStyleContent(document);
-    const style = styleRaw ? { css: styleRaw } : null;
-    const handshakeRaw = extractScriptContent(document, 'application/json');
-    const handshake = handshakeRaw ? { data: JSON.parse(handshakeRaw) } : null;
 
     // Determine if this is CSS-only file
-    // Check if template contains meaningful content (not just comments/whitespace)
+    // Check if template contains meaningful content after removing comments and whitespace
     let templateHasContent = false;
     if (template && template.html) {
       const cleanTemplate = template.html

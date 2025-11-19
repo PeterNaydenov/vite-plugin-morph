@@ -245,6 +245,7 @@ function getColumnNumber(text, offset) {
  */
 function reconstructHTML(nodes) {
   return nodes
+    .filter((node) => node.nodeName !== 'script' && node.nodeName !== 'style')
     .map((node) => {
       if (node.nodeName === '#text') {
         return node.value;
