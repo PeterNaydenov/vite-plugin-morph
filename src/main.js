@@ -31,7 +31,6 @@ export default function morphPlugin(options = {}) {
         traverse(ast, {
           ExportDefaultDeclaration(path) {
             let objectExpression = null;
-            // console.log ( path.node.declaration )
 
             // Case 1: Direct ObjectExpression (e.g., export default { handshake: ... })
             if (path.node.declaration.type === 'ObjectExpression') {

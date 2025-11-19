@@ -27,7 +27,7 @@ export async function transformHook(code, id, options = {}) {
 
   try {
     debug(`Transforming .morph file: ${id}`);
-
+    
     // Process the morph file
     const result = await processMorphFile(code, id, pluginOptions);
 
