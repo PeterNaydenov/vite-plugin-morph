@@ -20,6 +20,7 @@
   "scripts": {
     "test": "vitest",
     "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "build": "npm run build:types && npm run build:lib",
     "build:types": "jsdoc -c jsdoc.conf.json",
     "build:lib": "vite build",
@@ -32,6 +33,7 @@
     "parse5": "^8.0.0"
   },
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.0.10",
     "eslint": "^9.39.1",
     "jsdoc": "^4.0.2",
     "prettier": "^3.1.0",
