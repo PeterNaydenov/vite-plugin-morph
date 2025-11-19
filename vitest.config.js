@@ -5,6 +5,17 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['tests/**/*.test.js'],
-    exclude: ['node_modules']
-  }
+    exclude: ['node_modules'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      exclude: [
+        'node_modules/',
+        'tests/',
+        'dist/',
+        '**/*.test.js',
+        '**/*.config.js',
+      ],
+    },
+  },
 });
