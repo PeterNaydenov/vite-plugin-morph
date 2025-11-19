@@ -58,9 +58,6 @@ describe('Basic Morph Processing Integration', () => {
     const outputContent = readFileSync(outputPath, 'utf8');
     expect(outputContent).toContain('export default');
     expect(outputContent).toContain('function');
-
-    console.log('Generated module preview:');
-    console.log(outputContent.substring(0, 500) + '...');
   });
 
   it('should handle morph files with helpers and handshake', async () => {
@@ -116,7 +113,6 @@ describe('Basic Morph Processing Integration', () => {
       'utf8'
     );
     const outputPath = resolve(testOutputDir, 'css-only.js');
-
     const { transformHook } = await import('../../src/plugin/hooks.js');
     const result = await transformHook(inputContent, 'css-only.morph');
 
