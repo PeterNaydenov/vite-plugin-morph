@@ -38,13 +38,9 @@ export default defineConfig({
 
 ```html
 <!-- src/components/Button.morph -->
-<button class="btn {{variant}}" data-click="{{action}}">{{text}}</button>
+<button class="btn {{variant: getVariantClass}}" data-click="{{action}}">{{text}}</button>
 
 <script>
-  function handleClick(event) {
-    console.log('Button clicked:', event);
-  }
-
   function getVariantClass(variant) {
     const variants = {
       primary: 'btn-primary',
@@ -200,6 +196,40 @@ import Button, { styles } from './components/Button.morph';
 console.log(styles.btn); // "btn_a1b2c3"
 ```
 
+## CSS-Only Morph Files
+
+For global styles and design systems, you can create CSS-only morph files:
+
+```html
+<!-- src/styles/global.morph -->
+<style>
+  :root {
+    --primary-color: #007bff;
+    --secondary-color: #6c757d;
+  }
+
+  .btn {
+    background: var(--primary-color);
+    color: white;
+    padding: 0.5rem 1rem;
+  }
+</style>
+```
+
+CSS-only files export styles without a component function:
+
+```javascript
+import { styles } from './styles/global.morph';
+
+// styles contains CSS class definitions
+// No component function is exported
+```
+
+### CSS-Only vs Component Files
+
+- **CSS-only files**: Export `export const styles`, preserve class names, used for global styles
+- **Component files**: Export `export default function`, scoped CSS, used for components
+
 ## Development
 
 ```bash
@@ -209,6 +239,9 @@ npm install
 # Run tests
 npm test
 
+# Run tests with coverage
+npm run test:coverage
+
 # Run linting
 npm run lint
 
@@ -216,27 +249,35 @@ npm run lint
 npm run build
 ```
 
+## Test Coverage
+
+The project includes comprehensive test coverage:
+
+- **68.36%** statement coverage
+- **58.11%** branch coverage
+- **66.66%** function coverage
+- **68.47%** line coverage
+
+Run `npm run test:coverage` to generate detailed HTML reports in `./coverage/`.
+
 ## Requirements
+
 - Node.js 16+
 - Vite 4.x
 - @peter.naydenov/morph v3.1.5
 
-
-
 ## Links
 
+- [CHANGELOG.md](./CHANGELOG.md) - Version history and changes
 - [Quickstart Guide](./specs/001-morph-plugin/quickstart.md)
 - [Transformation Examples](./docs/morph-transformation.md)
 - [API Reference](./specs/001-morph-plugin/spec.md)
 - See the [examples](./examples/) directory for complete component examples.
 
-
-
-
 ## Credits
+
 '@peter.naydenov/vite-plugin-morph' was created and supported by Peter Naydenov.
 
-
-
 ## License
+
 '@peter.naydenov/vite-plugin-morph' is released under the [MIT License](https://github.com/peter-naydenov/vite-plugin-morph/blob/main/LICENSE).
