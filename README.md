@@ -2,6 +2,11 @@
 
 # Morph Plugin for Vite (@peter.naydenov/vite-plugin-morph)
 
+![npm version](https://img.shields.io/npm/v/@peter.naydenov/vite-plugin-morph.svg)
+![npm license](https://img.shields.io/npm/l/@peter.naydenov/vite-plugin-morph.svg)
+![bundle size](https://img.shields.io/bundlephobia/minzip/@peter.naydenov/vite-plugin-morph.svg)
+![Morph compatibility](https://img.shields.io/badge/@peter.naydenov/morph-v3.1.5-blue)
+
 A Vite plugin for processing `.morph` files with HTML-like syntax, CSS modules, and JavaScript helpers. Built on top of `@peter.naydenov/morph` v3.1.5.
 
 ## Features
@@ -38,7 +43,9 @@ export default defineConfig({
 
 ```html
 <!-- src/components/Button.morph -->
-<button class="btn {{variant: getVariantClass}}" data-click="{{action}}">{{text}}</button>
+<button class="btn {{variant: getVariantClass}}" data-click="{{action}}">
+  {{text}}
+</button>
 
 <script>
   function getVariantClass(variant) {
@@ -186,6 +193,8 @@ export default defineConfig({
 });
 ```
 
+
+
 ## CSS Modules
 
 The plugin automatically generates CSS module exports:
@@ -196,8 +205,9 @@ import Button, { styles } from './components/Button.morph';
 console.log(styles.btn); // "btn_a1b2c3"
 ```
 
-## CSS-Only Morph Files
 
+
+## CSS-Only Morph Files
 For global styles and design systems, you can create CSS-only morph files:
 
 ```html
@@ -232,6 +242,8 @@ import { styles } from './styles/global.morph';
 
 ## Development
 
+![Node.js support](https://img.shields.io/badge/Node.js-16%2B-blue) ![Vite support](https://img.shields.io/badge/Vite-4.x-green) d
+
 ```bash
 # Install dependencies
 npm install
@@ -261,7 +273,6 @@ The project includes comprehensive test coverage:
 Run `npm run test:coverage` to generate detailed HTML reports in `./coverage/`.
 
 ## Requirements
-
 - Node.js 16+
 - Vite 4.x
 - @peter.naydenov/morph v3.1.5
@@ -279,5 +290,4 @@ Run `npm run test:coverage` to generate detailed HTML reports in `./coverage/`.
 '@peter.naydenov/vite-plugin-morph' was created and supported by Peter Naydenov.
 
 ## License
-
 '@peter.naydenov/vite-plugin-morph' is released under the [MIT License](https://github.com/peter-naydenov/vite-plugin-morph/blob/main/LICENSE).
