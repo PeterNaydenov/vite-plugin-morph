@@ -1,6 +1,9 @@
 # Morph File Transformation Examples
 
-This document shows how the plugin transforms HTML-like `.morph` files into the existing morph template object format that `@peter.naydenov/morph` expects.
+This document shows how Vite Morph Plugin transforms HTML-like `.morph` files into ES modules that work with `@peter.naydenov/morph` v3.1.5.
+
+**Version**: 0.0.2  
+**Updated**: 2025-11-19
 
 ## Current Morph Format (JavaScript)
 
@@ -8,7 +11,7 @@ The existing `component.morph` file is already a JavaScript module:
 
 ```javascript
 const contacts = {
-  template: /*template*/`
+  template: /*template*/ `
                     {{ @all : blank, ^^, >setupData }}
                     <h2>Contacts</h2>
                     <p class="space">Storage for your relation's profiles. 
@@ -40,29 +43,29 @@ const contacts = {
     tags: `<span>{{text}}</span>`,
     blank: () => '',
     setupData: function ({ data }) {
-      data.contacts.map((c, i) => { 
-        c.number = i
-        if (c.tags.length === 0) c.tags = 'No tags selected' 
-        return c
-      })
-      return data
-    }
+      data.contacts.map((c, i) => {
+        c.number = i;
+        if (c.tags.length === 0) c.tags = 'No tags selected';
+        return c;
+      });
+      return data;
+    },
   },
   handshake: {
     contacts: [
       {
         name: 'Ivan Ivanov',
         'id-contact': '3mwes!534-12-2fe-!2d1w',
-        tags: ['project1', 'man', 'brazil']
+        tags: ['project1', 'man', 'brazil'],
       },
       {
         name: 'Stoyan Lazov',
         'id-contact': '3mpes!534-14-4fm-!1214',
-        tags: ['Paris', 'man', 'french']
-      }
-    ]
-  }
-}
+        tags: ['Paris', 'man', 'french'],
+      },
+    ],
+  },
+};
 
 export default contacts;
 ```
@@ -77,14 +80,14 @@ The plugin will support this more intuitive HTML-like syntax:
   <h2>Contacts</h2>
   <p class="space">Storage for your relation's profiles.</p>
   <button data-click="nav-contacts-edit">Create a new contact</button>
-  
+
   <!-- Display contacts list -->
   {{ contacts : [], #, [], contactCards, #, [], tags }}
 </div>
 
 <script>
-function contactCards(contact) {
-  return `
+  function contactCards(contact) {
+    return `
     <div class="contact">
       <h3>${contact.name}</h3>
       <p><strong>ID Token</strong>: 
@@ -100,92 +103,93 @@ function contactCards(contact) {
       </p>
     </div>
   `;
-}
+  }
 
-function tags(text) {
-  return `<span>${text}</span>`;
-}
+  function tags(text) {
+    return `<span>${text}</span>`;
+  }
 
-function blank() {
-  return '';
-}
+  function blank() {
+    return '';
+  }
 
-function setupData({ data }) {
-  return data.contacts.map((c, i) => { 
-    c.number = i;
-    if (c.tags.length === 0) c.tags = 'No tags selected'; 
-    return c;
-  });
-}
+  function setupData({ data }) {
+    return data.contacts.map((c, i) => {
+      c.number = i;
+      if (c.tags.length === 0) c.tags = 'No tags selected';
+      return c;
+    });
+  }
 </script>
 
 <style>
-.contacts {
-  background: var(--bg-color, #f5f5f5);
-  padding: 1rem;
-  border-radius: 8px;
-}
+  .contacts {
+    background: var(--bg-color, #f5f5f5);
+    padding: 1rem;
+    border-radius: 8px;
+  }
 
-.contact {
-  border: 1px solid var(--border-color, #ddd);
-  padding: 1rem;
-  margin-bottom: 1rem;
-  border-radius: 4px;
-}
+  .contact {
+    border: 1px solid var(--border-color, #ddd);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 4px;
+  }
 
-.contact h3 {
-  margin: 0 0 0.5rem 0;
-  color: var(--text-color, #333);
-}
+  .contact h3 {
+    margin: 0 0 0.5rem 0;
+    color: var(--text-color, #333);
+  }
 
-.contact p {
-  margin: 0.5rem 0;
-}
+  .contact p {
+    margin: 0.5rem 0;
+  }
 
-.action {
-  background: var(--primary-color, #007bff);
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-  margin-right: 0.5rem;
-}
+  .action {
+    background: var(--primary-color, #007bff);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 0.5rem;
+  }
 
-.action:hover {
-  background: var(--primary-hover, #0056b3);
-}
+  .action:hover {
+    background: var(--primary-hover, #0056b3);
+  }
 
-.action.warn {
-  background: var(--danger-color, #dc3545);
-}
+  .action.warn {
+    background: var(--danger-color, #dc3545);
+  }
 
-.action.warn:hover {
-  background: var(--danger-hover, #c82333);
-}
+  .action.warn:hover {
+    background: var(--danger-hover, #c82333);
+  }
 </style>
 
 <script type="application/json">
-{
-  "contacts": [
-    {
-      "name": "Ivan Ivanov",
-      "id-contact": "3mwes!534-12-2fe-!2d1w",
-      "tags": ["project1", "man", "brazil"]
-    },
-    {
-      "name": "Stoyan Lazov",
-      "id-contact": "3mpes!534-14-4fm-!1214",
-      "tags": ["Paris", "man", "french"]
-    }
-  ]
-}
+  {
+    "contacts": [
+      {
+        "name": "Ivan Ivanov",
+        "id-contact": "3mwes!534-12-2fe-!2d1w",
+        "tags": ["project1", "man", "brazil"]
+      },
+      {
+        "name": "Stoyan Lazov",
+        "id-contact": "3mpes!534-14-4fm-!1214",
+        "tags": ["Paris", "man", "french"]
+      }
+    ]
+  }
 </script>
 ```
 
 ## Plugin Transformation Process
 
 ### Step 1: Parse HTML Structure
+
 The plugin uses `parse5` to extract content from different sections:
 
 - **Template**: Everything except `<script>` and `<style>` tags
@@ -194,6 +198,7 @@ The plugin uses `parse5` to extract content from different sections:
 - **Handshake Data**: JSON from `<script type="application/json">` tags
 
 ### Step 2: Convert to Morph Object
+
 Transform the parsed content into the format `@peter.naydenov/morph` expects:
 
 ```javascript
@@ -214,6 +219,7 @@ Transform the parsed content into the format `@peter.naydenov/morph` expects:
 ```
 
 ### Step 3: Compile with @peter.naydenov/morph
+
 Use `morph.build()` to create the render function:
 
 ```javascript
@@ -221,21 +227,24 @@ const renderFunction = morph.build(morphObject);
 ```
 
 ### Step 4: Export as ES Module
+
 Generate the final ES module:
 
 ```javascript
 import { morph } from '@peter.naydenov/morph';
 
-const morphObject = { /* converted content */ };
+const morphObject = {
+  /* converted content */
+};
 const renderFunction = morph.build(morphObject);
 
 export default renderFunction;
 
 // Also export CSS module exports if present
 export const styles = {
-  contacts: "contacts_a1b2c3",
-  contact: "contact_d4e5f6",
-  action: "action_f7g8h9"
+  contacts: 'contacts_a1b2c3',
+  contact: 'contact_d4e5f6',
+  action: 'action_f7g8h9',
 };
 ```
 
@@ -249,11 +258,53 @@ export const styles = {
 
 ## Migration Path
 
+## CSS-Only Morph Files
+
+For global styles and design systems, the plugin supports CSS-only morph files:
+
+```html
+<!-- global-styles.morph -->
+<style>
+  :root {
+    --primary-color: #007bff;
+    --secondary-color: #6c757d;
+  }
+
+  .btn {
+    background: var(--primary-color);
+    color: white;
+    padding: 0.5rem 1rem;
+  }
+</style>
+```
+
+**Transformation Result:**
+
+```javascript
+// CSS-only module - no component function
+export const styles = {
+  '.btn': {
+    /* CSS properties */
+  },
+  ':root': {
+    /* CSS variables */
+  },
+};
+```
+
+**Key Differences:**
+
+- **CSS-only files**: Export `export const styles`, preserve class names (global)
+- **Component files**: Export `export default function`, scoped CSS classes
+
+## Migration Path
+
 Existing JavaScript `.morph` files will continue to work. The plugin will:
 
 1. **Detect file type**: Check if content starts with `const`/`let`/`var` (JavaScript) vs `<` (HTML)
-2. **Handle accordingly**: 
+2. **Handle accordingly**:
    - JavaScript files: Pass through to morph.build() directly
    - HTML files: Parse and convert using the new pipeline
+   - CSS-only files: Extract styles only, no template processing
 
 This ensures backward compatibility while enabling the new HTML-like syntax.
