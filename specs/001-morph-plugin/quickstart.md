@@ -1,7 +1,7 @@
 # Vite Morph Plugin Quickstart
 
-**Version**: 1.0.0  
-**Date**: 2025-11-16  
+**Version**: 0.0.2  
+**Date**: 2025-11-19
 
 ## Overview
 
@@ -10,11 +10,11 @@ The Vite Morph Plugin processes `.morph` files and converts them to reusable ES 
 ## Installation
 
 ```bash
-npm install vite-plugin-morph --save-dev
+npm install @peter.naydenov/vite-plugin-morph --save-dev
 # or
-yarn add vite-plugin-morph --dev
+yarn add @peter.naydenov/vite-plugin-morph --dev
 # or
-pnpm add vite-plugin-morph --dev
+pnpm add @peter.naydenov/vite-plugin-morph --dev
 ```
 
 ## Basic Setup
@@ -25,12 +25,10 @@ Add the plugin to your `vite.config.js`:
 
 ```javascript
 import { defineConfig } from 'vite';
-import morphPlugin from 'vite-plugin-morph';
+import morphPlugin from '@peter.naydenov/vite-plugin-morph';
 
 export default defineConfig({
-  plugins: [
-    morphPlugin()
-  ]
+  plugins: [morphPlugin()],
 });
 ```
 
@@ -40,67 +38,65 @@ Create a file `src/components/Button.morph`:
 
 ```html
 <div class="container {{variant}}">
-  <button class="btn {{size}}" onclick="{{onClick}}">
-    {{text}}
-  </button>
+  <button class="btn {{size}}" onclick="{{onClick}}">{{text}}</button>
 </div>
 
 <script>
-function onClick(event) {
-  console.log('Button clicked:', event);
-  // Emit custom event or call parent function
-  if (window.buttonClickHandler) {
-    window.buttonClickHandler(event);
+  function onClick(event) {
+    console.log('Button clicked:', event);
+    // Emit custom event or call parent function
+    if (window.buttonClickHandler) {
+      window.buttonClickHandler(event);
+    }
   }
-}
 
-function getVariantClass(variant) {
-  const variants = {
-    primary: 'btn-primary',
-    secondary: 'btn-secondary',
-    danger: 'btn-danger'
-  };
-  return variants[variant] || variants.primary;
-}
+  function getVariantClass(variant) {
+    const variants = {
+      primary: 'btn-primary',
+      secondary: 'btn-secondary',
+      danger: 'btn-danger',
+    };
+    return variants[variant] || variants.primary;
+  }
 </script>
 
 <style>
-.container {
-  display: inline-block;
-  margin: 0.5rem;
-}
+  .container {
+    display: inline-block;
+    margin: 0.5rem;
+  }
 
-.btn {
-  padding: var(--btn-padding, 0.5rem 1rem);
-  border: none;
-  border-radius: var(--btn-radius, 4px);
-  font-family: var(--font-family, sans-serif);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
+  .btn {
+    padding: var(--btn-padding, 0.5rem 1rem);
+    border: none;
+    border-radius: var(--btn-radius, 4px);
+    font-family: var(--font-family, sans-serif);
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
 
-.btn:hover {
-  background-color: var(--btn-hover-bg, #f0f0f0);
-}
+  .btn:hover {
+    background-color: var(--btn-hover-bg, #f0f0f0);
+  }
 
-.btn.small {
-  padding: var(--btn-small-padding, 0.25rem 0.5rem);
-  font-size: var(--btn-small-font, 0.875rem);
-}
+  .btn.small {
+    padding: var(--btn-small-padding, 0.25rem 0.5rem);
+    font-size: var(--btn-small-font, 0.875rem);
+  }
 
-.btn.large {
-  padding: var(--btn-large-padding, 0.75rem 1.5rem);
-  font-size: var(--btn-large-font, 1.125rem);
-}
+  .btn.large {
+    padding: var(--btn-large-padding, 0.75rem 1.5rem);
+    font-size: var(--btn-large-font, 1.125rem);
+  }
 </style>
 
 <script type="application/json">
-{
-  "text": "Click me",
-  "variant": "primary",
-  "size": "medium",
-  "onClick": "onClick"
-}
+  {
+    "text": "Click me",
+    "variant": "primary",
+    "size": "medium",
+    "onClick": "onClick"
+  }
 </script>
 ```
 
@@ -116,10 +112,10 @@ const buttonHTML = Button();
 
 // Render with custom data
 const customButton = Button({
-  text: "Save Changes",
-  variant: "primary",
-  size: "large",
-  onClick: (event) => console.log("Save clicked:", event)
+  text: 'Save Changes',
+  variant: 'primary',
+  size: 'large',
+  onClick: (event) => console.log('Save clicked:', event),
 });
 
 // Add to DOM
@@ -149,7 +145,7 @@ Configure the plugin to use global variables:
 
 ```javascript
 import { defineConfig } from 'vite';
-import morphPlugin from 'vite-plugin-morph';
+import morphPlugin from '@peter.naydenov/vite-plugin-morph';
 
 export default defineConfig({
   plugins: [
@@ -157,10 +153,10 @@ export default defineConfig({
       globalCSS: {
         directory: 'src/styles',
         include: ['**/*.css'],
-        exclude: ['**/*.min.css']
-      }
-    })
-  ]
+        exclude: ['**/*.min.css'],
+      },
+    }),
+  ],
 });
 ```
 
@@ -170,26 +166,26 @@ Configure production settings:
 
 ```javascript
 import { defineConfig } from 'vite';
-import morphPlugin from 'vite-plugin-morph';
+import morphPlugin from '@peter.naydenov/vite-plugin-morph';
 
 export default defineConfig({
   plugins: [
     morphPlugin({
       production: {
-        removeHandshake: true,  // Remove JSON handshake data
-        minifyCSS: true         // Minify generated CSS
+        removeHandshake: true, // Remove JSON handshake data
+        minifyCSS: true, // Minify generated CSS
       },
       development: {
-        sourceMaps: true,        // Include source maps
-        hmr: true               // Enable hot module replacement
+        sourceMaps: true, // Include source maps
+        hmr: true, // Enable hot module replacement
       },
       errorHandling: {
-        failOnError: true,      // Fail build on errors
-        showLocation: true,      // Show error locations
-        maxErrors: 10           // Max errors to report
-      }
-    })
-  ]
+        failOnError: true, // Fail build on errors
+        showLocation: true, // Show error locations
+        maxErrors: 10, // Max errors to report
+      },
+    }),
+  ],
 });
 ```
 
@@ -309,7 +305,7 @@ During development, changes to `.morph` files trigger automatic updates:
 import Button from './components/Button.morph';
 
 // HMR preserves component state
-let currentData = { text: "Initial" };
+let currentData = { text: 'Initial' };
 
 setInterval(() => {
   currentData.text = `Updated at ${new Date().toLocaleTimeString()}`;
@@ -366,13 +362,13 @@ src/
   --color-primary: #007bff;
   --color-secondary: #6c757d;
   --color-success: #28a745;
-  
+
   /* Spacing */
   --spacing-xs: 0.25rem;
   --spacing-sm: 0.5rem;
   --spacing-md: 1rem;
   --spacing-lg: 1.5rem;
-  
+
   /* Typography */
   --font-size-sm: 0.875rem;
   --font-size-base: 1rem;
@@ -462,15 +458,15 @@ Enable debug logging:
 
 ```javascript
 import { defineConfig } from 'vite';
-import morphPlugin from 'vite-plugin-morph';
+import morphPlugin from '@peter.naydenov/vite-plugin-morph';
 
 export default defineConfig({
   plugins: [
     morphPlugin({
       // Enable debug logging
-      debug: true
-    })
-  ]
+      debug: true,
+    }),
+  ],
 });
 ```
 
@@ -483,6 +479,6 @@ export default defineConfig({
 
 ## Support
 
-- GitHub Issues: [vite-plugin-morph issues](https://github.com/your-repo/vite-plugin-morph/issues)
+- GitHub Issues: [@peter.naydenov/vite-plugin-morph issues](https://github.com/peter-naydenov/vite-plugin-morph/issues)
 - Documentation: [Full API documentation](./docs/api.md)
 - Examples: [Example projects](./examples/)

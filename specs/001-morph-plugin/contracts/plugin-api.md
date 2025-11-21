@@ -62,9 +62,7 @@
 ```typescript
 interface LoadHook {
   // Load virtual modules for CSS and helper functions
-  load(
-    id: string
-  ): Promise<LoadResult> | LoadResult | null;
+  load(id: string): Promise<LoadResult> | LoadResult | null;
 }
 
 interface LoadResult {
@@ -84,9 +82,7 @@ interface LoadResult {
 ```typescript
 interface HandleHotUpdateHook {
   // Handle .morph file changes for HMR
-  handleHotUpdate(
-    context: HmrContext
-  ): Promise<HmrResult> | HmrResult | null;
+  handleHotUpdate(context: HmrContext): Promise<HmrResult> | HmrResult | null;
 }
 
 interface HmrContext {
@@ -357,7 +353,7 @@ interface FormattedError {
 ```typescript
 interface MorphPlugin extends Plugin {
   // Plugin name
-  name: 'vite-plugin-morph';
+  name: 'vite-plugin-morph'; // Internal name, package is @peter.naydenov/vite-plugin-morph
   // Plugin configuration
   options: MorphPluginOptions;
   // Plugin hooks
