@@ -39,6 +39,24 @@ export default defineConfig({
 });
 ```
 
+### 2. VS Code Extension
+
+For the best development experience with `.morph` files, install the **Morph Template Syntax Highlighter** extension:
+
+- **Extension Name**: `PeterNaydenov.morph-template-syntax-highlighting`
+- **Marketplace Link**: https://marketplace.visualstudio.com/items?itemName=PeterNaydenov.morph-template-syntax-highlighting
+- **Features**:
+  - 🎨 Full syntax highlighting for `.morph` files
+  - 📦 HTML-like template support
+  - 🎯 JavaScript helper function highlighting
+  - 🎭 CSS style section support
+  - 📋 JSON handshake data highlighting
+  - 🔧 Auto-completion for morph syntax
+  - 🚀 Error checking and validation
+  - 🌙 Dark/light theme support
+
+This extension provides **professional editing experience** with syntax highlighting, IntelliSense, and real-time error detection for your `.morph` files.
+
 ### 2. Create a Morph Component
 
 ```html
@@ -193,8 +211,6 @@ export default defineConfig({
 });
 ```
 
-
-
 ## CSS Modules
 
 The plugin automatically generates CSS module exports:
@@ -205,9 +221,8 @@ import Button, { styles } from './components/Button.morph';
 console.log(styles.btn); // "btn_a1b2c3"
 ```
 
-
-
 ## CSS-Only Morph Files
+
 For global styles and design systems, you can create CSS-only morph files:
 
 ```html
@@ -273,6 +288,7 @@ The project includes comprehensive test coverage:
 Run `npm run test:coverage` to generate detailed HTML reports in `./coverage/`.
 
 ## Requirements
+
 - Node.js 16+
 - Vite 4.x
 - @peter.naydenov/morph v3.1.5
@@ -290,4 +306,5 @@ Run `npm run test:coverage` to generate detailed HTML reports in `./coverage/`.
 '@peter.naydenov/vite-plugin-morph' was created and supported by Peter Naydenov.
 
 ## License
+
 '@peter.naydenov/vite-plugin-morph' is released under the [MIT License](https://github.com/peter-naydenov/vite-plugin-morph/blob/main/LICENSE).
