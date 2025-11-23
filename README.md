@@ -127,8 +127,8 @@ A `.morph` file contains four main sections:
 <div class="card">
   <h2>{{title : formatTitle}}</h2>
   <p>{{description : truncate}}</p>
+  {{ items : ul, [], renderItem }}
   <button data-click="save">Save</button>
-  {{items : [], #, [], renderItem}}
 </div>
 ```
 
@@ -136,35 +136,38 @@ A `.morph` file contains four main sections:
 
 ```javascript
 <script>
-function formatTitle(title) {
-  return title.toUpperCase();
-}
+function formatTitle({data}) {
+      return data.toUpperCase();
+  }
 
-function truncate(text, length = 100) {
-  return text.length > length ? text.substring(0, length) + '...' : text;
-}
+function truncate({data}) {
+      const length = 100;
+      return data.length > length ? data.substring(0, length) + '...' : data;
+  }
 
 function renderItem(item) {
-  return `<li>${item.name}</li>`;
-}
+      return `<li>${item.name}</li>`;
+  }
 
-function save(event) {
-  console.log('Saving data...');
-}
+const ul = `<ul>{{text}}</ul>`;
 </script>
 ```
+
+
 
 ### Style (CSS)
 
 ```css
 <style>
 .card {
-  background: var(--card-bg, #fff);
-  padding: 1rem;
-  border-radius: 8px;
-}
+        background: var(--card-bg, #fff);
+        padding: 1rem;
+        border-radius: 8px;
+    }
 </style>
 ```
+
+
 
 ### Handshake (JSON)
 
@@ -173,7 +176,11 @@ function save(event) {
 {
   "title": "Card Title",
   "description": "Card description",
-  "items": []
+  "items": [
+              { "name": "Item 1" },
+              { "name": "Item 2" },
+              { "name": "Item 3" }
+          ]
 }
 </script>
 ```
@@ -211,6 +218,8 @@ export default defineConfig({
 });
 ```
 
+
+
 ## CSS Modules
 
 The plugin automatically generates CSS module exports:
@@ -220,6 +229,8 @@ import Button, { styles } from './components/Button.morph';
 
 console.log(styles.btn); // "btn_a1b2c3"
 ```
+
+
 
 ## CSS-Only Morph Files
 
