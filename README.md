@@ -311,11 +311,15 @@ Run `npm run test:coverage` to generate detailed HTML reports in `./coverage/`.
 - [Transformation Examples](./docs/morph-transformation.md)
 - [API Reference](./specs/001-morph-plugin/spec.md)
 - See the [examples](./examples/) directory for complete component examples.
+- [Morph Documentation](https://github.com/peter-naydenov/morph)
+- [Morph vscode extension](https://marketplace.visualstudio.com/items?itemName=peter-naydenov.morph)
+
+
+
 
 ## Credits
-
 '@peter.naydenov/vite-plugin-morph' was created and supported by Peter Naydenov.
 
-## License
 
+## License
 '@peter.naydenov/vite-plugin-morph' is released under the [MIT License](https://github.com/peter-naydenov/vite-plugin-morph/blob/main/LICENSE).
