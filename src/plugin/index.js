@@ -119,7 +119,7 @@ async function handleMorphHMR(context, options) {
  */
 function validatePluginConfig(options, config) {
   // This will be implemented in plugin/config.js
-  import('./plugin/config.js').then(({ validateConfig }) => {
+  import('./config.js').then(({ validateConfig }) => {
     validateConfig(options, config);
   });
 }
