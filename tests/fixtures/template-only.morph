@@ -1,0 +1,38 @@
+<!-- Template-only morph file without placeholders -->
+<div class="static-content">
+  <h1>Welcome to Our Website</h1>
+  <p>This is a static template with no dynamic placeholders.</p>
+  <button>Click Me</button>
+</div>
+
+<style>
+.static-content {
+  padding: 2rem;
+  text-align: center;
+  background: #f5f5f5;
+  border-radius: 8px;
+}
+
+h1 {
+  color: #333;
+  margin-bottom: 1rem;
+}
+
+p {
+  color: #666;
+  margin-bottom: 1.5rem;
+}
+
+button {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #0056b3;
+}
+</style>

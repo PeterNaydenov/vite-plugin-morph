@@ -18,18 +18,15 @@ import { debug, info, warn, error } from '../utils/logger.js';
  */
 export async function transformHook(code, id, options = {}) {
   // Only process .morph files
-  if (!id.endsWith('.morph')) {
-    return null;
-  }
+  if (!id.endsWith('.morph'))  return null
+  
 
   // Get plugin options from Vite config
   const pluginOptions = getPluginOptions(options);
 
   try {
-    debug(`Transforming .morph file: ${id}`);
-    
     // Process the morph file
-    const result = await processMorphFile(code, id, pluginOptions);
+    const result = await processMorphFile ( code, id, pluginOptions );
 
     // Create transform result
     const transformResult = {

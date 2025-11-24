@@ -1,0 +1,69 @@
+<h2 class="space">Tokens</h2>
+
+<h3>ID token</h3>
+<p class="small-space">ID token is a way to share your identity with other users of system</p>
+<p class="props"> <span><strong>ID Token</strong></span> <button class="action" data-click="copyID">Copy</button></p>
+<p class="space props-text"> 
+    <textarea id="id-token" readonly="">eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJPbmxpbmUgSldUIEJ1aWxkZXIiLCJpYXQiOjE3NTQ5MTY3MzQsImV4cCI6bnVsbCwiYXVkIjoiYmFjay1mb3JtYXRpb24ubmV0Iiwic3ViIjoic29tZW9uZUBleGFtcGxlLmNvbSIsIk5hbWUiOiJKb2hubnkiLCJTdXJuYW1lIjoiUm9ja2V0IiwiRW1haWwiOiJzb21lb25lQGV4YW1wbGUuY29tIn0.bxzPi4HRLN065is0SxvcJGSXfsZ07WOzXrflKn9TKgI</textarea>
+</p>
+
+<h3>My tokens</h3>
+<p class="small-space">Share with other users. Give them access to your projects and resources.</p>
+<table class="space">
+    <tr>
+        <th>Project</th>
+        <th>Role</th>
+        <th>ID</th> 
+        <th>Security</th>
+        <th>Expires</th>
+    </tr>
+    <tr data-click="details-3s76" data-project='8502-52034-2434-4334' data-hover="mmm">
+        <td>Dev for asterixwroks</td>
+        <td>Dev</td>
+        <td>***3s76</td>
+        <td>Insecure</td>
+        <td>-- -- --</td>
+    </tr>
+    <tr data-click="details-7d12" data-project='8502-52034-5555-4312'>
+        <td>Big data project</td>                    
+        <td>catalog:editor</td>
+        <td>***7d12</td>
+        <td>Secure</td>
+        <td>29 Dec 2028</td>
+    </tr>
+    <tr data-click="details-42d1" data-project='8502-52034-7777-4366'>
+        <td>asterixworks.com</td>
+        <td>control:admin</td>
+        <td>***42d1</td>
+        <td>Secure</td>
+        <td>-- -- --</td>
+    </tr>
+</table>
+
+<button class="space" data-click="createToken">Create access token</button>
+
+<h3>Shared tokens</h3>
+<p class="small-space">Assigned to you tokens by other users. Use them to access projects and resources that are not owned by you.</p>
+<p class="small-space">Some isecure tokens shared with you may not listed here. System can track only assignments of the tokens. </p>
+<table class="space">
+    <tr>
+        <th>Project</th>
+        <th>Type</th>
+        <th>Role</th>
+    </tr>
+    <tr data-click="details-5532" data-project='8502-52034-4488-9050'>
+        <td>Dev for asterixwroks</td>
+        <td>dev</td>
+        <td>Dev</td>
+    </tr>
+    <tr data-click="details-7772" data-project='8502-52034-5555-4312'>
+        <td>Big data project</td>
+        <td>catalog</td>
+        <td>Admin</td>
+    </tr>
+    <tr data-click="details-1212" data-project='8502-52034-2434-6614'>
+        <td>asterixworks.com</td>
+        <td>fe</td>
+        <td>Admin</td>
+    </tr>
+</table>

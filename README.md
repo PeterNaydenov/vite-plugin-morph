@@ -7,7 +7,7 @@
 ![bundle size](https://img.shields.io/bundlephobia/minzip/@peter.naydenov/vite-plugin-morph.svg)
 ![Morph compatibility](https://img.shields.io/badge/@peter.naydenov/morph-v3.1.5-blue)
 
-*** WORK IN PROGRESS - DO NOT USE ***
+**_ WORK IN PROGRESS - DO NOT USE _**
 
 A Vite plugin for processing `.morph` files with HTML-like syntax, CSS modules, and JavaScript helpers. Built on top of `@peter.naydenov/morph` v3.1.5.
 
@@ -63,9 +63,7 @@ This extension provides **professional editing experience** with syntax highligh
 
 ```html
 <!-- src/components/Button.morph -->
-<button class="btn {{variant: getVariantClass}}" data-click="{{action}}">
-  {{text}}
-</button>
+<button class="btn {{variant}}" data-click="{{action}}">{{text}}</button>
 
 <script>
   function getVariantClass(variant) {
@@ -106,11 +104,8 @@ This extension provides **professional editing experience** with syntax highligh
 ```javascript
 import Button, { styles } from './components/Button.morph';
 
-// Render with demo/handshake data
-const buttonHTML = Button('render', 'demo');
-
 // Render with custom data
-const customButton = Button('render', {
+const customButton = Button({
   text: 'Save Changes',
   variant: 'primary',
   action: 'handleClick',
@@ -127,9 +122,9 @@ A `.morph` file contains four main sections:
 
 ```html
 <div class="card">
-  <h2>{{title : formatTitle}}</h2>
-  <p>{{description : truncate}}</p>
-  {{ items : ul, [], renderItem }}
+  <h2>{{title}}</h2>
+  <p>{{description}}</p>
+  {{ items : [], renderItem }}
   <button data-click="save">Save</button>
 </div>
 ```
@@ -150,12 +145,8 @@ function truncate({data}) {
 function renderItem(item) {
       return `<li>${item.name}</li>`;
   }
-
-const ul = `<ul>{{text}}</ul>`;
 </script>
 ```
-
-
 
 ### Style (CSS)
 
@@ -168,8 +159,6 @@ const ul = `<ul>{{text}}</ul>`;
     }
 </style>
 ```
-
-
 
 ### Handshake (JSON)
 
@@ -220,8 +209,6 @@ export default defineConfig({
 });
 ```
 
-
-
 ## CSS Modules
 
 The plugin automatically generates CSS module exports:
@@ -231,8 +218,6 @@ import Button, { styles } from './components/Button.morph';
 
 console.log(styles.btn); // "btn_a1b2c3"
 ```
-
-
 
 ## CSS-Only Morph Files
 
@@ -316,12 +301,10 @@ Run `npm run test:coverage` to generate detailed HTML reports in `./coverage/`.
 - [Morph Documentation](https://github.com/peter-naydenov/morph)
 - [Morph vscode extension](https://marketplace.visualstudio.com/items?itemName=peter-naydenov.morph)
 
-
-
-
 ## Credits
+
 '@peter.naydenov/vite-plugin-morph' was created and supported by Peter Naydenov.
 
-
 ## License
+
 '@peter.naydenov/vite-plugin-morph' is released under the [MIT License](https://github.com/peter-naydenov/vite-plugin-morph/blob/main/LICENSE).

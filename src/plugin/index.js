@@ -7,7 +7,7 @@
 
 /**
  * Create Vite plugin for morph file processing
- * @param {import('./types/plugin.js').MorphPluginOptions} options - Plugin configuration
+ * @param {import('../types/index.js').MorphPluginOptions} options - Plugin configuration
  * @returns {import('vite').Plugin} Vite plugin instance
  */
 export function createMorphPlugin(options = {}) {
@@ -17,7 +17,7 @@ export function createMorphPlugin(options = {}) {
     name: 'vite-plugin-morph',
 
     // Handle .morph file transformation
-    async transform(code, id) {
+    async transform ( code, id ) {
       if (!id.endsWith('.morph')) {
         return null;
       }
@@ -59,8 +59,8 @@ export function createMorphPlugin(options = {}) {
 
 /**
  * Resolve and validate plugin options
- * @param {import('./types/plugin.js').MorphPluginOptions} options - Raw options
- * @returns {import('./types/plugin.js').MorphPluginOptions} Resolved options
+ * @param {import('../types/index.js').MorphPluginOptions} options - Raw options
+ * @returns {import('../types/index.js').MorphPluginOptions} Resolved options
  */
 function resolveOptions(options) {
   const defaults = {
@@ -91,30 +91,30 @@ function resolveOptions(options) {
  * Process a morph file and return compiled result
  * @param {string} code - File content
  * @param {string} id - File path
- * @param {import('./types/plugin.js').MorphPluginOptions} options - Plugin options
- * @returns {Promise<import('./types/processing.js').ProcessingResult>} Processing result
+ * @param {import('../types/index.js').MorphPluginOptions} options - Plugin options
+ * @returns {Promise<import('../core/types/processing.js').ProcessingResult>} Processing result
  */
 async function processMorphFile(code, id, options) {
   // This will be implemented in core/processor.js
-  const { processMorphFile } = await import('./core/processor.js');
+  const { processMorphFile } = await import('../core/processor.js');
   return processMorphFile(code, id, options);
 }
 
 /**
  * Handle hot module replacement for morph files
  * @param {import('vite').HmrContext} context - HMR context
- * @param {import('./types/plugin.js').MorphPluginOptions} options - Plugin options
+ * @param {import('../types/index.js').MorphPluginOptions} options - Plugin options
  * @returns {Promise<import('vite').HmrResult>} HMR result
  */
 async function handleMorphHMR(context, options) {
   // This will be implemented in plugin/hmr.js
-  const { handleMorphHMR } = await import('./plugin/hmr.js');
+  const { handleMorphHMR } = await import('./hmr.js');
   return handleMorphHMR(context, options);
 }
 
 /**
  * Validate plugin configuration
- * @param {import('./types/plugin.js').MorphPluginOptions} options - Plugin options
+ * @param {import('../types/index.js').MorphPluginOptions} options - Plugin options
  * @param {import('vite').ResolvedConfig} config - Vite config
  */
 function validatePluginConfig(options, config) {
@@ -128,11 +128,11 @@ function validatePluginConfig(options, config) {
  * Create morph error with location information
  * @param {Error} error - Original error
  * @param {string} filePath - File path
- * @returns {import('./types/processing.js').MorphPluginError} Enhanced error
+ * @returns {import('../core/types/processing.js').MorphPluginError} Enhanced error
  */
 async function createMorphError(error, filePath) {
   // This will be implemented in core/errors.js
-  const { createMorphError } = await import('./core/errors.js');
+  const { createMorphError } = await import('../core/errors.js');
   return createMorphError(error, filePath);
 }
 

@@ -28,12 +28,10 @@ export async function compileTemplate(
     debug('Compiling morph template');
 
     // Import morph library
-    const { build } = await import('@peter.naydenov/morph');
+    const morph = (await import('@peter.naydenov/morph')).default;
 
     // Create morph template object
-    const morphTemplate = {
-      template: template.html,
-    };
+    const morphTemplate = { template: template.html };
 
     // Add helper functions if present
     if (script && script.functions) {
@@ -46,17 +44,14 @@ export async function compileTemplate(
     }
 
     // Add handshake if included in options
-    if (options.includeHandshake && handshake && handshake.data) {
+    if (options.includeHandshake && handshake && handshake.data)
       morphTemplate.handshake = handshake.data;
-    }
 
-    // Set build dependencies if provided
-    const buildDependencies = options.buildDependencies || {};
-
-    // Compile the template
-    const extra = options.extra !== false; // Default to true
-    const renderFunction = build(morphTemplate, extra, buildDependencies);
-
+    // Compile the template with safe dependencies
+    const buildResult = morph.build(morphTemplate);
+    const renderFunction = Array.isArray(buildResult)
+      ? buildResult[1]
+      : buildResult;
     const compilationTime = Date.now() - startTime;
     const sourceCode = generateFunctionSource(renderFunction, options);
 
@@ -116,11 +111,12 @@ function validateHelperFunction(name, func) {
  * @param {import('./types/processing.js').CompilationOptions} options - Compilation options
  * @returns {string} Function source code
  */
-function generateFunctionSource(renderFunction, options) {
-  let sourceCode = renderFunction.toString();
+function generateFunctionSource ( renderFunction, options ) {
+  // Import morph utilities and create wrapper function
+  let sourceCode  =`export default ${renderFunction.toString()};\n`;
 
   // Add source map comment if enabled
-  if (options.sourceMaps) {
+  if ( options.sourceMaps ) {
     sourceCode = `//# sourceMappingURL=data:application/json;base64,${btoa(
       JSON.stringify({
         version: 3,

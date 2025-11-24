@@ -67,7 +67,8 @@ export async function compileTemplate(
     debug('Compiling morph template');
 
     // Import morph library
-    const { build } = await import('@peter.naydenov/morph');
+    const morph = await import('@peter.naydenov/morph');
+    const { build } = morph.default;
 
     // Create morph template object
     const morphTemplate = {
@@ -88,13 +89,12 @@ export async function compileTemplate(
     if (options.includeHandshake && handshake && handshake.data) {
       morphTemplate.handshake = handshake.data;
     }
-
-    // Compile the template
-    const renderFunction = build(
-      morphTemplate,
-      options.extra,
-      options.buildDependencies
-    );
+   
+    // Compile the template with safe dependencies
+    const buildResult = build(morphTemplate, true );
+    const renderFunction = Array.isArray(buildResult)
+      ? buildResult[1]
+      : buildResult;
 
     // Generate source code
     const sourceCode = generateFunctionSource(renderFunction, options);
@@ -194,20 +194,20 @@ function validateHelperFunction(name, func) {
  * @returns {string} Function source code
  */
 function generateFunctionSource(renderFunction, options) {
-  let sourceCode = renderFunction.toString();
+  // Import morph utilities and create wrapper function
+  let sourceCode = `export default ${renderFunction.toString()};\n`;
 
   // Add source map comment if enabled
   if (options.sourceMaps) {
-    sourceCode = `//# sourceMappingURL=data:application/json;base64,${btoa(
-      JSON.stringify({
-        version: 3,
-        file: 'template.js',
-        sourceRoot: '',
-        sources: ['template.morph'],
-        names: [],
-        mappings: '',
-      })
-    )}\n${sourceCode}`;
+    const sourceMapData = JSON.stringify({
+      version: 3,
+      file: 'template.js',
+      sourceRoot: '',
+      sources: ['template.morph'],
+      names: [],
+      mappings: '',
+    });
+    sourceCode = `//# sourceMappingURL=data:application/json;base64,${btoa(sourceMapData)}\n${sourceCode}`;
   }
 
   return sourceCode;

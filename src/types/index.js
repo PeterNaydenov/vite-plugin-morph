@@ -176,12 +176,50 @@
  */
 
 /**
- * Compilation metadata
+ * Template compilation metadata
  * @typedef {Object} CompilationMetadata
  * @property {number} compilationTime - Compilation time in milliseconds
  * @property {number} size - Function size in bytes
  * @property {boolean} handshakeIncluded - Handshake included
  * @property {string[]} helperFunctions - Helper functions used
+ */
+
+/**
+ * Morph file object representation
+ * @typedef {Object} MorphFile
+ * @property {string} filePath - File path
+ * @property {string} content - Raw file content
+ * @property {Document} ast - Parsed HTML document
+ * @property {TemplateContent} template - Extracted template content
+ * @property {ScriptContent} [script] - Extracted script content
+ * @property {StyleContent} [style] - Extracted style content
+ * @property {HandshakeContent} [handshake] - Extracted handshake content
+ * @property {boolean} isCSSOnly - True if this is CSS-only file
+ * @property {Object} metadata - File metadata
+ * @property {number} metadata.lastModified - Last modified timestamp
+ * @property {number} metadata.processedAt - Processing timestamp
+ * @property {string} metadata.hash - Content hash
+ * @property {string[]} metadata.dependencies - File dependencies
+ * @property {string[]} metadata.dependents - File dependents
+ */
+
+/**
+ * Style content extraction result
+ * @typedef {Object} StyleContent
+ * @property {string} css - Raw CSS content
+ * @property {Record<string,string>} [scopedClasses] - Generated scoped class names
+ */
+
+/**
+ * Handshake content extraction result
+ * @typedef {Object} HandshakeContent
+ * @property {Object} data - Parsed JSON handshake data
+ */
+
+/**
+ * Template content extraction result
+ * @typedef {Object} TemplateContent
+ * @property {string} html - Extracted HTML template
  */
 
 // Types are available through JSDoc typedefs above

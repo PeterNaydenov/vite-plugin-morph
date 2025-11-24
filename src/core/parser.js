@@ -84,7 +84,7 @@ export function extractScriptContent(document, scriptType) {
   }
 
   return scriptTextNodes.map((node) => node.value).join('');
-}
+} // extractScriptContent func.
 
 /**
  * Extract content from style tags

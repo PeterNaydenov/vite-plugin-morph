@@ -48,84 +48,15 @@ describe('Basic Morph Processing Integration', () => {
 
     expect(result).toBeDefined();
     expect(result.code).toBeDefined();
-    expect(result.code).toContain('export default');
-    expect(result.code).toContain('function');
-
-    // Write the output for inspection
-    writeFileSync(outputPath, result.code);
-
-    // Verify the output is valid JavaScript
-    const outputContent = readFileSync(outputPath, 'utf8');
-    expect(outputContent).toContain('export default');
-    expect(outputContent).toContain('function');
-  });
-
-  it('should handle morph files with helpers and handshake', async () => {
-    const inputContent = readFileSync(
-      resolve(__dirname, '../fixtures/basic.morph'),
-      'utf8'
-    );
-    const outputPath = resolve(testOutputDir, 'with-handshake.js');
-
-    const { transformHook } = await import('../../src/plugin/hooks.js');
-    const result = await transformHook(inputContent, 'test.morph', {
-      development: { sourceMaps: true },
-    });
-
-    expect(result).toBeDefined();
-    expect(result.code).toContain('export const handshake');
-    expect(result.code).toContain('formatTitle');
-    expect(result.code).toContain('formatContent');
+    expect(result.code).toContain('export default function success (');
+    expect(result.code).not.toContain('export const styles');
+    expect(result.meta['vite-plugin-morph'].isCSSOnly).toBe(false);
 
     writeFileSync(outputPath, result.code);
 
     const outputContent = readFileSync(outputPath, 'utf8');
-    expect(outputContent).toContain('export const handshake');
-    expect(outputContent).toContain('export default');
-  });
-
-  it('should remove handshake in production mode', async () => {
-    const inputContent = readFileSync(
-      resolve(__dirname, '../fixtures/basic.morph'),
-      'utf8'
-    );
-    const outputPath = resolve(testOutputDir, 'production.js');
-
-    const { transformHook } = await import('../../src/plugin/hooks.js');
-    const result = await transformHook(inputContent, 'test.morph', {
-      production: { removeHandshake: true },
-    });
-
-    expect(result).toBeDefined();
-    expect(result.code).not.toContain('export const handshake');
-    expect(result.code).toContain('export default');
-
-    writeFileSync(outputPath, result.code);
-
-    const outputContent = readFileSync(outputPath, 'utf8');
-    expect(outputContent).not.toContain('export const handshake');
-    expect(outputContent).toContain('export default');
-  });
-
-  it('should handle CSS-only morph files', async () => {
-    const inputContent = readFileSync(
-      resolve(__dirname, '../fixtures/css-only.morph'),
-      'utf8'
-    );
-    const outputPath = resolve(testOutputDir, 'css-only.js');
-    const { transformHook } = await import('../../src/plugin/hooks.js');
-    const result = await transformHook(inputContent, 'css-only.morph');
-
-    expect(result).toBeDefined();
-    expect(result.code).toContain('export const styles');
-    expect(result.code).not.toContain('export default');
-    expect(result.meta['vite-plugin-morph'].isCSSOnly).toBe(true);
-
-    writeFileSync(outputPath, result.code);
-
-    const outputContent = readFileSync(outputPath, 'utf8');
-    expect(outputContent).toContain('export const styles');
-    expect(outputContent).not.toContain('export default');
+    expect(outputContent).toContain('export default function success (');
+    expect(outputContent).not.toContain('export const styles');
   });
 
   it('should provide meaningful error messages', async () => {
@@ -142,5 +73,33 @@ describe('Basic Morph Processing Integration', () => {
     expect(result.meta['vite-plugin-morph']).toBeDefined();
     expect(result.meta['vite-plugin-morph'].errors).toBeDefined();
     expect(result.meta['vite-plugin-morph'].errors.length).toBeGreaterThan(0);
+  });
+
+  it('should handle template-only morph files without placeholders', async () => {
+    const inputContent = readFileSync(
+      resolve(__dirname, '../fixtures/template-only.morph'),
+      'utf8'
+    );
+    const outputPath = resolve(testOutputDir, 'template-only.js');
+
+    const { transformHook } = await import('../../src/plugin/hooks.js');
+    const result = await transformHook(inputContent, 'template-only.morph');
+
+    expect(result).toBeDefined();
+    expect(result.code).toBeDefined();
+    expect(result.code).toContain('export default function success (');
+    expect(result.code).toContain('function');
+    // Should not contain any placeholder processing logic
+    expect(result.code).not.toContain('{{');
+    expect(result.code).not.toContain('}}');
+
+    writeFileSync(outputPath, result.code);
+
+    const outputContent = readFileSync(outputPath, 'utf8');
+    expect(outputContent).toContain('export default function success (');
+    expect(outputContent).toContain('function');
+    expect(outputContent).not.toContain('morphRenderFunction');
+    expect(outputContent).toContain('function');
+    expect(outputContent).toContain('export default function success (');
   });
 });

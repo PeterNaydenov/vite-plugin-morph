@@ -8,9 +8,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-// Note: In a real test environment, you'd import from the built package
-// For now, we'll skip the processor test until we fix import issues
-// import { processMorphFile } from '../src/core/processor.js';
+
+import { processMorphFile } from '../../src/core/processor.js';
 
 describe('User Story 1 - Basic Morph File Processing', () => {
   describe('Template Processing', () => {
@@ -21,20 +20,20 @@ describe('User Story 1 - Basic Morph File Processing', () => {
       );
 
       // Note: Skipping processor test until import issues are resolved
-      // const result = await processMorphFile(content, 'test.morph', {});
+      const result = await processMorphFile(content, 'test.morph', {});
 
       // Basic validation that the file has expected structure
       expect(content).toContain('<div class="container">');
       expect(content).toContain('{{title}}');
       expect(content).toContain('<script>');
       expect(content).toContain('<style>');
-    });
+    }); // it
 
     it('should handle morph files with placeholders', async () => {
       const content = `
-                  <div>{{title}}</div>
-                  <p>{{content}}</p>
-                `;
+                          <div>{{title}}</div>
+                          <p>{{content}}</p>
+                        `;
 
       // Note: Skipping processor test until import issues are resolved
       // const result = await processMorphFile(content, 'test.morph', {});
@@ -46,56 +45,55 @@ describe('User Story 1 - Basic Morph File Processing', () => {
 
     it('should extract helper functions from script tags', async () => {
       const content = `
-                  <div>{{message}}</div>
-                  <script>
-                    function greet(name) {
-                      return "Hello, " + name + "!";
-                    }
-                  </script>
-                `;
+                              <div>{{message}}</div>
+                              <script>
+                                function greet(name) {
+                                  return "Hello, " + name + "!";
+                                }
+                              </script>
+                            `;
 
       // Note: Skipping processor test until import issues are resolved
       // const result = await processMorphFile(content, 'test.morph', {});
 
       // Basic validation that helper functions exist
       expect(content).toContain('function greet');
-    });
-  });
+    }); // it
+  }); // describe
 
   describe('Error Handling', () => {
     it('should handle files without template content', async () => {
       const content = `
-        <script>
-          function helper() { return 'test'; }
-        </script>
-      `;
+              <script>
+                    function helper () { return 'test' }
+              </script>`;
 
       // Note: Skipping processor test until import issues are resolved
-      // await expect(processMorphFile(content, 'test.morph', {}))
-      //   .rejects.toThrow('Morph files must contain template content');
-    });
+      // await expect ( processMorphFile ( content, 'test.morph', {}))
+      //           .rejects.toThrow ( 'Morph files must contain template content')
+    }); // it
 
     it('should handle malformed HTML', async () => {
       const content = `
-        <div>{{title}}</div>
-        <p>{{content}}</p>
-        <!-- Unclosed div -->
-      `;
+              <div>{{title}}</div>
+              <p>{{content}}</p>
+              <!-- Unclosed div -->
+            `;
 
       // Note: Skipping processor test until import issues are resolved
       // const result = await processMorphFile(content, 'test.morph', {});
       // expect(result).toBeDefined();
-    });
-  });
+    }); // it
+  }); // describe
 
   describe('Handshake Processing', () => {
     it('should include handshake in development mode', async () => {
       const content = `
-        <div>{{title}}</div>
-        <script type="application/json">
-          {"title": "Test Title"}
-        </script>
-      `;
+                <div>{{title}}</div>
+                <script type="application/json">
+                  {"title": "Test Title"}
+                </script>
+              `;
 
       // Note: Skipping processor test until import issues are resolved
       // const result = await processMorphFile(content, 'test.morph', {
@@ -104,15 +102,15 @@ describe('User Story 1 - Basic Morph File Processing', () => {
 
       // expect(result.code).toContain('export const handshake');
       // expect(result.code).toContain('Test Title');
-    });
+    }); // it
 
     it('should remove handshake in production mode', async () => {
       const content = `
-        <div>{{title}}</div>
-        <script type="application/json">
-          {"title": "Test Title"}
-        </script>
-      `;
+                <div>{{title}}</div>
+                <script type="application/json">
+                  {"title": "Test Title"}
+                </script>
+              `;
 
       // Note: Skipping processor test until import issues are resolved
       // const result = await processMorphFile(content, 'test.morph', {
@@ -121,15 +119,15 @@ describe('User Story 1 - Basic Morph File Processing', () => {
 
       // expect(result.code).not.toContain('export const handshake');
       // expect(result.code).not.toContain('Test Title');
-    });
-  });
+    }); // it
+  }); // describe
 
   describe('Module Generation', () => {
     it('should generate valid ES module code', async () => {
       const content = readFileSync(
         resolve(__dirname, '../fixtures/basic.morph'),
         'utf8'
-      );
+      ); // it
 
       // Note: Skipping processor test until import issues are resolved
       // const result = await processMorphFile(content, 'test.morph', {});

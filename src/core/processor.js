@@ -26,8 +26,6 @@ export async function processMorphFile(content, filePath, options) {
   const startTime = Date.now();
 
   try {
-    debug(`Processing morph file: ${filePath}`);
-
     // Check cache first (include options in cache key for production mode differences)
     const cacheKey = JSON.stringify({ content, options });
     const cached = getCachedResult(cacheKey);
@@ -39,17 +37,26 @@ export async function processMorphFile(content, filePath, options) {
 
     // Parse the morph file
     const document = parseMorphFile(content);
+    debug(
+      `Parsed morph file: ${filePath}, document nodes: ${document.childNodes?.length || 0}`
+    );
 
     // Extract content in order: CSS first, then JS, then check what's left for template
     const styleRaw = extractStyleContent(document);
     const style = styleRaw ? { css: styleRaw } : null;
+    debug(`Extracted style: ${style ? 'yes' : 'no'}`);
     const scriptRaw = extractScriptContent(document, 'text/javascript');
     const script = scriptRaw ? processJavaScriptScript(scriptRaw) : null;
+    debug(`Extracted script: ${script ? 'yes' : 'no'}`);
     const handshakeRaw = extractScriptContent(document, 'application/json');
     const handshake = handshakeRaw ? { data: JSON.parse(handshakeRaw) } : null;
+    debug(`Extracted handshake: ${handshake ? 'yes' : 'no'}`);
 
     // Extract template last - whatever is left after removing CSS, JS, and comments
     const template = extractTemplateContent(document);
+    debug(
+      `Extracted template: ${template ? 'yes' : 'no'}, html: ${template?.html ? 'yes' : 'no'}`
+    );
     // Validate template placeholders
     if (template && template.html) {
       validatePlaceholders(template.html, filePath);
@@ -156,8 +163,8 @@ async function processStandardMorphFile(morphFile, options) {
   const { template, script, style, handshake } = morphFile;
 
   // Import morph library
-  const morph = await import('@peter.naydenov/morph');
-  const build = morph.default.build;
+  const morph = (await import('@peter.naydenov/morph')).default;
+  const build = morph.build;
 
   // Create morph template object
   const morphTemplate = {
@@ -177,8 +184,11 @@ async function processStandardMorphFile(morphFile, options) {
     morphTemplate.handshake = handshake.data;
   }
 
-  // Compile the template
-  const renderFunction = build(morphTemplate);
+  // Compile the template with safe dependencies
+  const buildResult = build(morphTemplate, true);
+  const renderFunction = Array.isArray(buildResult)
+    ? buildResult[1]
+    : buildResult;
 
   // Generate ES module code
   const moduleCode = generateESModule(
@@ -301,7 +311,7 @@ function generateESModule(renderFunction, style, handshake, script, options) {
     parts.push(script.source);
   }
 
-  // Add render function
+  // Add render function - export the build result directly
   parts.push(`// Render function`);
   parts.push(`export default ${renderFunction.toString()};`);
 
@@ -362,10 +372,28 @@ function validatePlaceholders(templateContent, filePath) {
  * @returns {import('./types/processing.js').ScriptContent} Processed script content
  */
 function processJavaScriptScript(scriptContent) {
-  // For now, just return the raw script content
-  // Function extraction will be implemented in a later phase
+  const functions = {};
+
+  // Extract function declarations using regex
+  // Matches: function functionName(...) { ... }
+  const functionRegex = /function\s+(\w+)\s*\([^)]*\)\s*\{[\s\S]*?\}/g;
+  let match;
+
+  while ((match = functionRegex.exec(scriptContent)) !== null) {
+    const functionName = match[1];
+    const functionCode = match[0];
+
+    try {
+      // Create the function from the extracted code
+      const func = new Function('return ' + functionCode)();
+      functions[functionName] = func;
+    } catch {
+      // Silently ignore function parsing errors
+    }
+  }
+
   return {
-    functions: {},
+    functions,
     source: scriptContent,
   };
 }
