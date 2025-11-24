@@ -7,6 +7,8 @@
 ![bundle size](https://img.shields.io/bundlephobia/minzip/@peter.naydenov/vite-plugin-morph.svg)
 ![Morph compatibility](https://img.shields.io/badge/@peter.naydenov/morph-v3.1.5-blue)
 
+*** WORK IN PROGRESS - DO NOT USE ***
+
 A Vite plugin for processing `.morph` files with HTML-like syntax, CSS modules, and JavaScript helpers. Built on top of `@peter.naydenov/morph` v3.1.5.
 
 ## Features
