@@ -94,7 +94,7 @@ function isWellFormedTemplate(templateContent) {
   // Basic HTML well-formedness check for templates with tags
   if (/<[^>]+>/.test(templateContent)) {
     // Simple check: count opening vs closing tags
-    const openTags = (templateContent.match(/<[^\/][^>]*>/g) || []).length;
+    const openTags = (templateContent.match(/<[^/][^>]*>/g) || []).length;
     const closeTags = (templateContent.match(/<\/[^>]+>/g) || []).length;
 
     // Allow self-closing tags

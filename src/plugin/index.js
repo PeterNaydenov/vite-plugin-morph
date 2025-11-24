@@ -118,7 +118,7 @@ async function handleMorphHMR(context, options) {
  * @param {import('vite').ResolvedConfig} config - Vite config
  */
 function validatePluginConfig(options, config) {
-  // This will be implemented in plugin/config.js
+  // This will be implemented in config.js
   import('./config.js').then(({ validateConfig }) => {
     validateConfig(options, config);
   });

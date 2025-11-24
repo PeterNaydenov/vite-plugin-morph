@@ -25,7 +25,7 @@
     "build:types": "jsdoc -c jsdoc.conf.json",
     "build:lib": "vite build",
     "dev": "vite",
-    "lint": "eslint src --ext .js",
+    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint src --ext .js",
     "format": "prettier --write src/**/*.js"
   },
   "dependencies": {
