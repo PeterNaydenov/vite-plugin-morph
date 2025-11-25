@@ -11,6 +11,7 @@ import {
   extractStyleContent,
 } from './parser.js';
 import { extractTemplateContent } from './template.js';
+import { processScriptContent } from './script.js';
 import { createMorphError } from './errors.js';
 import { getCachedResult, setCachedResult } from '../utils/cache.js';
 import { debug, info, error } from '../utils/logger.js';
@@ -47,7 +48,7 @@ export async function processMorphFile(content, filePath, options) {
     const style = styleRaw ? { css: styleRaw } : null;
     debug(`Extracted style: ${style ? 'yes' : 'no'}`);
     const scriptRaw = extractScriptContent(document, 'text/javascript');
-    const script = scriptRaw ? processJavaScriptScript(scriptRaw) : null;
+    const script = scriptRaw ? processScriptContent(scriptRaw) : null;
     debug(`Extracted script: ${script ? 'yes' : 'no'}`);
     const handshakeRaw = extractScriptContent(document, 'application/json');
     const handshake = handshakeRaw ? { data: JSON.parse(handshakeRaw) } : {};
@@ -164,17 +165,29 @@ async function processStandardMorphFile(morphFile, options) {
   const { template, script, style, handshake } = morphFile;
 
   // Create template object for morph library
+  const helpers = {};
+
+  // Add function helpers
+  if (script && script.functions) {
+    Object.assign(helpers, script.functions);
+  }
+
+  // Add template helpers
+  if (script && script.templates) {
+    Object.assign(helpers, script.templates);
+  }
+
   const templateObject = {
     template: template.html,
-    helpers: script && script.functions ? {} : undefined,
+    helpers: Object.keys(helpers).length > 0 ? helpers : undefined,
     handshake:
       handshake && handshake.data && !isProductionMode(options)
         ? handshake.data
         : {},
   };
 
-  // Store helper functions separately for code generation
-  const helperFunctions = script && script.functions ? script.functions : {};
+  // Store helpers separately for code generation
+  const helperFunctions = helpers;
 
   // Generate ES module code
   const moduleCode = generateESModule(
@@ -293,11 +306,16 @@ function generateESModule(
   parts.push(`const template = ${JSON.stringify(templateObject, null, 2)};`);
   parts.push('');
 
-  // Add helper functions if present
+  // Add helpers if present
   if (helperFunctions && Object.keys(helperFunctions).length > 0) {
-    parts.push(`// Helper functions`);
-    for (const [name, func] of Object.entries(helperFunctions)) {
-      parts.push(`template.helpers.${name} = ${func.toString()};`);
+    parts.push(`// Helpers`);
+    for (const [name, helper] of Object.entries(helperFunctions)) {
+      if (typeof helper === 'function') {
+        parts.push(`template.helpers.${name} = ${helper.toString()};`);
+      } else {
+        // String helper - add as template string
+        parts.push(`template.helpers.${name} = \`${helper}\`;`);
+      }
     }
     parts.push('');
   }
@@ -359,38 +377,6 @@ function validatePlaceholders(templateContent, filePath) {
       'TEMPLATE_ERROR'
     );
   }
-}
-
-/**
- * Process JavaScript script content to extract functions
- * @param {string} scriptContent - Raw JavaScript content
- * @returns {import('./types/processing.js').ScriptContent} Processed script content
- */
-function processJavaScriptScript(scriptContent) {
-  const functions = {};
-
-  // Extract function declarations using regex
-  // Matches: function functionName(...) { ... }
-  const functionRegex = /function\s+(\w+)\s*\([^)]*\)\s*\{[\s\S]*?\}/g;
-  let match;
-
-  while ((match = functionRegex.exec(scriptContent)) !== null) {
-    const functionName = match[1];
-    const functionCode = match[0];
-
-    try {
-      // Create the function from the extracted code
-      const func = new Function('return ' + functionCode)();
-      functions[functionName] = func;
-    } catch {
-      // Silently ignore function parsing errors
-    }
-  }
-
-  return {
-    functions,
-    source: scriptContent,
-  };
 }
 
 // Import CSS processing (will be implemented in css.js)

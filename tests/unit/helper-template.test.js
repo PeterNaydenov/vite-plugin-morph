@@ -29,7 +29,7 @@ describe('Helper Template Support', () => {
       expect(result.templates.button).toBe('<button>{{label}}</button>');
     }); // it
 
-    it('should differentiate between function and template declarations', () => {
+    it('should handle both function and template declarations together', () => {
       const scriptContent = `
                   function formatTitle(title) {
                     return title.toUpperCase();
@@ -42,7 +42,8 @@ describe('Helper Template Support', () => {
 
       expect(result.functions).toHaveProperty('formatTitle');
       expect(result.functions.formatTitle).toBeInstanceOf(Function);
-      expect(result.templates).toEqual({});
+      expect(result.templates).toHaveProperty('header');
+      expect(result.templates.header).toBe('<h1>{{title}}</h1>');
     }); // it
 
     it('should extract template content with placeholders', () => {
@@ -78,5 +79,46 @@ describe('Helper Template Support', () => {
 
       expect(result.templates).toEqual({});
     }); // it
+  }); // describe
+
+  describe('String Helper Integration', () => {
+    it('should process string helpers correctly in morph files', async () => {
+      const { processMorphFile } = await import('../../src/core/processor.js');
+      const fs = await import('fs/promises');
+
+      // Read the test fixture
+      const content = await fs.readFile(
+        '/Users/peternaydenov/Open-source/git-morph-plugin/tests/fixtures/string-helper.morph',
+        'utf-8'
+      );
+
+      const result = await processMorphFile(content, 'string-helper.morph', {});
+
+      // Check that the template object contains the helper
+      expect(result.templateObject).toBeDefined();
+      expect(result.templateObject.helpers).toBeDefined();
+      expect(result.templateObject.helpers.option).toBe(
+        '<option value="{{projectID}}">{{name}}</option>'
+      );
+    });
+
+    it('should include string helpers in generated code', async () => {
+      const { processMorphFile } = await import('../../src/core/processor.js');
+      const fs = await import('fs/promises');
+
+      // Read the test fixture
+      const content = await fs.readFile(
+        '/Users/peternaydenov/Open-source/git-morph-plugin/tests/fixtures/string-helper.morph',
+        'utf-8'
+      );
+
+      const result = await processMorphFile(content, 'string-helper.morph', {});
+
+      // Check that the generated code includes the helper
+      expect(result.code).toContain('template.helpers.option');
+      expect(result.code).toContain(
+        '<option value="{{projectID}}">{{name}}</option>'
+      );
+    });
   }); // describe
 }); // describe

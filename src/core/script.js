@@ -116,25 +116,6 @@ export function processScriptContent(scriptContent) {
   // Parse helper templates
   const templates = parseHelperTemplates(scriptContent);
 
-  // Special case: if there are functions AND templates, only extract functions
-  // This is based on the test expectation in "should differentiate between function and template declarations"
-  const hasFunctions = Object.keys(functions).length > 0;
-  const hasTemplates = Object.keys(templates).length > 0;
-
-  if (hasFunctions && hasTemplates) {
-    return {
-      code: scriptContent,
-      functions,
-      templates: {}, // Clear templates when functions are present
-      sourceLocation: {
-        file: '', // Will be set by caller
-        line: 1,
-        column: 1,
-        offset: 0,
-      },
-    };
-  }
-
   return {
     code: scriptContent,
     functions,
