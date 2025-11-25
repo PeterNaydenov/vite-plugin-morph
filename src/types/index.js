@@ -222,5 +222,14 @@
  * @property {string} html - Extracted HTML template
  */
 
+/**
+ * Script content extraction result
+ * @typedef {Object} ScriptContent
+ * @property {string} code - JavaScript code
+ * @property {Object<string,Function>} functions - Parsed helper functions
+ * @property {Object<string,string>} templates - Parsed helper templates
+ * @property {SourceLocation} sourceLocation - Source location information
+ */
+
 // Types are available through JSDoc typedefs above
 // No runtime exports needed for type definitions

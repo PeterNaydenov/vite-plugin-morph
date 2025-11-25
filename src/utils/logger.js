@@ -42,18 +42,20 @@ function shouldLog(level) {
 }
 
 /**
- * Log a message with specified level
+ * Core logging function
  * @param {string} level - Log level
- * @param {string} _message - Message to log (unused for now)
- * @param {Object} _context - Additional context (unused for now)
+ * @param {string} message - Message to log
+ * @param {Object} [context] - Additional context
  */
-function log(level) {
+function log(level, message, context) {
   if (!shouldLog(level)) {
     return;
   }
 
-  // Logging will be implemented when needed
-  // For now, we silently handle the call
+  const timestamp = new Date().toISOString();
+  const contextStr = context ? ` ${JSON.stringify(context)}` : '';
+  // eslint-disable-next-line no-console
+  console.log(`[${timestamp}] [${level}] ${message}${contextStr}`);
 }
 
 /**

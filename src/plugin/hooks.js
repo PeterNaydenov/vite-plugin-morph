@@ -155,7 +155,16 @@ function getPluginOptions(configOrOptions) {
   }
 
   if (!config || !config.plugins) {
-    return {};
+    return {
+      development: {
+        sourceMaps: false,
+        hmr: false,
+      },
+      production: {
+        removeHandshake: true,
+        minifyCSS: true,
+      },
+    };
   }
 
   // Find our plugin in plugins array
@@ -166,69 +175,4 @@ function getPluginOptions(configOrOptions) {
   );
 
   return morphPlugin ? morphPlugin.options || {} : {};
-}
-
-/**
- * Validate transform result
- * @param {import('./types/plugin.js').TransformResult} result - Transform result
- * @returns {boolean} Whether result is valid
- */
-export function validateTransformResult(result) {
-  if (!result || !result.code) {
-    return false;
-  }
-
-  // Check for common issues
-  if (result.code.includes('Transform Error')) {
-    return false;
-  }
-
-  if (result.meta && result.meta['vite-plugin-morph']) {
-    const meta = result.meta['vite-plugin-morph'];
-    if (meta.errors && meta.errors.length > 0) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-/**
- * Create source map for .morph file
- * @param {string} filePath - File path
- * @param {string} generatedCode - Generated code
- * @param {string} originalCode - Original file content
- * @returns {Object} Source map object
- */
-export function createSourceMap(filePath, generatedCode, originalCode) {
-  // This is a simplified source map implementation
-  // In practice, you'd use a proper source map generator
-
-  const lines = originalCode.split('\n');
-  const generatedLines = generatedCode.split('\n');
-
-  const mappings = [];
-
-  // Create simple line-based mapping
-  for (let i = 0; i < Math.min(lines.length, generatedLines.length); i++) {
-    mappings.push({
-      generated: {
-        line: i + 1,
-        column: 1,
-      },
-      original: {
-        line: i + 1,
-        column: 1,
-      },
-    });
-  }
-
-  return {
-    version: 3,
-    file: filePath.replace(/\.morph$/, '.js'),
-    sourceRoot: '',
-    sources: [filePath],
-    names: [],
-    mappings: JSON.stringify(mappings),
-  };
 }

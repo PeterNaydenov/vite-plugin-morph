@@ -17,7 +17,7 @@ export function createMorphPlugin(options = {}) {
     name: 'vite-plugin-morph',
 
     // Handle .morph file transformation
-    async transform ( code, id ) {
+    async transform(code, id) {
       if (!id.endsWith('.morph')) {
         return null;
       }
@@ -40,13 +40,14 @@ export function createMorphPlugin(options = {}) {
       }
     },
 
-    // Handle hot module replacement
+    // Handle hot module replacement (not implemented yet)
     async handleHotUpdate(context) {
       if (!context.file.endsWith('.morph')) {
         return null;
       }
 
-      return handleMorphHMR(context, resolvedOptions);
+      // HMR will be implemented in a future update
+      return null;
     },
 
     // Configure plugin
@@ -98,18 +99,6 @@ async function processMorphFile(code, id, options) {
   // This will be implemented in core/processor.js
   const { processMorphFile } = await import('../core/processor.js');
   return processMorphFile(code, id, options);
-}
-
-/**
- * Handle hot module replacement for morph files
- * @param {import('vite').HmrContext} context - HMR context
- * @param {import('../types/index.js').MorphPluginOptions} options - Plugin options
- * @returns {Promise<import('vite').HmrResult>} HMR result
- */
-async function handleMorphHMR(context, options) {
-  // This will be implemented in plugin/hmr.js
-  const { handleMorphHMR } = await import('./hmr.js');
-  return handleMorphHMR(context, options);
 }
 
 /**

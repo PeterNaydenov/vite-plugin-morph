@@ -97,7 +97,7 @@ describe('Basic Morph Processing Integration', () => {
     const outputPath = resolve(testOutputDir, 'template-only.js');
 
     const { transformHook } = await import('../../src/plugin/hooks.js');
-    const result = await transformHook(inputContent, 'template-only.morph');
+    const result = await transformHook(inputContent, 'template-only.morph', {});
 
     expect(result).toBeDefined();
     expect(result.code).toBeDefined();

@@ -101,7 +101,7 @@ export async function processMorphFile(content, filePath, options) {
       metadata: {
         lastModified: Date.now(),
         processedAt: Date.now(),
-        hash: await generateHash(content),
+        hash: generateHash(content),
         dependencies: [],
         dependents: [],
       },
@@ -195,7 +195,6 @@ async function processStandardMorphFile(morphFile, options) {
     helperFunctions,
     style,
     handshake,
-    script,
     options
   );
 
@@ -246,7 +245,7 @@ async function processCSSOnlyFile(morphFile, options) {
 /**
  * Generate hash for content
  * @param {string} content - Content to hash
- * @returns {string} Hash
+ * @returns {Promise<string>} Hash
  */
 async function generateHash(content) {
   const crypto = await import('crypto');
@@ -273,10 +272,11 @@ function extractCSSVariables(cssContent) {
 /**
  * Generate ES module code with template object
  * @param {Object} templateObject - Template object for morph library
+ * @param {Object} helperFunctions - Helper functions and templates
  * @param {import('./types/processing.js').StyleContent} [style] - Style content
  * @param {import('./types/processing.js').HandshakeContent} [handshake] - Handshake content
  * @param {import('./types/processing.js').ScriptContent} [script] - Script content
- * @param {import('./types/plugin.js').MorphPluginOptions} options - Plugin options
+ * @param {import('../../types/index.js').MorphPluginOptions} options - Plugin options
  * @returns {string} ES module code
  */
 function generateESModule(
@@ -284,7 +284,6 @@ function generateESModule(
   helperFunctions,
   style,
   handshake,
-  script,
   options
 ) {
   const parts = [];
