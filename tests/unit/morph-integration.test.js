@@ -25,12 +25,22 @@ describe('Morph Library Integration', () => {
     expect(result).toBeDefined();
     expect(result.code).toBeDefined();
 
-    // Check that the render function is generated
+    // Check that the render function is generated with context preservation
     expect(result.code).toContain('formatTitle');
-    expect(result.code).toContain('export default function success (');
-    expect(result.code).not.toContain('export default function(data = {})');
-    
-    expect(result.code).toContain('function success (');
+    expect(result.code).toContain("import morph from '@peter.naydenov/morph'");
+    expect(result.code).toContain('const morphRenderFunction');
+    expect(result.code).toContain('reconstructedHelpers');
+    expect(result.code).toContain(
+      'Inline context variables from _readTemplate'
+    );
+    expect(result.code).toContain('const chop = originalChop;');
+    expect(result.code).toContain('const helpers = reconstructedHelpers;');
+    expect(result.code).toContain(
+      "export default function(command = 'render', data = {}, dependencies = {}, ...args)"
+    );
+    expect(result.code).toContain(
+      'return morphRenderFunction(command, data, dependencies)'
+    );
   }); // it
 
   it('should handle template-only files without placeholders', async () => {
@@ -48,10 +58,15 @@ describe('Morph Library Integration', () => {
     expect(result).toBeDefined();
     expect(result.code).toBeDefined();
 
-    // Should generate render function without morph imports (handled internally)
-    expect(result.code).toContain('success');
-    expect(result.code).toContain('export default function');
-    expect(result.code).not.toContain('import morph');
+    // Should generate render function with context preservation
+    expect(result.code).toContain("import morph from '@peter.naydenov/morph'");
+    expect(result.code).toContain('const morphRenderFunction');
+    expect(result.code).toContain(
+      "export default function(command = 'render', data = {}, dependencies = {}, ...args)"
+    );
+    expect(result.code).toContain(
+      'return morphRenderFunction(command, data, dependencies)'
+    );
   }); // it
 
   it('should include morph utilities in CSS-only files', async () => {

@@ -128,53 +128,6 @@ export function extractStyleContent(document) {
 }
 
 /**
- * Extract template content (everything except script and style tags)
- * @param {import('./types/processing.js').Document} document - Parsed document
- * @returns {string} Template HTML content
- */
-export function extractTemplateContent(document) {
-  // Helper function to recursively collect non-script/style nodes
-  function collectTemplateNodes(node) {
-    const nodes = [];
-
-    // Skip script and style nodes entirely
-    if (node.nodeName === 'script' || node.nodeName === 'style') {
-      return nodes;
-    }
-
-    // For element nodes, we need to process children separately
-    if (node.childNodes && node.childNodes.length > 0) {
-      const childNodes = [];
-      for (const child of node.childNodes) {
-        childNodes.push(...collectTemplateNodes(child));
-      }
-
-      // Only include this node if it has content or is not just a wrapper
-      if (childNodes.length > 0 || node.nodeName === '#text') {
-        // Create a copy of the node with filtered children
-        const filteredNode = { ...node };
-        filteredNode.childNodes = childNodes;
-        nodes.push(filteredNode);
-      }
-    } else if (node.nodeName !== '#document') {
-      // Include leaf nodes (text, comments, etc.)
-      nodes.push(node);
-    }
-
-    return nodes;
-  }
-
-  const templateNodes = collectTemplateNodes(document);
-
-  if (templateNodes.length === 0) {
-    return '';
-  }
-
-  // Reconstruct HTML from remaining nodes
-  return reconstructHTML(templateNodes);
-}
-
-/**
  * Get source location information from AST node
  * @param {import('./types/processing.js').Node} node - AST node
  * @returns {import('./types/processing.js').SourceLocation} Location information
@@ -203,25 +156,3 @@ export function getNodeLocation(node) {
  * @param {import('./types/processing.js').Node[]} nodes - AST nodes
  * @returns {string} Reconstructed HTML
  */
-function reconstructHTML(nodes) {
-  // This is a simplified implementation
-  // In practice, you'd use a proper HTML serializer
-  return nodes
-    .map((node) => {
-      if (node.nodeName === '#text') {
-        return node.value;
-      } else if (node.nodeName === '#comment') {
-        return `<!--${node.data}-->`;
-      } else {
-        // Simplified element reconstruction
-        const attrs = node.attrs
-          ? node.attrs.map((attr) => `${attr.name}="${attr.value}"`).join(' ')
-          : '';
-        const childContent = node.childNodes
-          ? reconstructHTML(node.childNodes)
-          : '';
-        return `<${node.nodeName}${attrs ? ' ' + attrs : ''}>${childContent}</${node.nodeName}>`;
-      }
-    })
-    .join('');
-}

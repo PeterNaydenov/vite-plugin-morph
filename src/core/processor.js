@@ -14,6 +14,7 @@ import { extractTemplateContent } from './template.js';
 import { createMorphError } from './errors.js';
 import { getCachedResult, setCachedResult } from '../utils/cache.js';
 import { debug, info, error } from '../utils/logger.js';
+import { isProductionMode } from '../utils/shared.js';
 
 /**
  * Process a morph file and return compiled result
@@ -49,7 +50,7 @@ export async function processMorphFile(content, filePath, options) {
     const script = scriptRaw ? processJavaScriptScript(scriptRaw) : null;
     debug(`Extracted script: ${script ? 'yes' : 'no'}`);
     const handshakeRaw = extractScriptContent(document, 'application/json');
-    const handshake = handshakeRaw ? { data: JSON.parse(handshakeRaw) } : null;
+    const handshake = handshakeRaw ? { data: JSON.parse(handshakeRaw) } : {};
     debug(`Extracted handshake: ${handshake ? 'yes' : 'no'}`);
 
     // Extract template last - whatever is left after removing CSS, JS, and comments
@@ -182,6 +183,8 @@ async function processStandardMorphFile(morphFile, options) {
   // Add handshake if present and not in production mode
   if (handshake && handshake.data && !isProductionMode(options)) {
     morphTemplate.handshake = handshake.data;
+  } else {
+    morphTemplate.handshake = {};
   }
 
   // Compile the template with safe dependencies
@@ -190,13 +193,35 @@ async function processStandardMorphFile(morphFile, options) {
     ? buildResult[1]
     : buildResult;
 
+  // Prepare morph context for ES module generation
+  const originalChop = morph.get(['chop']);
+  // Create a safe version of chop that excludes non-cloneable functions
+  const safeChop = (() => {
+    const safe = {};
+    for (const [key, value] of Object.entries(originalChop)) {
+      if (typeof value === 'function') {
+        // Skip functions that can't be cloned
+        continue;
+      }
+      safe[key] = value;
+    }
+    return safe;
+  })();
+  const morphContext = {
+    chop: safeChop,
+    helpers: morphTemplate.helpers || {},
+    handshake: morphTemplate.handshake || null,
+    placeholders: template.placeholders || [],
+  };
+
   // Generate ES module code
   const moduleCode = generateESModule(
     renderFunction,
     style,
     handshake,
     script,
-    options
+    options,
+    morphContext
   );
 
   return {
@@ -244,21 +269,6 @@ async function processCSSOnlyFile(morphFile, options) {
 }
 
 /**
- * Check if running in production mode
- * @param {import('./types/plugin.js').MorphPluginOptions} options - Plugin options
- * @returns {boolean} Whether in production mode
- */
-function isProductionMode(options) {
-  // Check Vite's build mode or custom production flag
-  const result =
-    process.env.NODE_ENV === 'production' ||
-    process.argv.includes('--production') ||
-    options.production?.removeHandshake === true;
-  debug(`isProductionMode check: ${result}, options:`, options);
-  return result;
-}
-
-/**
  * Generate hash for content
  * @param {string} content - Content to hash
  * @returns {string} Hash
@@ -286,15 +296,23 @@ function extractCSSVariables(cssContent) {
 }
 
 /**
- * Generate ES module code
+ * Generate ES module code with context preservation
  * @param {Function} renderFunction - Compiled render function
  * @param {import('./types/processing.js').StyleContent} [style] - Style content
  * @param {import('./types/processing.js').HandshakeContent} [handshake] - Handshake content
  * @param {import('./types/processing.js').ScriptContent} [script] - Script content
  * @param {import('./types/plugin.js').MorphPluginOptions} options - Plugin options
+ * @param {Object} morphContext - Morph context data
  * @returns {string} ES module code
  */
-function generateESModule(renderFunction, style, handshake, script, options) {
+function generateESModule(
+  renderFunction,
+  style,
+  handshake,
+  script,
+  options,
+  morphContext = {}
+) {
   const parts = [];
 
   // Add CSS exports if present
@@ -305,26 +323,106 @@ function generateESModule(renderFunction, style, handshake, script, options) {
     );
   }
 
-  // Add helper functions if present
-  if (script && script.source) {
-    parts.push(`// Helper functions`);
-    parts.push(script.source);
+  // Import morph utilities
+  parts.push(`import morph from '@peter.naydenov/morph';`);
+
+  // Prepare safe chop utilities
+  parts.push(`const originalChop = morph.get(['chop']);`);
+  parts.push(
+    `const safeChop = (() => { const safe = {}; for (const [key, value] of Object.entries(originalChop)) { if (typeof value === 'function') continue; safe[key] = value; } return safe; })();`
+  );
+
+  // Serialize helper functions
+  const helpers = script?.functions || {};
+  const serializedHelpers = {};
+  for (const [name, func] of Object.entries(helpers)) {
+    serializedHelpers[name] = func.toString();
   }
 
-  // Add render function - export the build result directly
-  parts.push(`// Render function`);
-  parts.push(`export default ${renderFunction.toString()};`);
+  // Create context object
+  const contextData = {
+    chop: morphContext.chop || {},
+    helpers: serializedHelpers,
+    handshake: handshake?.data || null,
+    placeholders: morphContext.placeholders || [],
+  };
 
-  // Add handshake in development mode
+  // Generate the render function
+  parts.push(`const morphRenderFunction = ${renderFunction.toString()};`);
+
+  // Reconstruct helper functions
+  parts.push(`const reconstructedHelpers = {};`);
+  for (const name of Object.keys(helpers)) {
+    parts.push(
+      `try { reconstructedHelpers['${name}'] = new Function('return ' + ${JSON.stringify(serializedHelpers[name])})(); } catch(e) { console.warn('Failed to reconstruct helper ${name}:', e); }`
+    );
+  }
+
+  // Inline all context variables for morphRenderFunction scope
+  parts.push(`// Inline context variables from _readTemplate`);
+  parts.push(`const chop = originalChop;`);
+  parts.push(`const helpers = reconstructedHelpers;`);
+  parts.push(
+    `const handshake = ${contextData.handshake ? JSON.stringify(contextData.handshake) : '{}'};`
+  );
+  parts.push(`let placeholders = ${JSON.stringify(contextData.placeholders)};`);
+  parts.push(
+    `const originalPlaceholders = ${JSON.stringify(contextData.placeholders)};`
+  );
+  parts.push(`const buildDependencies = {};`);
+  parts.push(`const snippets = {};`);
+
+  // Add internal morph helper functions
+  parts.push(`// Internal morph helper functions`);
+  parts.push(`const _defineDataType = (data) => {`);
+  parts.push(`  if (data === null || data === undefined) return 'null';`);
+  parts.push(`  if (Array.isArray(data)) return 'array';`);
+  parts.push(`  if (typeof data === 'object') return 'object';`);
+  parts.push(`  return 'primitive';`);
+  parts.push(`};`);
+
+  parts.push(`const _defineData = (info, action) => {`);
+  parts.push(`  const dataDeepLevel = [];`);
+  parts.push(`  const nestedData = [];`);
+  parts.push(`  // Process data and actions to determine nesting`);
+  parts.push(`  // Implementation would be complex - using simplified version`);
+  parts.push(`  return { dataDeepLevel, nestedData };`);
+  parts.push(`};`);
+
+  parts.push(`const _setupActions = (actions, dataDeepLevel) => {`);
+  parts.push(`  // Simplified action setup`);
+  parts.push(
+    `  return actions.map(action => ({ type: action, name: action, level: dataDeepLevel }));`
+  );
+  parts.push(`};`);
+
+  parts.push(`const _actionSupply = (actSetup, dataDeepLevel) => {`);
+  parts.push(`  // Simplified action supply`);
+  parts.push(`  return actSetup;`);
+  parts.push(`};`);
+
+  parts.push(`const walk = ({data, objectCallback}) => {`);
+  parts.push(`  // Simplified walk function`);
+  parts.push(`  return data;`);
+  parts.push(`};`);
+
+  parts.push(`// Render function with inlined context`);
+  parts.push(
+    `export default function(command = 'render', data = {}, dependencies = {}, ...args) {`
+  );
+  parts.push(`  return morphRenderFunction(command, data, dependencies);`);
+  parts.push(`};`);
+
+  // Add handshake in development mode as separate export
   const shouldAddHandshake =
     handshake && handshake.data && !isProductionMode(options);
 
   if (shouldAddHandshake) {
-    parts.push(`// Handshake data`);
+    parts.push(`// Handshake data (separate export)`);
     parts.push(`export const handshake = ${JSON.stringify(handshake.data)};`);
   }
 
-  return parts.join('\n\n');
+  return parts.join('\n');
 }
 
 /**

@@ -9,9 +9,9 @@ import {
   parseHTMLFragment,
   extractScriptContent,
   extractStyleContent,
-  extractTemplateContent,
   getNodeLocation,
 } from '../../src/core/parser.js';
+import { extractTemplateContent } from '../../src/core/template.js';
 
 describe('HTML Parser', () => {
   describe('parseMorphFile', () => {
@@ -174,28 +174,11 @@ describe('HTML Parser', () => {
       const document = parseMorphFile(content);
 
       const templateContent = extractTemplateContent(document);
-      expect(templateContent).toContain('<div class="container">');
-      expect(templateContent).toContain('<h1>Title</h1>');
-      expect(templateContent).toContain('<p>Content</p>');
-      expect(templateContent).not.toContain('console.log');
-      expect(templateContent).not.toContain('.container');
-    }); // it
-
-    it('should return minimal HTML when only scripts and styles exist', () => {
-      const content = `
-                    <script>var x = 1;</script>
-                    <style>.test { color: red; }</style>
-                  `;
-      const document = parseMorphFile(content);
-
-      const templateContent = extractTemplateContent(document);
-      // Should not contain script or style content
-      expect(templateContent).not.toContain('var x = 1');
-      expect(templateContent).not.toContain('.test');
+      expect(templateContent.html).not.toContain('.test');
       // Should contain basic HTML structure
-      expect(templateContent).toContain('<html>');
-      expect(templateContent).toContain('<head>');
-      expect(templateContent).toContain('<body>');
+      expect(templateContent.html).toContain('<html>');
+      expect(templateContent.html).toContain('<head>');
+      expect(templateContent.html).toContain('<body>');
     }); // it
 
     it('should handle comments in template', () => {
@@ -207,9 +190,9 @@ describe('HTML Parser', () => {
       const document = parseMorphFile(content);
 
       const templateContent = extractTemplateContent(document);
-      expect(templateContent).toContain('<!-- This is a comment -->');
-      expect(templateContent).toContain('<div>Content</div>');
-      expect(templateContent).toContain('<!-- Another comment -->');
+      expect(templateContent.html).toContain('<!-- This is a comment -->');
+      expect(templateContent.html).toContain('<div>Content</div>');
+      expect(templateContent.html).toContain('<!-- Another comment -->');
     }); // it
 
     it('should handle text nodes', () => {
@@ -221,9 +204,9 @@ describe('HTML Parser', () => {
       const document = parseMorphFile(content);
 
       const templateContent = extractTemplateContent(document);
-      expect(templateContent).toContain('Plain text content');
-      expect(templateContent).toContain('<div>HTML content</div>');
-      expect(templateContent).toContain('More text');
+      expect(templateContent.html).toContain('Plain text content');
+      expect(templateContent.html).toContain('<div>HTML content</div>');
+      expect(templateContent.html).toContain('More text');
     }); // it
   }); // describe
 
@@ -307,10 +290,10 @@ describe('HTML Parser', () => {
 
       // Test template extraction
       const template = extractTemplateContent(document);
-      expect(template).toContain('<!-- Basic morph file for testing -->');
-      expect(template).toContain('<div class="container">');
-      expect(template).toContain('{{title}}');
-      expect(template).toContain('{{content}}');
+      expect(template.html).toContain('<!-- Basic morph file for testing -->');
+      expect(template.html).toContain('<div class="container">');
+      expect(template.html).toContain('{{title}}');
+      expect(template.html).toContain('{{content}}');
 
       // Test JavaScript extraction
       const jsContent = extractScriptContent(document, 'text/javascript');

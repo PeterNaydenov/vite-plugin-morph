@@ -5,9 +5,7 @@
  * @version 1.0.0
  */
 
-import { createMorphError, ErrorCodes } from './errors.js';
 import { debug, warn } from '../utils/logger.js';
-import { ScriptContent } from './types/processing.js';
 
 /**
  * Parse helper functions from script content

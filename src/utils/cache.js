@@ -15,6 +15,8 @@ class MorphCache {
   constructor() {
     this.cache = new Map();
     this.maxSize = 100; // Maximum number of cached files
+    this.hitCount = 0;
+    this.missCount = 0;
   }
 
   /**
@@ -33,7 +35,8 @@ class MorphCache {
    */
   get(key) {
     const entry = this.cache.get(key);
-    if (entry && Date.now() - entry.timestamp < 300000) { // 5 minutes TTL
+    if (entry && Date.now() - entry.timestamp < 300000) {
+      // 5 minutes TTL
       return entry.data;
     }
     return null;
@@ -53,7 +56,7 @@ class MorphCache {
 
     this.cache.set(key, {
       data,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
@@ -72,7 +75,7 @@ class MorphCache {
     return {
       size: this.cache.size,
       maxSize: this.maxSize,
-      hitRate: this.hitCount / (this.hitCount + this.missCount) || 0
+      hitRate: this.hitCount / (this.hitCount + this.missCount) || 0,
     };
   }
 }
@@ -88,13 +91,13 @@ const globalCache = new MorphCache();
 export function getCachedResult(content) {
   const key = globalCache.generateKey(content);
   const result = globalCache.get(key);
-  
+
   if (result) {
     globalCache.hitCount = (globalCache.hitCount || 0) + 1;
   } else {
     globalCache.missCount = (globalCache.missCount || 0) + 1;
   }
-  
+
   return result;
 }
 

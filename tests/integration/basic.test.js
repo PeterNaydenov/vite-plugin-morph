@@ -48,14 +48,22 @@ describe('Basic Morph Processing Integration', () => {
 
     expect(result).toBeDefined();
     expect(result.code).toBeDefined();
-    expect(result.code).toContain('export default function success (');
+    expect(result.code).toContain("import morph from '@peter.naydenov/morph'");
+    expect(result.code).toContain(
+      "export default function(command = 'render', data = {}, dependencies = {}, ...args)"
+    );
     expect(result.code).not.toContain('export const styles');
     expect(result.meta['vite-plugin-morph'].isCSSOnly).toBe(false);
 
     writeFileSync(outputPath, result.code);
 
     const outputContent = readFileSync(outputPath, 'utf8');
-    expect(outputContent).toContain('export default function success (');
+    expect(outputContent).toContain(
+      "import morph from '@peter.naydenov/morph'"
+    );
+    expect(outputContent).toContain(
+      "export default function(command = 'render', data = {}, dependencies = {}, ...args)"
+    );
     expect(outputContent).not.toContain('export const styles');
   });
 
@@ -87,7 +95,10 @@ describe('Basic Morph Processing Integration', () => {
 
     expect(result).toBeDefined();
     expect(result.code).toBeDefined();
-    expect(result.code).toContain('export default function success (');
+    expect(result.code).toContain("import morph from '@peter.naydenov/morph'");
+    expect(result.code).toContain(
+      "export default function(command = 'render', data = {}, dependencies = {}, ...args)"
+    );
     expect(result.code).toContain('function');
     // Should not contain any placeholder processing logic
     expect(result.code).not.toContain('{{');
@@ -96,10 +107,13 @@ describe('Basic Morph Processing Integration', () => {
     writeFileSync(outputPath, result.code);
 
     const outputContent = readFileSync(outputPath, 'utf8');
-    expect(outputContent).toContain('export default function success (');
+    expect(outputContent).toContain(
+      "import morph from '@peter.naydenov/morph'"
+    );
+    expect(outputContent).toContain('morphRenderFunction');
+    expect(outputContent).toContain(
+      "export default function(command = 'render', data = {}, dependencies = {}, ...args)"
+    );
     expect(outputContent).toContain('function');
-    expect(outputContent).not.toContain('morphRenderFunction');
-    expect(outputContent).toContain('function');
-    expect(outputContent).toContain('export default function success (');
   });
 });

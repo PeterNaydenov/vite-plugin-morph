@@ -7,7 +7,7 @@
 
 import { createMorphError } from '../core/errors.js';
 import { processMorphFile } from '../core/processor.js';
-import { debug, info, warn, error } from '../utils/logger.js';
+import { debug, info, error } from '../utils/logger.js';
 
 /**
  * Transform hook for .morph files
@@ -18,15 +18,14 @@ import { debug, info, warn, error } from '../utils/logger.js';
  */
 export async function transformHook(code, id, options = {}) {
   // Only process .morph files
-  if (!id.endsWith('.morph'))  return null
-  
+  if (!id.endsWith('.morph')) return null;
 
   // Get plugin options from Vite config
   const pluginOptions = getPluginOptions(options);
 
   try {
     // Process the morph file
-    const result = await processMorphFile ( code, id, pluginOptions );
+    const result = await processMorphFile(code, id, pluginOptions);
 
     // Create transform result
     const transformResult = {
