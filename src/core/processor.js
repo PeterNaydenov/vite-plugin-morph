@@ -1,6 +1,6 @@
 /**
  * Main morph file processing pipeline
- * @fileoverview Orchestrates the conversion of .morph files to ES modules
+ * @fileoverview Orchestrates conversion of .morph files to ES modules
  * @author Peter Naydenov
  * @version 1.0.0
  */
@@ -131,7 +131,7 @@ export async function processMorphFile(content, filePath, options) {
             scopedClasses: Object.keys(result.cssExports).length,
           }
         : undefined,
-      template: result.renderFunction
+      template: result.templateObject
         ? {
             placeholderCount: (
               morphFile.template.html.match(/\{\{[^}]+\}\}/g) || []
@@ -163,65 +163,27 @@ export async function processMorphFile(content, filePath, options) {
 async function processStandardMorphFile(morphFile, options) {
   const { template, script, style, handshake } = morphFile;
 
-  // Import morph library
-  const morph = (await import('@peter.naydenov/morph')).default;
-  const build = morph.build;
-
-  // Create morph template object
-  const morphTemplate = {
+  // Create template object for morph library
+  const templateObject = {
     template: template.html,
+    helpers: script && script.functions ? {} : undefined,
+    handshake:
+      handshake && handshake.data && !isProductionMode(options)
+        ? handshake.data
+        : {},
   };
 
-  // Add helper functions if present
-  if (script && script.functions) {
-    morphTemplate.helpers = {};
-    for (const [name, func] of Object.entries(script.functions)) {
-      morphTemplate.helpers[name] = func;
-    }
-  }
-
-  // Add handshake if present and not in production mode
-  if (handshake && handshake.data && !isProductionMode(options)) {
-    morphTemplate.handshake = handshake.data;
-  } else {
-    morphTemplate.handshake = {};
-  }
-
-  // Compile the template with safe dependencies
-  const buildResult = build(morphTemplate, true);
-  const renderFunction = Array.isArray(buildResult)
-    ? buildResult[1]
-    : buildResult;
-
-  // Prepare morph context for ES module generation
-  const originalChop = morph.get(['chop']);
-  // Create a safe version of chop that excludes non-cloneable functions
-  const safeChop = (() => {
-    const safe = {};
-    for (const [key, value] of Object.entries(originalChop)) {
-      if (typeof value === 'function') {
-        // Skip functions that can't be cloned
-        continue;
-      }
-      safe[key] = value;
-    }
-    return safe;
-  })();
-  const morphContext = {
-    chop: safeChop,
-    helpers: morphTemplate.helpers || {},
-    handshake: morphTemplate.handshake || null,
-    placeholders: template.placeholders || [],
-  };
+  // Store helper functions separately for code generation
+  const helperFunctions = script && script.functions ? script.functions : {};
 
   // Generate ES module code
   const moduleCode = generateESModule(
-    renderFunction,
+    templateObject,
+    helperFunctions,
     style,
     handshake,
     script,
-    options,
-    morphContext
+    options
   );
 
   return {
@@ -230,7 +192,7 @@ async function processStandardMorphFile(morphFile, options) {
       ? await processCSS(style, morphFile.filePath, options)
       : undefined,
     usedVariables: style ? extractCSSVariables(style.css) : undefined,
-    renderFunction,
+    templateObject,
     isCSSOnly: false,
   };
 }
@@ -263,7 +225,7 @@ async function processCSSOnlyFile(morphFile, options) {
     code: moduleCode,
     cssExports,
     usedVariables: extractCSSVariables(style.css),
-    renderFunction: null,
+    templateObject: null,
     isCSSOnly: true,
   };
 }
@@ -296,22 +258,21 @@ function extractCSSVariables(cssContent) {
 }
 
 /**
- * Generate ES module code with context preservation
- * @param {Function} renderFunction - Compiled render function
+ * Generate ES module code with template object
+ * @param {Object} templateObject - Template object for morph library
  * @param {import('./types/processing.js').StyleContent} [style] - Style content
  * @param {import('./types/processing.js').HandshakeContent} [handshake] - Handshake content
  * @param {import('./types/processing.js').ScriptContent} [script] - Script content
  * @param {import('./types/plugin.js').MorphPluginOptions} options - Plugin options
- * @param {Object} morphContext - Morph context data
  * @returns {string} ES module code
  */
 function generateESModule(
-  renderFunction,
+  templateObject,
+  helperFunctions,
   style,
   handshake,
   script,
-  options,
-  morphContext = {}
+  options
 ) {
   const parts = [];
 
@@ -325,93 +286,29 @@ function generateESModule(
 
   // Import morph utilities
   parts.push(`import morph from '@peter.naydenov/morph';`);
+  parts.push('');
 
-  // Prepare safe chop utilities
-  parts.push(`const originalChop = morph.get(['chop']);`);
-  parts.push(
-    `const safeChop = (() => { const safe = {}; for (const [key, value] of Object.entries(originalChop)) { if (typeof value === 'function') continue; safe[key] = value; } return safe; })();`
-  );
+  // Create template object
+  parts.push(`// Template object`);
+  parts.push(`const template = ${JSON.stringify(templateObject, null, 2)};`);
+  parts.push('');
 
-  // Serialize helper functions
-  const helpers = script?.functions || {};
-  const serializedHelpers = {};
-  for (const [name, func] of Object.entries(helpers)) {
-    serializedHelpers[name] = func.toString();
+  // Add helper functions if present
+  if (helperFunctions && Object.keys(helperFunctions).length > 0) {
+    parts.push(`// Helper functions`);
+    for (const [name, func] of Object.entries(helperFunctions)) {
+      parts.push(`template.helpers.${name} = ${func.toString()};`);
+    }
+    parts.push('');
   }
 
-  // Create context object
-  const contextData = {
-    chop: morphContext.chop || {},
-    helpers: serializedHelpers,
-    handshake: handshake?.data || null,
-    placeholders: morphContext.placeholders || [],
-  };
+  // Build and export render function
+  parts.push(`// Build render function`);
+  parts.push(`const renderFunction = morph.build(template);`);
+  parts.push('');
 
-  // Generate the render function
-  parts.push(`const morphRenderFunction = ${renderFunction.toString()};`);
-
-  // Reconstruct helper functions
-  parts.push(`const reconstructedHelpers = {};`);
-  for (const name of Object.keys(helpers)) {
-    parts.push(
-      `try { reconstructedHelpers['${name}'] = new Function('return ' + ${JSON.stringify(serializedHelpers[name])})(); } catch(e) { console.warn('Failed to reconstruct helper ${name}:', e); }`
-    );
-  }
-
-  // Inline all context variables for morphRenderFunction scope
-  parts.push(`// Inline context variables from _readTemplate`);
-  parts.push(`const chop = originalChop;`);
-  parts.push(`const helpers = reconstructedHelpers;`);
-  parts.push(
-    `const handshake = ${contextData.handshake ? JSON.stringify(contextData.handshake) : '{}'};`
-  );
-  parts.push(`let placeholders = ${JSON.stringify(contextData.placeholders)};`);
-  parts.push(
-    `const originalPlaceholders = ${JSON.stringify(contextData.placeholders)};`
-  );
-  parts.push(`const buildDependencies = {};`);
-  parts.push(`const snippets = {};`);
-
-  // Add internal morph helper functions
-  parts.push(`// Internal morph helper functions`);
-  parts.push(`const _defineDataType = (data) => {`);
-  parts.push(`  if (data === null || data === undefined) return 'null';`);
-  parts.push(`  if (Array.isArray(data)) return 'array';`);
-  parts.push(`  if (typeof data === 'object') return 'object';`);
-  parts.push(`  return 'primitive';`);
-  parts.push(`};`);
-
-  parts.push(`const _defineData = (info, action) => {`);
-  parts.push(`  const dataDeepLevel = [];`);
-  parts.push(`  const nestedData = [];`);
-  parts.push(`  // Process data and actions to determine nesting`);
-  parts.push(`  // Implementation would be complex - using simplified version`);
-  parts.push(`  return { dataDeepLevel, nestedData };`);
-  parts.push(`};`);
-
-  parts.push(`const _setupActions = (actions, dataDeepLevel) => {`);
-  parts.push(`  // Simplified action setup`);
-  parts.push(
-    `  return actions.map(action => ({ type: action, name: action, level: dataDeepLevel }));`
-  );
-  parts.push(`};`);
-
-  parts.push(`const _actionSupply = (actSetup, dataDeepLevel) => {`);
-  parts.push(`  // Simplified action supply`);
-  parts.push(`  return actSetup;`);
-  parts.push(`};`);
-
-  parts.push(`const walk = ({data, objectCallback}) => {`);
-  parts.push(`  // Simplified walk function`);
-  parts.push(`  return data;`);
-  parts.push(`};`);
-
-  parts.push(`// Render function with inlined context`);
-  parts.push(
-    `export default function(command = 'render', data = {}, dependencies = {}, ...args) {`
-  );
-  parts.push(`  return morphRenderFunction(command, data, dependencies);`);
-  parts.push(`};`);
+  parts.push(`// Export render function`);
+  parts.push(`export default renderFunction;`);
 
   // Add handshake in development mode as separate export
   const shouldAddHandshake =

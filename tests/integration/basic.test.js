@@ -49,9 +49,12 @@ describe('Basic Morph Processing Integration', () => {
     expect(result).toBeDefined();
     expect(result.code).toBeDefined();
     expect(result.code).toContain("import morph from '@peter.naydenov/morph'");
+    expect(result.code).toContain('const template = {');
+    expect(result.code).toContain('"template":');
     expect(result.code).toContain(
-      "export default function(command = 'render', data = {}, dependencies = {}, ...args)"
+      'const renderFunction = morph.build(template);'
     );
+    expect(result.code).toContain('export default renderFunction;');
     expect(result.code).not.toContain('export const styles');
     expect(result.meta['vite-plugin-morph'].isCSSOnly).toBe(false);
 
@@ -61,9 +64,12 @@ describe('Basic Morph Processing Integration', () => {
     expect(outputContent).toContain(
       "import morph from '@peter.naydenov/morph'"
     );
+    expect(outputContent).toContain('const template = {');
+    expect(outputContent).toContain('"template":');
     expect(outputContent).toContain(
-      "export default function(command = 'render', data = {}, dependencies = {}, ...args)"
+      'const renderFunction = morph.build(template);'
     );
+    expect(outputContent).toContain('export default renderFunction;');
     expect(outputContent).not.toContain('export const styles');
   });
 
@@ -96,10 +102,12 @@ describe('Basic Morph Processing Integration', () => {
     expect(result).toBeDefined();
     expect(result.code).toBeDefined();
     expect(result.code).toContain("import morph from '@peter.naydenov/morph'");
+    expect(result.code).toContain('const template = {');
+    expect(result.code).toContain('"template":');
     expect(result.code).toContain(
-      "export default function(command = 'render', data = {}, dependencies = {}, ...args)"
+      'const renderFunction = morph.build(template);'
     );
-    expect(result.code).toContain('function');
+    expect(result.code).toContain('export default renderFunction;');
     // Should not contain any placeholder processing logic
     expect(result.code).not.toContain('{{');
     expect(result.code).not.toContain('}}');
@@ -110,10 +118,11 @@ describe('Basic Morph Processing Integration', () => {
     expect(outputContent).toContain(
       "import morph from '@peter.naydenov/morph'"
     );
-    expect(outputContent).toContain('morphRenderFunction');
+    expect(outputContent).toContain('const template = {');
+    expect(outputContent).toContain('"template":');
     expect(outputContent).toContain(
-      "export default function(command = 'render', data = {}, dependencies = {}, ...args)"
+      'const renderFunction = morph.build(template);'
     );
-    expect(outputContent).toContain('function');
+    expect(outputContent).toContain('export default renderFunction;');
   });
 });

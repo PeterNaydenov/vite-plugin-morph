@@ -25,22 +25,16 @@ describe('Morph Library Integration', () => {
     expect(result).toBeDefined();
     expect(result.code).toBeDefined();
 
-    // Check that the render function is generated with context preservation
+    // Check that template object and morph.build are generated
     expect(result.code).toContain('formatTitle');
     expect(result.code).toContain("import morph from '@peter.naydenov/morph'");
-    expect(result.code).toContain('const morphRenderFunction');
-    expect(result.code).toContain('reconstructedHelpers');
+    expect(result.code).toContain('const template = {');
+    expect(result.code).toContain('"template":');
+    expect(result.code).toContain('"helpers":');
     expect(result.code).toContain(
-      'Inline context variables from _readTemplate'
+      'const renderFunction = morph.build(template);'
     );
-    expect(result.code).toContain('const chop = originalChop;');
-    expect(result.code).toContain('const helpers = reconstructedHelpers;');
-    expect(result.code).toContain(
-      "export default function(command = 'render', data = {}, dependencies = {}, ...args)"
-    );
-    expect(result.code).toContain(
-      'return morphRenderFunction(command, data, dependencies)'
-    );
+    expect(result.code).toContain('export default renderFunction;');
   }); // it
 
   it('should handle template-only files without placeholders', async () => {
@@ -58,15 +52,14 @@ describe('Morph Library Integration', () => {
     expect(result).toBeDefined();
     expect(result.code).toBeDefined();
 
-    // Should generate render function with context preservation
+    // Should generate template object and morph.build call
     expect(result.code).toContain("import morph from '@peter.naydenov/morph'");
-    expect(result.code).toContain('const morphRenderFunction');
+    expect(result.code).toContain('const template = {');
+    expect(result.code).toContain('"template":');
     expect(result.code).toContain(
-      "export default function(command = 'render', data = {}, dependencies = {}, ...args)"
+      'const renderFunction = morph.build(template);'
     );
-    expect(result.code).toContain(
-      'return morphRenderFunction(command, data, dependencies)'
-    );
+    expect(result.code).toContain('export default renderFunction;');
   }); // it
 
   it('should include morph utilities in CSS-only files', async () => {
