@@ -20,7 +20,7 @@
   "scripts": {
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage",
+    "cover": "vitest run --coverage",
     "build": "npm run build:types && npm run build:lib",
     "build:types": "jsdoc -c jsdoc.conf.json",
     "build:lib": "vite build",
@@ -33,13 +33,13 @@
     "parse5": "^8.0.0"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^4.0.10",
+    "@vitest/coverage-v8": "^4.0.13",
     "eslint": "^9.39.1",
     "jsdoc": "^4.0.2",
     "prettier": "^3.1.0",
     "typedoc": "^0.28.14",
     "vite": "^7.2.4",
-    "vitest": "^4.0.10"
+    "vitest": "^4.0.13"
   },
   "peerDependencies": {
     "vite": "^7.2.2"
