@@ -5,10 +5,12 @@
  * @version 1.0.0
  */
 
+import { parse } from '@babel/parser';
+import traverse from '@babel/traverse';
 import { debug, warn } from '../utils/logger.js';
 
 /**
- * Parse helper functions from script content
+ * Parse helper functions from script content using AST
  * @param {string} scriptContent - JavaScript code
  * @returns {Object<string,Function>} Parsed helper functions
  */
@@ -16,25 +18,53 @@ function parseHelperFunctions(scriptContent) {
   const functions = {};
 
   try {
-    // Match function declarations: function name() {} and arrow functions that don't return template literals
-    const functionRegex =
-      /(?:function\s+(\w+)\s*\([^)]*\)\s*\{|(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[a-zA-Z_$][\w$]*)\s*=>\s*(?!`)(?:\{[^}]*\}|\([^()]*\)|\[[^{]*\]|\{[^}]*\})\s*)/g;
-    let match;
+    const ast = parse(scriptContent, {
+      sourceType: 'module',
+      plugins: ['jsx'],
+    });
 
-    while ((match = functionRegex.exec(scriptContent)) !== null) {
-      const functionName = match[1] || match[2];
+    traverse(ast, {
+      FunctionDeclaration(path) {
+        const { node } = path;
+        if (node.id && node.id.name) {
+          try {
+            // Extract the function code
+            const start = node.start;
+            const end = node.end;
+            const functionCode = scriptContent.slice(start, end).trim();
+            functions[node.id.name] = eval('(' + functionCode + ')');
+            debug(`Parsed helper function: ${node.id.name}`);
+          } catch (parseError) {
+            warn(
+              `Failed to parse function ${node.id.name}: ${parseError.message}`
+            );
+          }
+        }
+      },
 
-      try {
-        // Create a simple function placeholder for testing
-        // In a real implementation, you'd parse the actual function body
-        functions[functionName] = function () {
-          return 'mock function';
-        };
-        debug(`Parsed helper function: ${functionName}`);
-      } catch (parseError) {
-        warn(`Failed to parse function ${functionName}: ${parseError.message}`);
-      }
-    }
+      VariableDeclarator(path) {
+        const { node } = path;
+        if (
+          node.id.type === 'Identifier' &&
+          (node.init?.type === 'ArrowFunctionExpression' ||
+            node.init?.type === 'FunctionExpression')
+        ) {
+          const functionName = node.id.name;
+          try {
+            // Extract the function code
+            const start = node.init.start;
+            const end = node.init.end;
+            const functionCode = scriptContent.slice(start, end).trim();
+            functions[functionName] = eval('(' + functionCode + ')');
+            debug(`Parsed helper function: ${functionName}`);
+          } catch (parseError) {
+            warn(
+              `Failed to parse function ${functionName}: ${parseError.message}`
+            );
+          }
+        }
+      },
+    });
   } catch (error) {
     warn(`Error parsing helper functions: ${error.message}`);
   }
@@ -43,7 +73,7 @@ function parseHelperFunctions(scriptContent) {
 }
 
 /**
- * Parse helper templates from script content
+ * Parse helper templates from script content using AST
  * @param {string} scriptContent - JavaScript code
  * @returns {Object<string,string>} Parsed helper templates
  */
@@ -51,48 +81,66 @@ function parseHelperTemplates(scriptContent) {
   const templates = {};
 
   try {
-    // Use the new regex to find all variable declarations
-    const templateRegex =
-      /(const|let|var)\s+([a-zA-Z_$][\w$]*)\s*=([^;]*?)(?:;|$)/g;
-    let match;
+    const ast = parse(scriptContent, {
+      sourceType: 'module',
+      plugins: ['jsx'],
+    });
 
-    while ((match = templateRegex.exec(scriptContent)) !== null) {
-      const templateName = match[2];
-      const templateContent = match[3].trim();
+    traverse(ast, {
+      VariableDeclarator(path) {
+        const { node } = path;
+        if (node.id.type === 'Identifier') {
+          const templateName = node.id.name;
+          let templateContent = null;
 
-      try {
-        // Check if this is a regular function declaration (should be in functions, not templates)
-        const isRegularFunction = /^function\s+/.test(templateContent);
+          if (node.init) {
+            // Get the original code for this node
+            const start = node.init.start;
+            const end = node.init.end;
+            templateContent = scriptContent.slice(start, end).trim();
+          }
 
-        // Check if this is an arrow function (any arrow function should be a template)
-        const isArrowFunction = /=>/.test(templateContent);
+          if (templateContent) {
+            try {
+              // Skip regular function expressions (they're handled as functions)
+              const isRegularFunction =
+                node.init?.type === 'FunctionExpression';
+              const isArrowFunction =
+                node.init?.type === 'ArrowFunctionExpression';
 
-        if (!isRegularFunction) {
-          // Handle arrow functions and direct template literals
-          if (isArrowFunction) {
-            // For arrow functions, treat entire content as template (no well-formed check)
-            templates[templateName] = templateContent;
-            debug(`Parsed helper template: ${templateName}`);
-          } else {
-            // Handle direct template literal assignment
-            const templateLiteralMatch = templateContent.match(/^`([^`]*)`$/);
-            if (templateLiteralMatch) {
-              const literalContent = templateLiteralMatch[1];
-              if (isWellFormedTemplate(literalContent)) {
-                templates[templateName] = literalContent;
-                debug(`Parsed helper template: ${templateName}`);
+              if (!isRegularFunction) {
+                if (isArrowFunction) {
+                  // For arrow functions, treat entire content as template
+                  templates[templateName] = templateContent;
+                  debug(`Parsed helper template: ${templateName}`);
+                } else {
+                  // Handle direct template literal assignment
+                  if (node.init?.type === 'TemplateLiteral') {
+                    // Extract raw content and handle empty templates
+                    const literalContent = node.init.quasis
+                      .map((q) => q.value.raw)
+                      .join('');
+                    if (isWellFormedTemplate(literalContent)) {
+                      // Store the literal content directly
+                      templates[templateName] = literalContent;
+                      debug(`Parsed helper template: ${templateName}`);
+                    }
+                  } else if (isWellFormedTemplate(templateContent)) {
+                    // For other expressions, check if they're well-formed templates
+                    templates[templateName] = templateContent;
+                    debug(`Parsed helper template: ${templateName}`);
+                  }
+                }
               }
-            } else if (isWellFormedTemplate(templateContent)) {
-              // For non-template-literal content, check if it's well-formed
-              templates[templateName] = templateContent;
-              debug(`Parsed helper template: ${templateName}`);
+            } catch (parseError) {
+              warn(
+                `Failed to parse template ${templateName}: ${parseError.message}`
+              );
             }
           }
         }
-      } catch (parseError) {
-        warn(`Failed to parse template ${templateName}: ${parseError.message}`);
-      }
-    }
+      },
+    });
   } catch (error) {
     warn(`Error parsing helper templates: ${error.message}`);
   }

@@ -1,0 +1,77 @@
+<p class="space">
+        <button id="fullscreen" title="here" data-click="fullscreen">Full Screen</button>
+    </p>
+
+
+
+{{ notifications : showNotify }}
+    
+{{ : showProfile }}
+    
+
+<h2>Projects</h2>
+
+<p class="space">Projects you own or have access to.</p>
+
+
+<!-- <div class="filter space">
+    <div>
+    <label for="filter-select">Filter by:</label>
+    <select id="filter-select">
+        <option value="name">Project name</option>
+        <option value="started-on">Started on</option>
+        <option value="type">Project type</option>
+        <option value="access">Access</option>
+    </select>
+    </div>
+    <div>
+    <label for="filter-input">Search:</label>
+    <input id="filter-input" type="text" />
+    </div>
+</div> -->
+
+{{  projects : showService }}
+
+
+
+<script>
+const blank = () => ``
+function showProfile ({ data, dependencies:{ cards } }) { return cards.profile ( 'render', {...data.profile, icons:data.icons}, cards ); }
+function showService ({ data, dependencies, full }) {
+            const { cards } = dependencies;
+            if ( typeof data !== 'object' ) { 
+                    console.error ( `Error: Expected 'Service' data to be an object` )
+                    return ``
+                }
+            return cards.service ( 'render', data, { ...dependencies, icons:full.icons} )
+    } // showService func.
+
+function showNotify ({ data, dependencies:{ cards } }) {
+            return cards.notify ( 'render', data, cards )
+    } // showNotify func.
+</script>
+
+<script type="application/json"> {
+  "t": "test",
+  "notifications": [],
+  "projects": [
+            {
+                "name": "Asterixworks Fe",
+                "started": "2020-01-01",
+                "description": "Frontend service for AsterixWorks platform",
+                "type": "Fe Service",
+                "access": "Owner",
+                "service": "frontend/asterixworks",
+                "tokens": 200
+            },
+            {
+                "name": "Test",
+                "started": "2024-04-14",
+                "description": "Dev projects collection",
+                "type": "Dev",
+                "access": "Owner",
+                "service": "dev",
+                "tokens": 450
+            }
+    ]
+} </script>

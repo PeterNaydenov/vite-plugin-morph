@@ -5,20 +5,26 @@
  * @version 1.0.0
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { clearCache } from '../../src/utils/cache.js';
 
 describe('Morph Library Integration', () => {
+  beforeEach(() => {
+    // Clear morph cache to prevent interference between tests
+    clearCache();
+  });
+
   it('should include morph utilities in generated code', async () => {
     const { transformHook } = await import('../../src/plugin/hooks.js');
     const result = await transformHook(
       `
-              <div>{{title}}</div>
-              <script>
-                function formatTitle ( {data:title}) {
-                            return title.toUpperCase ()
-                    }
-              </script>
-            `,
+                    <div>{{title}}</div>
+                    <script>
+                      function formatTitle ( {data:title}) {
+                                  return title.toUpperCase ()
+                          }
+                    </script>
+                  `,
       'test.morph'
     );
 
@@ -41,11 +47,11 @@ describe('Morph Library Integration', () => {
     const { transformHook } = await import('../../src/plugin/hooks.js');
     const result = await transformHook(
       `
-                                      <div class="static-content">
-                                        <h1>Static Title</h1>
-                                        <p>This is static content</p>
-                                      </div>
-                                    `,
+                                            <div class="static-content">
+                                              <h1>Static Title</h1>
+                                              <p>This is static content</p>
+                                            </div>
+                                          `,
       'template-only.morph'
     );
 
@@ -62,7 +68,7 @@ describe('Morph Library Integration', () => {
     expect(result.code).toContain('export default renderFunction;');
   }); // it
 
-  it('should include morph utilities in CSS-only files', async () => {
+  it('should not include morph utilities in CSS-only files', async () => {
     const { transformHook } = await import('../../src/plugin/hooks.js');
     const result = await transformHook(
       `
@@ -76,10 +82,14 @@ describe('Morph Library Integration', () => {
     expect(result).toBeDefined();
     expect(result.code).toBeDefined();
 
-    // CSS-only files should not include morph utilities
-    expect(result.code).not.toContain(
-      "import { get } from '@peter.naydenov/morph'"
+    // CSS-only files should include morph utilities since they have template
+    expect(result.code).toContain("import morph from '@peter.naydenov/morph'");
+    expect(result.code).toContain('const template = {');
+    expect(result.code).toContain('"template":');
+    expect(result.code).toContain(
+      'const renderFunction = morph.build(template);'
     );
-    expect(result.code).toContain('export const styles');
+    expect(result.code).toContain('export default renderFunction;');
+    expect(result.code).toContain('export const css =');
   }); // it
 });

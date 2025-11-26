@@ -8,11 +8,15 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { resolve } from 'path';
+import { clearCache } from '../../src/utils/cache.js';
 
 describe('Basic Morph Processing Integration', () => {
   const testOutputDir = resolve(__dirname, '../test-output');
 
   beforeEach(() => {
+    // Clear morph cache to prevent interference between tests
+    clearCache();
+
     // Clean up and create test output directory
     try {
       if (require('fs').existsSync(testOutputDir)) {

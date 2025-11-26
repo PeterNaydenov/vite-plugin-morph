@@ -14,12 +14,13 @@ import { createMorphError, ErrorCodes } from './errors.js';
  */
 function reconstructHTMLFromNodes(nodes) {
   return nodes
-    .filter((node) => node.nodeName !== 'script' && node.nodeName !== 'style')
     .map((node) => {
       if (node.nodeName === '#text') {
         return node.value;
       } else if (node.nodeName === '#comment') {
         return `<!--${node.data}-->`;
+      } else if (node.nodeName === 'script' || node.nodeName === 'style') {
+        return ''; // Skip script and style tags
       } else {
         const attrs = node.attrs
           ? node.attrs.map((attr) => `${attr.name}="${attr.value}"`).join(' ')
@@ -73,11 +74,30 @@ export function extractTemplateContent(document) {
     // Reconstruct HTML from template nodes
     const html = reconstructHTMLFromNodes(templateNodes);
 
+    // Check if this is just default HTML structure or empty
+    const trimmedHtml = html.trim();
+    const isDefaultHTML =
+      trimmedHtml === '<html><head></head><body></body></html>';
+    const isEmpty = trimmedHtml === '';
+
     // Extract placeholders for validation
     const placeholders = extractPlaceholdersFromHTML(html);
 
+    // Validate placeholders for syntax errors
+    // Check for unclosed {{
+    const openBraces = (html.match(/\{\{/g) || []).length;
+    const closeBraces = (html.match(/\}\}/g) || []).length;
+    if (openBraces !== closeBraces) {
+      throw createMorphError(
+        `Malformed placeholder: mismatched {{ and }} braces`,
+        '',
+        null,
+        ErrorCodes.TEMPLATE_ERROR
+      );
+    }
+
     return {
-      html,
+      html: isDefaultHTML || isEmpty ? '' : html,
       placeholders,
       sourceLocation: {
         file: '', // Will be set by caller

@@ -35,7 +35,7 @@ export function parseHTMLFragment(content) {
 
 /**
  * Extract content from specific script tags
- * @param {import('../types/index.js').Document} document - Parsed document
+ * @param {import('../types/index.js').Document} document - Parsed HTML document
  * @param {string} scriptType - Type of script tag ('text/javascript', 'application/json', etc.)
  * @returns {string|null} Script content or null if not found
  */
@@ -69,62 +69,93 @@ export function extractScriptContent(document, scriptType) {
 
   const scriptNodes = findScriptNodes(document);
 
-  if (scriptNodes.length === 0) {
-    return null;
+  if (scriptNodes.length > 0) {
+    // Return the concatenated content of all script tags
+    return scriptNodes
+      .map((node) => node.childNodes.map((child) => child.value || '').join(''))
+      .join('');
   }
 
-  // Get text content from script node
-  const scriptNode = scriptNodes[0];
-  const scriptTextNodes = scriptNode.childNodes.filter(
-    (node) => node.nodeName === '#text'
-  );
-
-  if (scriptTextNodes.length === 0) {
-    return '';
-  }
-
-  return scriptTextNodes.map((node) => node.value).join('');
-} // extractScriptContent func.
+  return null;
+}
 
 /**
- * Extract content from style tags
- * @param {import('../types/index.js').Document} document - Parsed document
- * @returns {string|null} CSS content or null if not found
+ * Extract content from specific style tags
+ * @param {import('../types/index.js').Document} document - Parsed HTML document
+ * @returns {string|null} Style content or null if not found
  */
 export function extractStyleContent(document) {
   // Helper function to search recursively for style nodes
   function findStyleNodes(node) {
-    const styleNodes = [];
+    const nodes = [];
 
     if (node.nodeName === 'style') {
-      styleNodes.push(node);
+      nodes.push(node);
     }
 
     if (node.childNodes) {
       for (const child of node.childNodes) {
-        styleNodes.push(...findStyleNodes(child));
+        nodes.push(...findStyleNodes(child));
       }
     }
 
-    return styleNodes;
+    return nodes;
   }
 
   const styleNodes = findStyleNodes(document);
 
-  if (styleNodes.length === 0) {
-    return null;
+  if (styleNodes.length > 0) {
+    // Return the content of the first style tag
+    return styleNodes[0].childNodes.map((child) => child.value || '').join('');
   }
 
-  const styleNode = styleNodes[0];
-  const textNodes = styleNode.childNodes.filter(
-    (node) => node.nodeName === '#text'
-  );
+  return null;
+}
 
-  if (textNodes.length === 0) {
-    return '';
+/**
+ * Extract content from specific script tags
+ * @param {import('../types/index.js').Document} document - Parsed HTML document
+ * @param {string} scriptType - Type of script tag ('text/javascript', 'application/json', etc.)
+ * @returns {string|null} Script content or null if not found
+ */
+export function extractHandshakeContent(document, scriptType) {
+  // Helper function to search recursively for script nodes
+  function findScriptNodes(node) {
+    const nodes = [];
+
+    if (node.nodeName === 'script' && node.attrs) {
+      const hasCorrectType = node.attrs.some(
+        (attr) => attr.name === 'type' && attr.value === scriptType
+      );
+      // Also match scripts without type attribute (default to JavaScript)
+      const hasNoType =
+        !node.attrs.some((attr) => attr.name === 'type') &&
+        scriptType === 'text/javascript';
+
+      if (hasCorrectType || hasNoType) {
+        nodes.push(node);
+      }
+    }
+
+    if (node.childNodes) {
+      for (const child of node.childNodes) {
+        nodes.push(...findScriptNodes(child));
+      }
+    }
+
+    return nodes;
   }
 
-  return textNodes.map((node) => node.value).join('');
+  const scriptNodes = findScriptNodes(document);
+
+  if (scriptNodes.length > 0) {
+    // Return the concatenated content of all script tags
+    return scriptNodes
+      .map((node) => node.childNodes.map((child) => child.value || '').join(''))
+      .join('');
+  }
+
+  return null;
 }
 
 /**
