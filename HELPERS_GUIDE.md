@@ -12,12 +12,12 @@ There are two types of helpers:
 ## 📖 Syntax
 
 ```html
-{{ arrayName : helperName }}
+{{ data : ActionName }}
 ```
 
-- **`arrayName`** - The array/data to iterate over
+- **`data`** - The data to apply the helper
 - **`:`** - The "apply helper" operator
-- **`helperName`** - The name of the helper to use
+- **`ActionName`** - Action - the name of the helper to use
 
 ## 🚀 Quick Examples
 
@@ -25,9 +25,9 @@ There are two types of helpers:
 
 ```javascript
 // Script section - define helper function
-function formatName(name) {
-  return name.toUpperCase();
-}
+function formatName ( name ) {
+      return name.toUpperCase();
+  }
 ```
 
 ```html
@@ -49,45 +49,12 @@ const listItem = `<li>{{name}}</li>`;
 </ul>
 ```
 
-### Complex Helper Template
 
-```javascript
-// Script section - define helper template
-const userCard = `
-  <div class="card">
-    <h3>{{name}}</h3>
-    <p>{{email}}</p>
-    {{#if admin}}
-      <span class="badge">Admin</span>
-    {{/if}}
-  </div>
-`;
-```
-
-```html
-<!-- Template section - use helper template -->
-<div class="users">{{ users : userCard }}</div>
-```
-
-### Select Options (Your Original Case)
-
-```javascript
-// Script section - define helper template
-const option = `<option value="{{id}}">{{name}}</option>`;
-```
-
-```html
-<!-- Template section - use helper template -->
-<select name="project">
-  <option value="">Select project</option>
-  {{ projects : option }}
-</select>
-```
 
 ## 🔧 Why Use Helpers?
 
 1. **Separation of Concerns** - Keep HTML structure separate from data formatting
-2. **Reusability** - Use the same helper with different arrays
+2. **Reusability** - Use the same helper with different data
 3. **Maintainability** - Update helper in one place, affects all usages
 4. **Readability** - Complex iteration logic moved to helper templates
 
@@ -108,20 +75,11 @@ Helpers work with any array data from your JSON handshake:
 }
 ```
 
+
+
 ## 🎨 Best Practices
 
 1. **Descriptive Names** - Use clear helper names like `userCard`, `listItem`
 2. **Consistent Structure** - Follow similar patterns across helpers
 3. **Comments** - Add clarifying comments when needed
 4. **Validation** - Test helpers with different data scenarios
-
-## 🆚 More Advanced Features
-
-The `@peter.naydenov/morph` library also supports:
-
-- **Conditionals**: `{{#if condition}}...{{/if}}`
-- **Loops**: `{{#each items}}...{{/each}}`
-- **Nested helpers**: Helpers can use other helpers
-- **Dynamic attributes**: `class="{{#if active}}active{{/if}}"`
-
-Helpers give you powerful, reusable components within your morph files! 🚀
