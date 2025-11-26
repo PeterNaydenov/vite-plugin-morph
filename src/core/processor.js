@@ -312,8 +312,9 @@ function generateESModule(
       if (typeof helper === 'function') {
         parts.push(`template.helpers.${name} = ${helper.toString()};`);
       } else {
-        // String helper - add as template string
-        parts.push(`template.helpers.${name} = \`${helper}\`;`);
+        // String helper - escape and add as template string
+        const escapedHelper = helper.replace(/`/g, '\\`').replace(/\${/g, '\\${');
+        parts.push(`template.helpers.${name} = \`${escapedHelper}\`;`);
       }
     }
     parts.push('');

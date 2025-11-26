@@ -5,8 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.4] - 2025-11-26
 
+### 🚀 Major Features
 
+- **Helper templates**: Added support for string-based helper templates
+- **Mixed helpers**: Can now use both helper functions and helper templates in the same morph file
+- **Helper template processing**: Proper extraction and compilation of template literals from script sections
+
+### 🐛 Fixed
+
+- **String helper recognition**: Fixed critical bug where string helpers like `const option = \`...\`` were not recognized
+- **Helper template integration**: Fixed issue where helpers syntax failed to resolve string helpers
+- **JSDoc type imports**: Fixed 49 broken JSDoc imports that referenced non-existent `./types/plugin.js` files
+- **Type definition conflicts**: Resolved duplicate type definitions across multiple type folders
+
+### 📝 Documentation & Terminology
+
+- **Type consolidation**: Moved all types from `src/core/types/processing.js` to single `src/types/index.js` location
+- **JSDoc updates**: Updated all function documentation to reflect mixed helper support
+- **Import path fixes**: Corrected all JSDoc imports to use unified type location
+- **ScriptContent typedef**: Added missing `templates` property to type definitions
+- **Clear terminology**: Updated documentation to use simple "helpers" instead of confusing "template helpers"
+- **Helper guide**: Created comprehensive `HELPERS_GUIDE.md` with clear examples and best practices
+- **Consistent naming**: Standardized on "helper functions" and "helper templates" terminology
+
+### 🧹 Code Cleanup
+
+- **Removed unused files**: Deleted `src/core/generator.js` (143 lines of dead code)
+- **Removed unused exports**: Cleaned up `validateTransformResult()` and `createSourceMap()` functions
+- **Removed duplicate types**: Eliminated `src/core/types/` folder to prevent confusion
+- **Fixed orphaned code**: Cleaned up broken function remnants from previous edits
+- **Implemented logging**: Replaced empty logging functions with proper implementation
+
+### 🧪 Testing
+
+- **String helper tests**: Added comprehensive test coverage for string helper functionality
+- **Mixed helper tests**: Added tests for combined function and template helper scenarios
+- **Integration tests**: Added tests for original failing template with helper syntax
+- **Test coverage**: All 46 tests now pass (up from 41)
+
+### 🔧 Technical Improvements
+
+- **Helper processing pipeline**: Updated to handle both functions and template strings simultaneously
+- **Code generation**: Enhanced to properly output string helpers as template literals
+- **Error handling**: Fixed null reference errors in transform hook options processing
+- **Project structure**: Simplified to single authoritative type definition location
 
 ## [0.0.3] - 2025-11-24
 
@@ -14,9 +58,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Config import path**: Fixed incorrect import path from `./plugin/config.js` to `./config.js` in `src/plugin/index.js:122`
 - **Code comment**: Updated outdated comment reference to config file location
-
-
-
 
 ## [0.0.2] - 2025-11-19
 

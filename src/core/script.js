@@ -16,12 +16,13 @@ function parseHelperFunctions(scriptContent) {
   const functions = {};
 
   try {
-    // Match function declarations: function name() {}
-    const functionRegex = /function\s+(\w+)\s*\([^)]*\)\s*\{/g;
+    // Match function declarations: function name() {} and arrow functions that don't return template literals
+    const functionRegex =
+      /(?:function\s+(\w+)\s*\([^)]*\)\s*\{|(?:const|let|var)\s+(\w+)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[a-zA-Z_$][\w$]*)\s*=>\s*(?!`)(?:\{[^}]*\}|\([^()]*\)|\[[^{]*\]|\{[^}]*\})\s*)/g;
     let match;
 
     while ((match = functionRegex.exec(scriptContent)) !== null) {
-      const functionName = match[1];
+      const functionName = match[1] || match[2];
 
       try {
         // Create a simple function placeholder for testing
@@ -50,20 +51,46 @@ function parseHelperTemplates(scriptContent) {
   const templates = {};
 
   try {
-    // Match const template declarations: const name = `template content`
-    // This regex specifically looks for template literals with backticks
+    // Use the new regex to find all variable declarations
     const templateRegex =
-      /(?:const|let|var)\s+(\w+)\s*=\s*`([^`]*(?:\\.[^`]*)*)`/g;
+      /(const|let|var)\s+([a-zA-Z_$][\w$]*)\s*=([^;]*?)(?:;|$)/g;
     let match;
 
     while ((match = templateRegex.exec(scriptContent)) !== null) {
-      const templateName = match[1];
-      const templateContent = match[2];
+      const templateName = match[2];
+      const templateContent = match[3].trim();
 
-      // Check if template is well-formed HTML
-      if (isWellFormedTemplate(templateContent)) {
-        templates[templateName] = templateContent;
-        debug(`Parsed helper template: ${templateName}`);
+      try {
+        // Check if this is a regular function declaration (should be in functions, not templates)
+        const isRegularFunction = /^function\s+/.test(templateContent);
+
+        // Check if this is an arrow function (any arrow function should be a template)
+        const isArrowFunction = /=>/.test(templateContent);
+
+        if (!isRegularFunction) {
+          // Handle arrow functions and direct template literals
+          if (isArrowFunction) {
+            // For arrow functions, treat entire content as template (no well-formed check)
+            templates[templateName] = templateContent;
+            debug(`Parsed helper template: ${templateName}`);
+          } else {
+            // Handle direct template literal assignment
+            const templateLiteralMatch = templateContent.match(/^`([^`]*)`$/);
+            if (templateLiteralMatch) {
+              const literalContent = templateLiteralMatch[1];
+              if (isWellFormedTemplate(literalContent)) {
+                templates[templateName] = literalContent;
+                debug(`Parsed helper template: ${templateName}`);
+              }
+            } else if (isWellFormedTemplate(templateContent)) {
+              // For non-template-literal content, check if it's well-formed
+              templates[templateName] = templateContent;
+              debug(`Parsed helper template: ${templateName}`);
+            }
+          }
+        }
+      } catch (parseError) {
+        warn(`Failed to parse template ${templateName}: ${parseError.message}`);
       }
     }
   } catch (error) {
@@ -121,7 +148,7 @@ export function processScriptContent(scriptContent) {
     functions,
     templates,
     sourceLocation: {
-      file: '', // Will be set by caller
+      file: '',
       line: 1,
       column: 1,
       offset: 0,
