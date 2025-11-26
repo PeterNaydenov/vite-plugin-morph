@@ -60,8 +60,8 @@ function extractPlaceholdersFromHTML(html) {
 
 /**
  * Extract template content from parsed document
- * @param {import('./types/processing.js').Document} document - Parsed HTML document
- * @returns {import('./types/processing.js').TemplateContent} Template content
+ * @param {import('../types/index.js').Document} document - Parsed HTML document
+ * @returns {import('../types/index.js').TemplateContent} Template content
  */
 export function extractTemplateContent(document) {
   try {

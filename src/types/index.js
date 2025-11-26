@@ -33,6 +33,16 @@
  */
 
 /**
+ * HTML AST node
+ * @typedef {Object} Node
+ * @property {string} nodeName - Node name
+ * @property {Object[]} [attrs] - Node attributes
+ * @property {Node[]} [childNodes] - Child nodes
+ * @property {string} [value] - Node value (for text nodes)
+ * @property {string} [data] - Node data (for comment nodes)
+ */
+
+/**
  * Source location information
  * @typedef {Object} SourceLocation
  * @property {string} file - File path
@@ -74,6 +84,7 @@
  * @property {MorphPluginError[]} [errors] - Processing errors
  * @property {MorphPluginError[]} [warnings] - Processing warnings
  * @property {boolean} [isCSSOnly] - True if this is CSS-only .morph file
+ * @property {Object} [templateObject] - Template object for morph library
  */
 
 /**
@@ -220,6 +231,8 @@
  * Template content extraction result
  * @typedef {Object} TemplateContent
  * @property {string} html - Extracted HTML template
+ * @property {Object[]} placeholders - Array of placeholder objects
+ * @property {SourceLocation} sourceLocation - Source location information
  */
 
 /**

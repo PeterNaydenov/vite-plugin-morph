@@ -9,7 +9,7 @@ import { createMorphPlugin } from './plugin/index.js';
 
 /**
  * Vite plugin factory function
- * @param {import('./types/plugin.js').MorphPluginOptions} [options={}] - Plugin configuration options
+ * @param {import('./types/index.js').MorphPluginOptions} [options={}] - Plugin configuration options
  * @returns {import('vite').Plugin} Vite plugin instance
  */
 export default function morphPlugin(options = {}) {

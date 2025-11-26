@@ -93,7 +93,7 @@ function resolveOptions(options) {
  * @param {string} code - File content
  * @param {string} id - File path
  * @param {import('../types/index.js').MorphPluginOptions} options - Plugin options
- * @returns {Promise<import('../core/types/processing.js').ProcessingResult>} Processing result
+ * @returns {Promise<import('../types/index.js').ProcessingResult>} Processing result
  */
 async function processMorphFile(code, id, options) {
   // This will be implemented in core/processor.js
@@ -117,7 +117,7 @@ function validatePluginConfig(options, config) {
  * Create morph error with location information
  * @param {Error} error - Original error
  * @param {string} filePath - File path
- * @returns {import('../core/types/processing.js').MorphPluginError} Enhanced error
+ * @returns {import('../types/index.js').MorphPluginError} Enhanced error
  */
 async function createMorphError(error, filePath) {
   // This will be implemented in core/errors.js

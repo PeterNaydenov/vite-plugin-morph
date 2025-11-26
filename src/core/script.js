@@ -107,7 +107,7 @@ function isWellFormedTemplate(templateContent) {
 /**
  * Process script content to extract both functions and templates
  * @param {string} scriptContent - JavaScript code
- * @returns {import('./types/processing.js').ScriptContent} Processed script content with functions and templates
+ * @returns {import('../types/index.js').ScriptContent} Processed script content with functions and templates
  */
 export function processScriptContent(scriptContent) {
   // Parse helper functions

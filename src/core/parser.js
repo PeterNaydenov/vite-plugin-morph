@@ -10,7 +10,7 @@ import { parse, parseFragment } from 'parse5';
 /**
  * Parse morph file content into AST
  * @param {string} content - Raw morph file content
- * @returns {import('./types/processing.js').Document} Parsed HTML document
+ * @returns {import('../types/index.js').Document} Parsed HTML document
  */
 export function parseMorphFile(content) {
   try {
@@ -23,7 +23,7 @@ export function parseMorphFile(content) {
 /**
  * Parse HTML fragment (for template content)
  * @param {string} content - HTML fragment content
- * @returns {import('./types/processing.js').Document} Parsed HTML fragment
+ * @returns {import('../types/index.js').Document} Parsed HTML fragment
  */
 export function parseHTMLFragment(content) {
   try {
@@ -35,7 +35,7 @@ export function parseHTMLFragment(content) {
 
 /**
  * Extract content from specific script tags
- * @param {import('./types/processing.js').Document} document - Parsed document
+ * @param {import('../types/index.js').Document} document - Parsed document
  * @param {string} scriptType - Type of script tag ('text/javascript', 'application/json', etc.)
  * @returns {string|null} Script content or null if not found
  */
@@ -88,7 +88,7 @@ export function extractScriptContent(document, scriptType) {
 
 /**
  * Extract content from style tags
- * @param {import('./types/processing.js').Document} document - Parsed document
+ * @param {import('../types/index.js').Document} document - Parsed document
  * @returns {string|null} CSS content or null if not found
  */
 export function extractStyleContent(document) {
@@ -129,8 +129,8 @@ export function extractStyleContent(document) {
 
 /**
  * Get source location information from AST node
- * @param {import('./types/processing.js').Node} node - AST node
- * @returns {import('./types/processing.js').SourceLocation} Location information
+ * @param {import('../types/index.js').Node} node - AST node
+ * @returns {import('../types/index.js').SourceLocation} Location information
  */
 export function getNodeLocation(node) {
   // parse5 provides location information
@@ -153,6 +153,6 @@ export function getNodeLocation(node) {
 
 /**
  * Reconstruct HTML from AST nodes
- * @param {import('./types/processing.js').Node[]} nodes - AST nodes
+ * @param {import('../types/index.js').Node[]} nodes - AST nodes
  * @returns {string} Reconstructed HTML
  */

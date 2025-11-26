@@ -9,7 +9,7 @@ import { createMorphError, ErrorCodes } from '../core/errors.js';
 
 /**
  * Validate plugin configuration
- * @param {import('./types/plugin.js').MorphPluginOptions} options - Plugin options
+ * @param {import('../../types/index.js').MorphPluginOptions} options - Plugin options
  * @param {import('vite').ResolvedConfig} config - Vite config
  */
 export function validateConfig(options) {

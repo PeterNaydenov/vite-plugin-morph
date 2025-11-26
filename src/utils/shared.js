@@ -7,7 +7,7 @@
 
 /**
  * Check if running in production mode
- * @param {import('./types/plugin.js').MorphPluginOptions} options - Plugin options
+ * @param {import('../types/index.js').MorphPluginOptions} options - Plugin options
  * @returns {boolean} Whether in production mode
  */
 export function isProductionMode(options) {

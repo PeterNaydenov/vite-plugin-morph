@@ -21,8 +21,8 @@ import { isProductionMode } from '../utils/shared.js';
  * Process a morph file and return compiled result
  * @param {string} content - Raw morph file content
  * @param {string} filePath - File path
- * @param {import('./types/plugin.js').MorphPluginOptions} options - Plugin options
- * @returns {Promise<import('./types/processing.js').ProcessingResult>} Processing result
+ * @param {import('../../types/index.js').MorphPluginOptions} options - Plugin options
+ * @returns {Promise<import('../../types/index.js').ProcessingResult>} Processing result
  */
 export async function processMorphFile(content, filePath, options) {
   const startTime = Date.now();
@@ -157,9 +157,9 @@ export async function processMorphFile(content, filePath, options) {
 
 /**
  * Process standard morph file with template and optional script/style
- * @param {import('./types/processing.js').MorphFile} morphFile - Parsed morph file
- * @param {import('./types/plugin.js').MorphPluginOptions} options - Plugin options
- * @returns {Promise<import('./types/processing.js').ProcessingResult>} Processing result
+ * @param {import('../../types/index.js').MorphFile} morphFile - Parsed morph file
+ * @param {import('../../types/index.js').MorphPluginOptions} options - Plugin options
+ * @returns {Promise<import('../../types/index.js').ProcessingResult>} Processing result
  */
 async function processStandardMorphFile(morphFile, options) {
   const { template, script, style, handshake } = morphFile;
@@ -211,9 +211,9 @@ async function processStandardMorphFile(morphFile, options) {
 
 /**
  * Process CSS-only morph file
- * @param {import('./types/processing.js').MorphFile} morphFile - Parsed morph file
- * @param {import('./types/plugin.js').MorphPluginOptions} options - Plugin options
- * @returns {Promise<import('./types/processing.js').ProcessingResult>} Processing result
+ * @param {import('../../types/index.js').MorphFile} morphFile - Parsed morph file
+ * @param {import('../../types/index.js').MorphPluginOptions} options - Plugin options
+ * @returns {Promise<import('../../types/index.js').ProcessingResult>} Processing result
  */
 async function processCSSOnlyFile(morphFile, options) {
   const { style } = morphFile;
@@ -273,9 +273,9 @@ function extractCSSVariables(cssContent) {
  * Generate ES module code with template object
  * @param {Object} templateObject - Template object for morph library
  * @param {Object} helperFunctions - Helper functions and templates
- * @param {import('./types/processing.js').StyleContent} [style] - Style content
- * @param {import('./types/processing.js').HandshakeContent} [handshake] - Handshake content
- * @param {import('./types/processing.js').ScriptContent} [script] - Script content
+ * @param {import('../../types/index.js').StyleContent} [style] - Style content
+ * @param {import('../../types/index.js').HandshakeContent} [handshake] - Handshake content
+ * @param {import('../../types/index.js').ScriptContent} [script] - Script content
  * @param {import('../../types/index.js').MorphPluginOptions} options - Plugin options
  * @returns {string} ES module code
  */
@@ -342,7 +342,7 @@ function generateESModule(
 /**
  * Generate CSS-only module code
  * @param {Record<string,string>} cssExports - CSS exports
- * @param {import('./types/plugin.js').MorphPluginOptions} options - Plugin options
+ * @param {import('../../types/index.js').MorphPluginOptions} options - Plugin options
  * @returns {string} ES module code
  */
 function generateCSSOnlyModule(cssExports, options) {

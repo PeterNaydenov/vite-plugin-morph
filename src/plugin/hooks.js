@@ -14,7 +14,7 @@ import { debug, info, error } from '../utils/logger.js';
  * @param {string} code - File content
  * @param {string} id - File path
  * @param {import('vite').TransformOptions} [options] - Vite transform options
- * @returns {Promise<import('./types/plugin.js').TransformResult>} Transform result
+ * @returns {Promise<import('../../types/index.js').TransformResult>} Transform result
  */
 export async function transformHook(code, id, options = {}) {
   // Only process .morph files
@@ -143,7 +143,7 @@ export async function handleHotUpdate(context) {
 /**
  * Get plugin options from Vite config
  * @param {import('vite').ResolvedConfig|import('vite').TransformOptions} configOrOptions - Vite config or transform options
- * @returns {import('./types/plugin.js').MorphPluginOptions} Plugin options
+ * @returns {import('../../types/index.js').MorphPluginOptions} Plugin options
  */
 function getPluginOptions(configOrOptions) {
   // Handle both ResolvedConfig and TransformOptions
