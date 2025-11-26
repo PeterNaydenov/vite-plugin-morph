@@ -13,11 +13,12 @@ describe('Helper Template Destructuring Support', () => {
 
     const result = processScriptContent(scriptContent);
 
-    expect(result.templates).toBeDefined();
-    expect(result.templates.showProfile).toBeDefined();
-    expect(result.templates.showProfile).toContain('data.profile');
-    expect(result.templates.showProfile).toContain('data.icons');
-    expect(result.templates.showProfile).toContain('cards');
+    expect(result.functions).toBeDefined();
+    expect(result.functions.showProfile).toBeDefined();
+    expect(typeof result.functions.showProfile).toBe('function');
+    expect(result.functions.showProfile.toString()).toContain('data.profile');
+    expect(result.functions.showProfile.toString()).toContain('data.icons');
+    expect(result.functions.showProfile.toString()).toContain('cards');
   });
 
   it('should handle arrow function helper templates', () => {

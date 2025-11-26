@@ -36,7 +36,7 @@
 
 <script>
 const blank = () => ``
-function showProfile ({ data, dependencies:{ cards } }) { return cards.profile ( 'render', {...data.profile, icons:data.icons}, cards ); }
+const showProfile = ({ data, dependencies:{ cards } }) => cards.profile ( 'render', {...data.profile, icons:data.icons}, cards )
 function showService ({ data, dependencies, full }) {
             const { cards } = dependencies;
             if ( typeof data !== 'object' ) { 

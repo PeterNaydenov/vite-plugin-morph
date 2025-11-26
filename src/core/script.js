@@ -110,11 +110,20 @@ function parseHelperTemplates(scriptContent) {
 
               if (!isRegularFunction) {
                 if (isArrowFunction) {
-                  // For arrow functions, treat entire content as template
-                  templates[templateName] = templateContent;
-                  debug(`Parsed helper template: ${templateName}`);
+                  // For arrow functions, check if they return template literals
+                  if (node.init.body?.type === 'TemplateLiteral') {
+                    // Arrow function returning template literal - treat as template
+                    const literalContent = node.init.body.quasis
+                      .map((q) => q.value.raw)
+                      .join('');
+                    if (isWellFormedTemplate(literalContent)) {
+                      templates[templateName] = literalContent;
+                      debug(`Parsed helper template: ${templateName}`);
+                    }
+                  }
+                  // Other arrow functions are handled as functions
                 } else {
-                  // Handle direct template literal assignment
+                  // Handle non-function expressions as templates
                   if (node.init?.type === 'TemplateLiteral') {
                     // Extract raw content and handle empty templates
                     const literalContent = node.init.quasis
