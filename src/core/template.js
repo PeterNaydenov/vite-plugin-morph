@@ -72,22 +72,42 @@ export function extractRequiredHelpers(templateHtml) {
   while ((match = placeholderRegex.exec(templateHtml)) !== null) {
     const content = match[1].trim();
 
-    // Handle different placeholder formats:
-    // {{ data : helperName }} - helperName is required
-    // {{ : helperName }} - helperName is required
-    // {{ data : helperName : param }} - helperName is required
-    // {{ data }} - no helper required
+    // Handle morph's advanced placeholder syntax:
+    // {{ data : helper1, helper2, >helper3 }} - multiple helpers separated by commas
+    // {{ @all : blank, ^^, >setupData }} - special syntax with symbols
+    // {{ contacts : [], #, [], contactCards, #, [], tags }} - complex syntax
 
-    const parts = content.split(':').map((p) => p.trim());
+    // Split by colons first to get the main parts
+    const colonParts = content.split(':').map((p) => p.trim());
 
-    // If there's a colon, the last part (after trimming) is a helper name
-    if (parts.length >= 2) {
-      const helperName = parts[parts.length - 1];
-      if (helperName && helperName !== '') {
-        helpers.add(helperName);
+    // Skip the first part as it's typically data (unless it looks like a helper)
+    for (let i = 1; i < colonParts.length; i++) {
+      const part = colonParts[i];
+
+      // Split by commas to handle multiple helpers/parameters
+      const commaParts = part.split(',').map((p) => p.trim());
+
+      for (const item of commaParts) {
+        // Check if this looks like a helper name (not empty, not just symbols, not array literals)
+        if (
+          item &&
+          item !== '' &&
+          !/^[\[\]{}#@^*<>]+$/.test(item) && // Exclude symbols and brackets
+          !item.includes('=') && // Exclude assignments
+          !/^\d+$/.test(item) && // Exclude numbers
+          item.length > 1
+        ) {
+          // Exclude single characters
+
+          // Remove special prefixes like '>' that might indicate function calls
+          const cleanName = item.replace(/^>/, '');
+
+          if (cleanName && cleanName !== '') {
+            helpers.add(cleanName);
+          }
+        }
       }
     }
-    // If no colon, it's just data access, no helper needed
   }
 
   return Array.from(helpers);

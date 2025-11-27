@@ -317,7 +317,9 @@ function formatTitle(title) {
 
   it('should handle dynamic imports correctly', async () => {
     const morphContent = `<div>{{ title }}</div>
-<script type="application/json">{"title": "Dynamic"}</script>`;
+<script type="application/json">{
+  "title": "Dynamic"
+}</script>`;
 
     const { transformHook } = await import('../../src/plugin/hooks.js');
     const result = await transformHook(morphContent, 'dynamic-test.morph');
@@ -329,5 +331,95 @@ function formatTitle(title) {
     // The module should be importable in different ways
     expect(result.code).toMatch(/export default/);
     expect(result.code).toMatch(/export \{ template \}/);
+  });
+
+  it('should validate complex morph module with advanced placeholders', async () => {
+    const morphContent = `{{ @all : blank, ^^, >setupData }}
+<h2>Contacts</h2>
+<p class="space">Storage for your relation's profiles.
+    <button data-click="nav-contacts-edit">Create a new contact</button>
+    </p>
+
+<!-- TODO: some tag filtering + string search -->
+
+{{ contacts : [], #, [], contactCards, #, [], tags  }}
+
+<script>
+const blank = () => ''
+const contactCards = \`
+                    <div class="contact">
+                                    <h3>{{ name }}</h3>
+                                    <p><strong>ID Token</strong>:
+                                         <textarea readonly>{{ id-contact }}</textarea>
+                                    </p>
+                                    <p><strong>Tags</strong>:
+                                                   {{ tags }}
+                                    </p>
+
+                                    <p>
+                                            <button class="action" data-click="nav-contacts-edit" data-number="{{number}}">Edit</button>
+                                            <button class="action">Copy ID Token</button>
+                                            <button class="action warn" data-click="delete-contact" data-number="{{number}}">Delete</button>
+                                    </p>
+                            </div>
+                    \`
+const tags = \`<span>{{text}}</span>\`
+
+function setupData ({ data }) {
+            data.contacts.map ( (c,i) => {
+                            c.number = i
+                            if ( c.tags.length === 0 ) c.tags = 'No tags selected'
+                            return c
+                    })
+            return data
+    } // setupData func.
+</script>
+
+
+
+<script type="application/json"> {
+"contacts": [
+            {
+                    "name": "Ivan Ivanov",
+                "id-contact": "3mwes!534-12-2fe-!2d1w",
+                "tags": [ "project1", "man", "brazil" ]
+            },
+            {
+                    "name": "Stoyan Lazov",
+                "id-contact": "3mpes!534-14-4fm-!1214",
+                "tags": [ "Paris", "man", "french" ]
+            }
+        ]
+} </script>`;
+
+    const { transformHook } = await import('../../src/plugin/hooks.js');
+    const result = await transformHook(morphContent, 'complex-contacts.morph', {
+      development: { sourceMaps: true },
+    });
+
+    expect(result).toBeDefined();
+    expect(result.code).toContain('export default renderFunction;');
+    expect(result.code).toContain('export { template };');
+
+    // Verify helpers are added to the template object
+    expect(result.code).toContain("template.helpers.blank = () => '';");
+    expect(result.code).toContain('template.helpers.contactCards = `');
+    expect(result.code).toContain('<div class="contact">');
+    expect(result.code).toContain(
+      'template.helpers.tags = `<span>{{text}}</span>`;'
+    );
+    expect(result.code).toContain(
+      'template.helpers.setupData = function setupData'
+    );
+
+    // Verify template contains the complex placeholders
+    expect(result.code).toContain('{{ @all : blank, ^^, >setupData }}');
+    expect(result.code).toContain(
+      '{{ contacts : [], #, [], contactCards, #, [], tags  }}'
+    );
+
+    // Verify JSON data is included
+    expect(result.code).toContain('"name": "Ivan Ivanov"');
+    expect(result.code).toContain('"name": "Stoyan Lazov"');
   });
 });
