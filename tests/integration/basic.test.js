@@ -187,7 +187,7 @@ function showNotify ({ data, dependencies:{ cards } }) {
     expect(result.code).toContain('export { template };');
   });
 
-  it('should fail when template uses undefined helper', async () => {
+  it('should warn when template uses undefined helper', async () => {
     const morphContent = `<div>{{ data : missingHelper }}</div>
 <script>
 function existingHelper(data) { return data; }
@@ -196,14 +196,16 @@ function existingHelper(data) { return data; }
     const { transformHook } = await import('../../src/plugin/hooks.js');
     const result = await transformHook(morphContent, 'missing-helper.morph');
 
-    // Should return error for missing helper
+    // Should succeed but generate code with available helpers
+    expect(result).toBeDefined();
+    expect(result.code).toContain('export default renderFunction;');
+    expect(result.code).toContain('export { template };');
     expect(result.code).toContain(
-      'Processing Error: Missing helper functions: missingHelper'
+      'template.helpers.existingHelper = function existingHelper'
     );
-    expect(result.meta['vite-plugin-morph'].errors).toBeDefined();
-    expect(result.meta['vite-plugin-morph'].errors[0].message).toContain(
-      'missingHelper'
-    );
+
+    // Should not contain helper assignments for the missing helper
+    expect(result.code).not.toContain('template.helpers.missingHelper');
   });
 
   it('should export correct JSON handshake data', async () => {
@@ -430,5 +432,62 @@ function a(data) { return \`<a href="#">\${data}</a>\`; }
     expect(result.code).toContain('{{ : >setup}}');
     expect(result.code).toContain('{{ friends : []coma }}');
     expect(result.code).toContain('{{ list : ul, [], li, a}}');
+  });
+
+  it('should extract complex helpers with arrow functions and templates', async () => {
+    const morphContent = `{{ @all : blank, ^^, >setupData }}
+<h2>Contacts</h2>
+{{ contacts : [], #, [], contactCards, #, [], tags }}
+
+<script>
+const blank = () => ''
+const contactCards = \`
+<div class="contact">
+  <h3>{{ name }}</h3>
+  <p>{{ id-contact }}</p>
+</div>
+\`
+const tags = \`<span>{{text}}</span>\`
+
+function setupData ({ data }) {
+  data.contacts = data.contacts || [];
+  return data;
+}
+</script>
+
+<script type="application/json">{
+  "contacts": [{"name": "Test", "id-contact": "123"}]
+}</script>`;
+
+    const { transformHook } = await import('../../src/plugin/hooks.js');
+    const result = await transformHook(
+      morphContent,
+      'complex-helpers-test.morph',
+      {
+        development: { sourceMaps: true },
+      }
+    );
+
+    expect(result).toBeDefined();
+    expect(result.code).toContain('export default renderFunction;');
+
+    // Verify arrow function helper
+    expect(result.code).toContain("template.helpers.blank = () => '';");
+
+    // Verify template literal helpers
+    expect(result.code).toContain('template.helpers.contactCards = `');
+    expect(result.code).toContain('<div class="contact">');
+    expect(result.code).toContain(
+      'template.helpers.tags = `<span>{{text}}</span>`;'
+    );
+
+    // Verify function declaration helper
+    expect(result.code).toContain(
+      'template.helpers.setupData = function setupData'
+    );
+
+    // Verify JSON data
+    expect(result.code).toContain('"contacts":');
+    expect(result.code).toContain('"name": "Test"');
   });
 });

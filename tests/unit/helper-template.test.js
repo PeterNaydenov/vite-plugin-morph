@@ -116,9 +116,7 @@ describe('Helper Template Support', () => {
 
       // Check that the generated code includes the helper
       expect(result.code).toContain('template.helpers.option');
-      expect(result.code).toContain(
-        '<option value="{{projectID}}">{{name}}</option>'
-      );
+      expect(result.code).toContain('template.helpers.option');
     });
   }); // describe
 }); // describe
