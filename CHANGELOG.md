@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.5] - 2025-11-27
+
+### 🐛 Fixed
+
+- **Handshake data availability**: Fixed `template.handshake` to always contain handshake data instead of being empty in development mode
+- **JSDoc type references**: Updated JSDoc comments to use JSDoc-compatible type syntax instead of TypeScript import syntax
+- **TypeScript declaration generation**: Created proper `.d.ts` files with complete type definitions for TypeScript users
+
+### 📝 Documentation & Types
+
+- **TypeScript support**: Added comprehensive TypeScript declaration files in `dist/types/`
+- **JSDoc cleanup**: Fixed all JSDoc type imports to be compatible with JSDoc generation tools
+- **Type definitions**: Generated complete type definitions including `MorphPluginOptions`, `ProcessingResult`, and all interfaces
+
+### 🧹 Code Cleanup
+
+- **Duplicate code removal**: Identified and removed potential duplicate code patterns in the codebase
+- **Validation improvements**: Enhanced code validation to prevent null reference errors
+- **Type safety**: Improved type checking and validation throughout the codebase
+
+### 🔧 Technical Improvements
+
+- **Handshake processing**: Ensured handshake data is always available in generated template objects
+- **Type generation**: Set up proper TypeScript declaration file generation pipeline
+- **Code quality**: Improved overall code maintainability and type safety
+
 ## [0.0.4] - 2025-11-26
 
 ### 🚀 Major Features
