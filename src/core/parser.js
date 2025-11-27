@@ -8,6 +8,40 @@
 import { parse, parseFragment } from 'parse5';
 
 /**
+ * Parse JSON-like content with comments and flexible syntax
+ * @param {string} content - JSON-like content with comments
+ * @returns {object} Parsed object
+ */
+export function parseJsonLike(content) {
+  try {
+    // First, try parsing as regular JSON to see if it's already valid
+    try {
+      return JSON.parse(content.trim());
+    } catch (jsonError) {
+      // If JSON.parse fails, try to clean up comments and single quotes
+    }
+
+    // Remove single-line comments
+    let cleaned = content.replace(/\/\/.*$/gm, '');
+
+    // Remove multi-line comments
+    cleaned = cleaned.replace(/\/\*[\s\S]*?\*\//g, '');
+
+    // Trim whitespace
+    cleaned = cleaned.trim();
+
+    // Basic single quote to double quote conversion (simple cases)
+    // This is not perfect but handles common cases
+    cleaned = cleaned.replace(/'([^']*)'/g, '"$1"');
+
+    // Parse as JSON
+    return JSON.parse(cleaned);
+  } catch (error) {
+    throw new Error(`Failed to parse JSON-like content: ${error.message}`);
+  }
+}
+
+/**
  * Parse morph file content into AST
  * @param {string} content - Raw morph file content
  * @returns {import('../types/index.js').Document} Parsed HTML document

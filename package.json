@@ -1,6 +1,6 @@
 {
   "name": "@peter.naydenov/vite-plugin-morph",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Vite plugin for processing .morph files with @peter.naydenov/morph",
   "license": "MIT",
   "author": "Peter Naydenov",
@@ -17,8 +17,8 @@
     "dist",
     "README.md"
   ],
-  "banner" : {
-    "image" : "./header.png"
+  "banner": {
+    "image": "./header.png"
   },
   "scripts": {
     "test": "vitest",

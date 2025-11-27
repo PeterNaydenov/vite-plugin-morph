@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.6] - 2025-11-27
+
+### 🚀 Features
+
+- **JSON-like handshake data**: Added support for comments and flexible quotes in `type="application/json"` sections
+- **Comment support**: Single-line (`//`) and multi-line (`/* */`) comments now allowed in handshake data
+- **Flexible quotes**: Can use single quotes (`'key'`) or double quotes (`"key"`) interchangeably in handshake data
+- **Smart parsing**: Automatically converts single quotes to double quotes and strips comments during JSON parsing
+
+### 📝 Documentation
+
+- **README update**: Updated handshake section to show JSON-like syntax examples with comments and mixed quotes
+
+### 🔧 Technical Improvements
+
+- **parseJsonLike() function**: New parser that handles JSON-like syntax while maintaining backward compatibility
+- **Fallback parsing**: First attempts standard JSON.parse(), falls back to comment removal and quote conversion
+- **Error handling**: Clear error messages for invalid JSON-like syntax
+
 ## [0.0.5] - 2025-11-27
 
 ### 🐛 Fixed

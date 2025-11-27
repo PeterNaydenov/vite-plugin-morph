@@ -10,6 +10,7 @@ import {
   extractScriptContent,
   extractStyleContent,
   extractHandshakeContent,
+  parseJsonLike,
 } from './parser.js';
 import { extractTemplateContent, extractRequiredHelpers } from './template.js';
 import { processScriptContent } from './script.js';
@@ -69,7 +70,7 @@ export async function processMorphFile(content, filePath, options) {
 
     // Extract handshake data from script
     const handshakeRaw = extractHandshakeContent(document, 'application/json');
-    const handshake = handshakeRaw ? { data: JSON.parse(handshakeRaw) } : {};
+    const handshake = handshakeRaw ? { data: parseJsonLike(handshakeRaw) } : {};
 
     // Build helpers object
     const helpers = {};
