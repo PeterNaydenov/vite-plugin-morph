@@ -2,7 +2,7 @@
  * Template content extraction and compilation
  * @fileoverview Handles template processing and @peter.naydenov/morph integration
  * @author Peter Naydenov
- * @version 1.0.0
+ * @version 0.0.7
  */
 
 import { createMorphError, ErrorCodes } from './errors.js';
@@ -92,7 +92,7 @@ export function extractRequiredHelpers(templateHtml) {
         if (
           item &&
           item !== '' &&
-          !/^[\[\]{}#@^*<>]+$/.test(item) && // Exclude symbols and brackets
+          !/^[\[\]{}#@^*<>]+$/.test(item) && // eslint-disable-line no-useless-escape -- brackets need escaping in character classes
           !item.includes('=') && // Exclude assignments
           !/^\d+$/.test(item) && // Exclude numbers
           item.length > 1

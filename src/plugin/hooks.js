@@ -2,7 +2,7 @@
  * Vite plugin hooks implementation
  * @fileoverview Implements transform and HMR hooks for .morph files
  * @author Peter Naydenov
- * @version 1.0.0
+ * @version 0.0.7
  */
 
 import { createMorphError } from '../core/errors.js';

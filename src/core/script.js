@@ -2,11 +2,11 @@
  * Script content extraction and processing
  * @fileoverview Extracts and processes JavaScript from <script> tags in morph files
  * @author Peter Naydenov
- * @version 1.0.0
+ * @version 0.0.7
  */
 
-import { parse } from '@babel/parser';
-import traverse from '@babel/traverse';
+import { parse } from 'acorn';
+import { simple as walk } from 'acorn-walk';
 import { debug, warn } from '../utils/logger.js';
 
 /**
@@ -23,166 +23,78 @@ function parseHelperFunctions(scriptContent) {
 
   try {
     const ast = parse(scriptContent, {
+      ecmaVersion: 2022,
       sourceType: 'module',
-      plugins: ['jsx'],
+      allowImportExportEverywhere: false,
     });
 
-    // Try @babel/traverse first, fallback to basic parsing if it fails
-    try {
-      traverse(ast, {
-        FunctionDeclaration(path) {
-          const { node } = path;
-          if (node.id && node.id.name) {
-            try {
-              // Extract the function code
-              const start = node.start;
-              const end = node.end;
-              const functionCode = scriptContent.slice(start, end).trim();
-              functions[node.id.name] = eval('(' + functionCode + ')');
-              debug(`Parsed helper function: ${node.id.name}`);
-            } catch (parseError) {
-              warn(
-                `Failed to parse function ${node.id.name}: ${parseError.message}`
-              );
-            }
-          }
-        },
+    // Only process top-level declarations
+    for (const node of ast.body) {
+      if (node.type === 'FunctionDeclaration' && node.id && node.id.name) {
+        try {
+          // Extract the function code
+          const start = node.start;
+          const end = node.end;
+          let functionCode = scriptContent.slice(start, end).trim();
+          // Remove comments that might be included in the AST range
+          functionCode = functionCode
+            .replace(/\/\*[\s\S]*?\*\//g, '')
+            .replace(/\/\/.*$/gm, '')
+            .trim();
+          functions[node.id.name] = eval('(' + functionCode + ')');
+          debug(`Parsed helper function: ${node.id.name}`);
+        } catch (parseError) {
+          warn(
+            `Failed to parse function ${node.id.name}: ${parseError.message}`
+          );
+        }
+      } else if (node.type === 'VariableDeclaration') {
+        for (const declarator of node.declarations) {
+          if (declarator.id.type === 'Identifier') {
+            const varName = declarator.id.name;
 
-        VariableDeclarator(path) {
-          const { node: varNode } = path;
-          if (
-            varNode.id.type === 'Identifier' &&
-            (varNode.init?.type === 'ArrowFunctionExpression' ||
-              varNode.init?.type === 'FunctionExpression')
-          ) {
-            const functionName = varNode.id.name;
-            try {
-              // Extract the function code
-              const start = varNode.init.start;
-              const end = varNode.init.end;
-              const functionCode = scriptContent.slice(start, end).trim();
-              functions[functionName] = eval('(' + functionCode + ')');
-              debug(`Parsed helper function: ${functionName}`);
-            } catch (parseError) {
-              warn(
-                `Failed to parse function ${functionName}: ${parseError.message}`
-              );
-            }
-          }
-        },
-      });
-    } catch (traverseError) {
-      warn(
-        `@babel/traverse failed: ${traverseError.message}. Using regex fallback.`
-      );
-
-      // Enhanced regex fallback for functions and templates
-      try {
-        // Split script into individual statements/lines for processing
-        const lines = scriptContent.split('\n');
-        let currentStatement = '';
-        let inMultilineConstruct = false;
-        let constructType = ''; // 'template', 'function', 'arrow'
-
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i].trim();
-          currentStatement += (currentStatement ? '\n' : '') + lines[i];
-
-          // Track multiline constructs
-          if (!inMultilineConstruct) {
-            if (line.startsWith('const ') && line.includes('`')) {
-              inMultilineConstruct = true;
-              constructType = 'template';
-            } else if (line.startsWith('function ')) {
-              inMultilineConstruct = true;
-              constructType = 'function';
-            } else if (line.startsWith('const ') && line.includes('=>')) {
-              inMultilineConstruct = true;
-              constructType = 'arrow';
-            }
-          }
-
-          // Check if statement is complete
-          let complete = false;
-          if (inMultilineConstruct) {
-            if (
-              constructType === 'template' &&
-              line.includes('`') &&
-              !line.endsWith('\\`')
-            ) {
-              complete = true;
-            } else if (constructType === 'function' && line.includes('}')) {
-              // Count braces to ensure function is complete
-              const openBraces = (currentStatement.match(/\{/g) || []).length;
-              const closeBraces = (currentStatement.match(/\}/g) || []).length;
-              // For functions, we expect one more closing brace than opening (the function body)
-              if (openBraces > 0 && closeBraces >= openBraces) {
-                complete = true;
-              }
-            } else if (constructType === 'arrow' && !line.endsWith(',')) {
-              complete = true;
-            }
-          } else if (currentStatement.trim().endsWith(';')) {
-            complete = true;
-          }
-
-          if (complete) {
-            // Process the complete statement
-            const statement = currentStatement.trim();
-
-            try {
-              // Extract function declarations
-              if (statement.startsWith('function ')) {
-                // Remove trailing comments that might break eval
-                const cleanStatement = statement
+            if (declarator.init?.type === 'FunctionExpression') {
+              // Function expression - treat as function helper
+              try {
+                const start = declarator.init.start;
+                const end = declarator.init.end;
+                let functionCode = scriptContent.slice(start, end).trim();
+                // Remove comments that might be included in the AST range
+                functionCode = functionCode
+                  .replace(/\/\*[\s\S]*?\*\//g, '')
                   .replace(/\/\/.*$/gm, '')
                   .trim();
-                const funcMatch = cleanStatement.match(/function\s+(\w+)/);
-                if (funcMatch) {
-                  const funcName = funcMatch[1];
-                  try {
-                    functions[funcName] = eval('(' + cleanStatement + ')');
-                    debug(`Parsed function declaration: ${funcName}`);
-                  } catch (funcError) {
-                    warn(
-                      `Function declaration eval failed for ${funcName}: ${funcError.message}`
-                    );
-                  }
-                }
-              }
-              // Extract const arrow functions
-              else if (
-                statement.startsWith('const ') &&
-                statement.includes('=>')
-              ) {
-                const constMatch = statement.match(
-                  /const\s+(\w+)\s*=\s*(.+);?$/
+                functions[varName] = eval('(' + functionCode + ')');
+                debug(`Parsed helper function: ${varName}`);
+              } catch (parseError) {
+                warn(
+                  `Failed to parse function ${varName}: ${parseError.message}`
                 );
-                if (constMatch) {
-                  const varName = constMatch[1];
-                  const varValue = constMatch[2].trim();
-                  try {
-                    functions[varName] = eval('(' + varValue + ')');
-                    debug(`Parsed arrow function: ${varName}`);
-                  } catch (funcError) {
-                    warn(
-                      `Arrow function eval failed for ${varName}: ${funcError.message}`
-                    );
-                  }
-                }
               }
-            } catch (statementError) {
-              warn(`Failed to parse statement: ${statementError.message}`);
+            } else if (
+              declarator.init?.type === 'ArrowFunctionExpression' &&
+              declarator.init.body?.type !== 'TemplateLiteral'
+            ) {
+              // Arrow function that doesn't return a template literal - treat as function helper
+              try {
+                const start = declarator.init.start;
+                const end = declarator.init.end;
+                let functionCode = scriptContent.slice(start, end).trim();
+                // Remove comments that might be included in the AST range
+                functionCode = functionCode
+                  .replace(/\/\*[\s\S]*?\*\//g, '')
+                  .replace(/\/\/.*$/gm, '')
+                  .trim();
+                functions[varName] = eval('(' + functionCode + ')');
+                debug(`Parsed helper function: ${varName}`);
+              } catch (parseError) {
+                warn(
+                  `Failed to parse function ${varName}: ${parseError.message}`
+                );
+              }
             }
-
-            // Reset for next statement
-            currentStatement = '';
-            inMultilineConstruct = false;
-            constructType = '';
           }
         }
-      } catch (fallbackError) {
-        warn(`Enhanced regex fallback failed: ${fallbackError.message}`);
       }
     }
   } catch (error) {
@@ -206,65 +118,61 @@ function parseHelperTemplates(scriptContent) {
 
   try {
     const ast = parse(scriptContent, {
+      ecmaVersion: 2022,
       sourceType: 'module',
-      plugins: ['jsx'],
+      allowImportExportEverywhere: false,
     });
 
-    // Try @babel/traverse first, fallback if it fails
-    try {
-      traverse(ast, {
-        VariableDeclarator(path) {
-          const { node } = path;
-          if (node.id.type === 'Identifier') {
-            const templateName = node.id.name;
+    // Only process top-level declarations
+    for (const node of ast.body) {
+      if (node.type === 'VariableDeclaration') {
+        for (const declarator of node.declarations) {
+          if (declarator.id.type === 'Identifier') {
+            const templateName = declarator.id.name;
             let templateContent = null;
 
-            if (node.init) {
+            if (declarator.init) {
               // Get the original code for this node
-              const start = node.init.start;
-              const end = node.init.end;
+              const start = declarator.init.start;
+              const end = declarator.init.end;
               templateContent = scriptContent.slice(start, end).trim();
             }
 
             if (templateContent) {
               try {
-                // Skip regular function expressions (they're handled as functions)
-                const isRegularFunction =
-                  node.init?.type === 'FunctionExpression';
-                const isArrowFunction =
-                  node.init?.type === 'ArrowFunctionExpression';
-
-                if (!isRegularFunction) {
-                  if (isArrowFunction) {
-                    // For arrow functions, check if they return template literals
-                    if (node.init.body?.type === 'TemplateLiteral') {
-                      // Arrow function returning template literal - treat as template
-                      const literalContent = node.init.body.quasis
-                        .map((q) => q.value.raw)
-                        .join('');
-                      if (isWellFormedTemplate(literalContent)) {
-                        templates[templateName] = literalContent;
-                        debug(`Parsed helper template: ${templateName}`);
-                      }
-                    }
-                    // Other arrow functions are handled as functions
-                  } else {
-                    // Handle non-function expressions as templates
-                    if (node.init?.type === 'TemplateLiteral') {
-                      // Extract raw content and handle empty templates
-                      const literalContent = node.init.quasis
-                        .map((q) => q.value.raw)
-                        .join('');
-                      if (isWellFormedTemplate(literalContent)) {
-                        // Store the literal content directly
-                        templates[templateName] = literalContent;
-                        debug(`Parsed helper template: ${templateName}`);
-                      }
-                    } else if (isWellFormedTemplate(templateContent)) {
-                      // For other expressions, check if they're well-formed templates
-                      templates[templateName] = templateContent;
-                      debug(`Parsed helper template: ${templateName}`);
-                    }
+                // Handle direct template literals
+                if (declarator.init?.type === 'TemplateLiteral') {
+                  // Direct template literal
+                  const literalContent = declarator.init.quasis
+                    .map((q) => q.value.raw)
+                    .join('');
+                  if (isWellFormedTemplate(literalContent)) {
+                    templates[templateName] = literalContent;
+                    debug(`Parsed template: ${templateName}`);
+                  }
+                }
+                // Handle string literals
+                else if (
+                  declarator.init?.type === 'Literal' &&
+                  typeof declarator.init.value === 'string'
+                ) {
+                  // String literal - treat as DEFINITE template helper
+                  const stringContent = declarator.init.value;
+                  templates[templateName] = stringContent;
+                  debug(`Parsed string template: ${templateName}`);
+                }
+                // Handle arrow functions that return template literals
+                else if (
+                  declarator.init?.type === 'ArrowFunctionExpression' &&
+                  declarator.init.body?.type === 'TemplateLiteral'
+                ) {
+                  // Arrow function returning template literal - treat as template
+                  const literalContent = declarator.init.body.quasis
+                    .map((q) => q.value.raw)
+                    .join('');
+                  if (isWellFormedTemplate(literalContent)) {
+                    templates[templateName] = literalContent;
+                    debug(`Parsed arrow template: ${templateName}`);
                   }
                 }
               } catch (parseError) {
@@ -274,28 +182,7 @@ function parseHelperTemplates(scriptContent) {
               }
             }
           }
-        },
-      });
-    } catch (traverseError) {
-      warn(
-        `@babel/traverse failed in template parsing: ${traverseError.message}. Using regex fallback.`
-      );
-
-      // Simple regex fallback for template literals
-      try {
-        // Match all const template declarations
-        const templateRegex = /const\s+(\w+)\s*=\s*`([\s\S]*?)`;?\s*/g;
-        let match;
-        while ((match = templateRegex.exec(scriptContent)) !== null) {
-          const varName = match[1];
-          const templateContent = match[2];
-          if (isWellFormedTemplate(templateContent)) {
-            templates[varName] = templateContent;
-            debug(`Parsed template: ${varName}`);
-          }
         }
-      } catch (fallbackError) {
-        warn(`Template regex fallback failed: ${fallbackError.message}`);
       }
     }
   } catch (error) {
@@ -307,8 +194,8 @@ function parseHelperTemplates(scriptContent) {
 
 /**
  * Check if template content is well-formed
- * @param {string} templateContent - Template content to check
- * @returns {boolean} Whether template is well-formed
+ * @param {string} templateContent - Template content to validate
+ * @returns {boolean} True if template is well-formed
  */
 function isWellFormedTemplate(templateContent) {
   // Empty templates are allowed
@@ -321,15 +208,19 @@ function isWellFormedTemplate(templateContent) {
     return false;
   }
 
-  // Basic HTML well-formedness check for templates with tags
+  // Basic check for templates with HTML tags - be more permissive
   if (/<[^>]+>/.test(templateContent)) {
-    // Simple check: count opening vs closing tags
+    // Simple check: ensure roughly balanced tags
     const openTags = (templateContent.match(/<[^/][^>]*>/g) || []).length;
     const closeTags = (templateContent.match(/<\/[^>]+>/g) || []).length;
+    const selfClosingTags =
+      (templateContent.match(/<[^>]*\/>/g) || []).length +
+      (templateContent.match(/<input[^>]*>/gi) || []).length +
+      (templateContent.match(/<br[^>]*>/gi) || []).length +
+      (templateContent.match(/<img[^>]*>/gi) || []).length +
+      (templateContent.match(/<hr[^>]*>/gi) || []).length;
 
-    // Allow self-closing tags
-    const selfClosingTags = (templateContent.match(/<[^>]*\/>/g) || []).length;
-
+    // Require exact tag balance (allowing some tolerance for self-closing tags)
     return openTags === closeTags + selfClosingTags;
   }
 
@@ -337,9 +228,9 @@ function isWellFormedTemplate(templateContent) {
 }
 
 /**
- * Process script content to extract both functions and templates
- * @param {string} scriptContent - JavaScript code
- * @returns {import('../types/index.js').ScriptContent} Processed script content with functions and templates
+ * Process script content and extract helpers
+ * @param {string} scriptContent - JavaScript code from script tag
+ * @returns {import('../types/index.js').ScriptContent} Script content with helpers
  */
 export function processScriptContent(scriptContent) {
   if (!scriptContent) {
@@ -348,12 +239,6 @@ export function processScriptContent(scriptContent) {
       code: '',
       functions: {},
       templates: {},
-      sourceLocation: {
-        file: '',
-        line: 1,
-        column: 1,
-        offset: 0,
-      },
     };
   }
 
@@ -374,11 +259,5 @@ export function processScriptContent(scriptContent) {
     code: scriptContent,
     functions,
     templates,
-    sourceLocation: {
-      file: '',
-      line: 1,
-      column: 1,
-      offset: 0,
-    },
   };
 }

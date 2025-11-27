@@ -2,7 +2,7 @@
  * Main morph file processing pipeline
  * @fileoverview Orchestrates conversion of .morph files to ES modules
  * @author Peter Naydenov
- * @version 1.0.0
+ * @version 0.0.7
  */
 
 import {

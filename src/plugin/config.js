@@ -2,7 +2,7 @@
  * Plugin configuration validation
  * @fileoverview Validates plugin configuration options
  * @author Peter Naydenov
- * @version 1.0.0
+ * @version 0.0.7
  */
 
 import { createMorphError, ErrorCodes } from '../core/errors.js';

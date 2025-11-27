@@ -2,7 +2,7 @@
  * JSDoc type definitions for Vite Morph Plugin
  * @fileoverview TypeScript-compatible type definitions for JavaScript implementation
  * @author Peter Naydenov
- * @version 1.0.0
+ * @version 0.0.7
  */
 
 /**
@@ -79,30 +79,25 @@
  * @typedef {Object} ProcessingResult
  * @property {string} code - Generated ES module code
  * @property {Object} [map] - Source map
- * @property {Record<string,string>} [cssExports] - CSS module exports
+ * @property {string} [cssExports] - CSS code (if any)
+ * @property {string[]} [usedVariables] - CSS variables used in template
+ * @property {Object} templateObject - Template object for morph library
+ * @property {boolean} isCSSOnly - True if this is CSS-only .morph file
+ * @property {number} processingTime - Processing time in milliseconds
  * @property {ProcessingMetadata} metadata - Processing metadata
  * @property {MorphPluginError[]} [errors] - Processing errors
  * @property {MorphPluginError[]} [warnings] - Processing warnings
- * @property {boolean} [isCSSOnly] - True if this is CSS-only .morph file
- * @property {Object} [templateObject] - Template object for morph library
  */
 
 /**
  * Processing metadata
  * @typedef {Object} ProcessingMetadata
- * @property {number} processingTime - File processing time in milliseconds
+ * @property {number} processingTime - Processing time in milliseconds
  * @property {Object} components - Extracted components
  * @property {boolean} components.template - Has template content
- * @property {boolean} components.script - Has script content
- * @property {boolean} components.style - Has style content
+ * @property {number} components.helpers - Number of helper functions/templates
  * @property {boolean} components.handshake - Has handshake content
- * @property {Object} [css] - CSS information
- * @property {number} [css.classCount] - Number of CSS classes
- * @property {number} [css.variableReferences] - Number of variable references
- * @property {number} [css.scopedClasses] - Number of scoped classes
- * @property {Object} [template] - Template information
- * @property {number} [template.placeholderCount] - Number of placeholders
- * @property {number} [template.helperFunctionCount] - Number of helper functions
+ * @property {boolean} components.css - Has CSS content
  */
 
 /**

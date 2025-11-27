@@ -2,7 +2,7 @@
  * File processing cache for morph plugin
  * @fileoverview Provides caching functionality to improve performance
  * @author Peter Naydenov
- * @version 1.0.0
+ * @version 0.0.7
  */
 
 import { createHash } from 'crypto';

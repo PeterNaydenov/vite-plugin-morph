@@ -2,7 +2,7 @@
  * Shared utility functions for morph plugin
  * @fileoverview Common utilities used across multiple modules
  * @author Peter Naydenov
- * @version 1.0.0
+ * @version 0.0.7
  */
 
 /**

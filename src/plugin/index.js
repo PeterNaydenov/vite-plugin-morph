@@ -2,7 +2,7 @@
  * Vite plugin implementation for morph file processing
  * @fileoverview Core plugin logic and Vite integration
  * @author Peter Naydenov
- * @version 1.0.0
+ * @version 0.0.7
  */
 
 /**
