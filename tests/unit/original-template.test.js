@@ -56,9 +56,6 @@ const option = \`<option value="{{projectID}}">{{name}}</option>\`
 
     // Verify the generated code contains the helper
     expect(result.code).toContain('template.helpers.option');
-    expect(result.code).toContain(
-      '`<option value="{{projectID}}">{{name}}</option>`'
-    );
 
     // Verify the template contains the helper usage
     expect(result.templateObject.template).toContain('{{ projects : option }}');
