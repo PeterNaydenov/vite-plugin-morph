@@ -60,6 +60,40 @@ function extractPlaceholdersFromHTML(html) {
 }
 
 /**
+ * Extract helper names required by template placeholders
+ * @param {string} templateHtml - Template HTML content
+ * @returns {Array<string>} Array of required helper names
+ */
+export function extractRequiredHelpers(templateHtml) {
+  const helpers = new Set();
+  const placeholderRegex = /\{\{([^}]+)\}\}/g;
+  let match;
+
+  while ((match = placeholderRegex.exec(templateHtml)) !== null) {
+    const content = match[1].trim();
+
+    // Handle different placeholder formats:
+    // {{ data : helperName }} - helperName is required
+    // {{ : helperName }} - helperName is required
+    // {{ data : helperName : param }} - helperName is required
+    // {{ data }} - no helper required
+
+    const parts = content.split(':').map((p) => p.trim());
+
+    // If there's a colon, the last part (after trimming) is a helper name
+    if (parts.length >= 2) {
+      const helperName = parts[parts.length - 1];
+      if (helperName && helperName !== '') {
+        helpers.add(helperName);
+      }
+    }
+    // If no colon, it's just data access, no helper needed
+  }
+
+  return Array.from(helpers);
+}
+
+/**
  * Extract template content from parsed document
  * @param {import('../types/index.js').Document} document - Parsed HTML document
  * @returns {import('../types/index.js').TemplateContent} Template content

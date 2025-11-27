@@ -25,10 +25,10 @@ export async function transformHook(code, id, options = {}) {
 
   try {
     // Process the morph file
-    const result = await processMorphFile(code, id, pluginOptions);
+    const result = await processMorphFile ( code, id, pluginOptions );
 
     // Check if processing resulted in errors
-    if (result.errors && result.errors.length > 0) {
+    if ( result.errors && result.errors.length > 0) {
       // Return error in meta for tests to inspect
       return {
         code: `// Processing Error: ${result.errors[0].message}`,

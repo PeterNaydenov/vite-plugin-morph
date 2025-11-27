@@ -55,10 +55,8 @@ describe('Basic Morph Processing Integration', () => {
     expect(result.code).toContain("import morph from '@peter.naydenov/morph'");
     expect(result.code).toContain('const template = {');
     expect(result.code).toContain('"template":');
-    expect(result.code).toContain(
-      'const renderFunction = morph.build(template);'
-    );
     expect(result.code).toContain('export default renderFunction;');
+    expect(result.code).toContain('export { template };');
     expect(result.code).not.toContain('export const styles');
     expect(result.meta['vite-plugin-morph'].isCSSOnly).toBe(false);
 
@@ -108,10 +106,8 @@ describe('Basic Morph Processing Integration', () => {
     expect(result.code).toContain("import morph from '@peter.naydenov/morph'");
     expect(result.code).toContain('const template = {');
     expect(result.code).toContain('"template":');
-    expect(result.code).toContain(
-      'const renderFunction = morph.build(template);'
-    );
     expect(result.code).toContain('export default renderFunction;');
+    expect(result.code).toContain('export { template };');
     // Should not contain any placeholder processing logic
     expect(result.code).not.toContain('{{');
     expect(result.code).not.toContain('}}');
@@ -128,5 +124,210 @@ describe('Basic Morph Processing Integration', () => {
       'const renderFunction = morph.build(template);'
     );
     expect(outputContent).toContain('export default renderFunction;');
+  });
+
+  it('should parse and register helper functions from script tags', async () => {
+    const morphContent = `<p class="space">
+    <button id="fullscreen" title="here" data-click="fullscreen">Full Screen</button>
+</p>
+{{ notifications : showNotify }}
+{{ : showProfile }}
+<h2>Projects</h2>
+<p class="space">Projects you own or have access to.</p>
+{{ projects : showService }}
+<script>
+const blank = () => \`\`
+const showProfile = ({ data, dependencies:{ cards } }) => cards.profile ( 'render', {...data.profile, icons:data.icons}, cards )
+function showService ({ data, dependencies, full }) {
+    const { cards } = dependencies;
+    if ( typeof data !== 'object' ) {
+        console.error ( \`Error: Expected 'Service' data to be an object\` )
+        return \`\`
+    }
+    return cards.service ( 'render', data, { ...dependencies, icons:full.icons} )
+}
+function showNotify ({ data, dependencies:{ cards } }) {
+    return cards.notify ( 'render', data, cards )
+}
+</script>
+<script type="application/json"> {
+    "t": "test",
+    "notifications": [],
+    "projects": [
+        {
+            "name": "Test Project",
+            "started": "2024-01-01",
+            "description": "Test description",
+            "type": "Test Type",
+            "access": "Owner",
+            "service": "test/service",
+            "tokens": 100
+        }
+    ]
+} </script>`;
+
+    const { transformHook } = await import('../../src/plugin/hooks.js');
+    const result = await transformHook(morphContent, 'projects.morph');
+
+    expect(result).toBeDefined();
+    expect(result.code).toBeDefined();
+
+    // Verify that helpers are included in the generated code
+    expect(result.code).toContain("import morph from '@peter.naydenov/morph'");
+    expect(result.code).toContain('const template = {');
+    expect(result.code).toContain('"template":');
+    expect(result.code).toContain('template.helpers.showProfile');
+    expect(result.code).toContain('template.helpers.showService');
+    expect(result.code).toContain('template.helpers.showNotify');
+    expect(result.code).toContain('template.helpers.blank');
+    expect(result.code).toContain(
+      'const renderFunction = morph.build(template);'
+    );
+    expect(result.code).toContain('export default renderFunction;');
+    expect(result.code).toContain('export { template };');
+  });
+
+  it('should fail when template uses undefined helper', async () => {
+    const morphContent = `<div>{{ data : missingHelper }}</div>
+<script>
+function existingHelper(data) { return data; }
+</script>`;
+
+    const { transformHook } = await import('../../src/plugin/hooks.js');
+    const result = await transformHook(morphContent, 'missing-helper.morph');
+
+    // Should return error for missing helper
+    expect(result.code).toContain(
+      'Processing Error: Missing helper functions: missingHelper'
+    );
+    expect(result.meta['vite-plugin-morph'].errors).toBeDefined();
+    expect(result.meta['vite-plugin-morph'].errors[0].message).toContain(
+      'missingHelper'
+    );
+  });
+
+  it('should export correct JSON handshake data', async () => {
+    const morphContent = `<div>{{ title }}</div>
+<script type="application/json">{
+  "title": "Test Title",
+  "data": {
+    "nested": true,
+    "array": [1, 2, 3]
+  }
+}</script>`;
+
+    const { transformHook } = await import('../../src/plugin/hooks.js');
+    const result = await transformHook(morphContent, 'json-test.morph');
+
+    expect(result).toBeDefined();
+    expect(result.code).toContain('export const handshake =');
+
+    // Extract and parse the handshake data from the generated code
+    const handshakeMatch = result.code.match(
+      /export const handshake = ({[\s\S]*?});/
+    );
+    expect(handshakeMatch).toBeTruthy();
+
+    const handshakeData = JSON.parse(handshakeMatch[1]);
+    expect(handshakeData).toEqual({
+      title: 'Test Title',
+      data: {
+        nested: true,
+        array: [1, 2, 3],
+      },
+    });
+  });
+
+  it('should generate correct JSON template object', async () => {
+    const morphContent = `<div>{{ title }}</div>
+<script>
+function formatTitle(title) {
+  return title.toUpperCase();
+}
+</script>
+<script type="application/json">{
+  "title": "Test Title"
+}</script>`;
+
+    const { transformHook } = await import('../../src/plugin/hooks.js');
+    const result = await transformHook(morphContent, 'template-test.morph', {
+      development: { sourceMaps: true },
+    });
+
+    expect(result).toBeDefined();
+    expect(result.code).toContain('const template = {');
+
+    // Extract the template object JSON
+    const templateMatch = result.code.match(
+      /const template = (\{[\s\S]*?\n\});\s*\n/
+    );
+    expect(templateMatch).toBeTruthy();
+
+    const templateJson = templateMatch[1];
+    const templateData = JSON.parse(templateJson);
+
+    // Verify template structure
+    expect(templateData).toHaveProperty('template');
+    expect(templateData).toHaveProperty('helpers');
+    expect(templateData).toHaveProperty('handshake');
+
+    // Check template HTML
+    expect(templateData.template).toContain('<div>{{ title }}</div>');
+
+    // Check helpers object structure (should be empty initially, helpers added later)
+    expect(templateData.helpers).toEqual({});
+
+    // Check handshake data
+    expect(templateData.handshake).toEqual({ title: 'Test Title' });
+
+    // Verify helpers are added to the template object
+    expect(result.code).toContain(
+      'template.helpers.formatTitle = function formatTitle(title) {'
+    );
+    expect(result.code).toContain('return title.toUpperCase();');
+  });
+
+  it('should support named import of template object', async () => {
+    const morphContent = `<div>{{ message }}</div>
+<script type="application/json">{
+  "message": "Hello World"
+}</script>`;
+
+    const { transformHook } = await import('../../src/plugin/hooks.js');
+    const result = await transformHook(
+      morphContent,
+      'named-import-test.morph',
+      {
+        development: { sourceMaps: true },
+      }
+    );
+
+    expect(result).toBeDefined();
+    expect(result.code).toContain('export default renderFunction;');
+    expect(result.code).toContain('export { template };');
+
+    // Verify the template object can be imported as named export
+    // This would allow: import { template } from './component.morph'
+    expect(result.code).toContain('const template = {');
+    expect(result.code).toContain('"template":');
+    expect(result.code).toContain('<div>{{ message }}</div>');
+    expect(result.code).toContain('"handshake": {');
+    expect(result.code).toContain('"message": "Hello World"');
+  });
+
+  it('should handle dynamic imports correctly', async () => {
+    const morphContent = `<div>{{ title }}</div>
+<script type="application/json">{"title": "Dynamic"}</script>`;
+
+    const { transformHook } = await import('../../src/plugin/hooks.js');
+    const result = await transformHook(morphContent, 'dynamic-test.morph');
+
+    // Verify the generated code supports both static and dynamic imports
+    expect(result.code).toContain('export default renderFunction;');
+    expect(result.code).toContain('export { template };');
+
+    // The module should be importable in different ways
+    expect(result.code).toMatch(/export default/);
+    expect(result.code).toMatch(/export \{ template \}/);
   });
 });

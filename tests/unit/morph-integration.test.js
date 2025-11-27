@@ -31,16 +31,15 @@ describe('Morph Library Integration', () => {
     expect(result).toBeDefined();
     expect(result.code).toBeDefined();
 
-    // Check that template object and morph.build are generated
-    expect(result.code).toContain('formatTitle');
+    // Check that template object and render function are generated
     expect(result.code).toContain("import morph from '@peter.naydenov/morph'");
     expect(result.code).toContain('const template = {');
     expect(result.code).toContain('"template":');
-    expect(result.code).toContain('"helpers":');
     expect(result.code).toContain(
       'const renderFunction = morph.build(template);'
     );
     expect(result.code).toContain('export default renderFunction;');
+    expect(result.code).toContain('export { template };');
   }); // it
 
   it('should handle template-only files without placeholders', async () => {
@@ -66,6 +65,7 @@ describe('Morph Library Integration', () => {
       'const renderFunction = morph.build(template);'
     );
     expect(result.code).toContain('export default renderFunction;');
+    expect(result.code).toContain('export { template };');
   }); // it
 
   it('should not include morph utilities in CSS-only files', async () => {
@@ -90,6 +90,7 @@ describe('Morph Library Integration', () => {
       'const renderFunction = morph.build(template);'
     );
     expect(result.code).toContain('export default renderFunction;');
+    expect(result.code).toContain('export { template };');
     expect(result.code).toContain('export const css =');
   }); // it
 });

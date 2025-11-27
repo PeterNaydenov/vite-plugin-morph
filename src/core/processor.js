@@ -11,7 +11,7 @@ import {
   extractStyleContent,
   extractHandshakeContent,
 } from './parser.js';
-import { extractTemplateContent } from './template.js';
+import { extractTemplateContent, extractRequiredHelpers } from './template.js';
 import { processScriptContent } from './script.js';
 import { createMorphError } from './errors.js';
 import { getCachedResult, setCachedResult } from '../utils/cache.js';
@@ -72,6 +72,17 @@ export async function processMorphFile(content, filePath, options) {
     if (script && script.templates) {
       // For string helpers, preserve backticks in template object (as expected by tests)
       Object.assign(helpers, script.templates);
+    }
+
+    // Validate that all helpers referenced in template are available
+    const requiredHelpers = extractRequiredHelpers(template.html);
+    const missingHelpers = requiredHelpers.filter((name) => !(name in helpers));
+
+    if (missingHelpers.length > 0) {
+      throw createMorphError(
+        `Missing helper functions: ${missingHelpers.join(', ')}. Ensure all helpers used in template are defined in <script> tags.`,
+        filePath
+      );
     }
 
     const templateObject = {
@@ -213,9 +224,15 @@ function generateESModule(
     parts.push('const renderFunction = morph.build(template);');
     parts.push('');
 
-    // Export render function
-    parts.push('// Export render function');
+    // Export render function as default
+    parts.push('');
+    parts.push('// Export render function as default');
     parts.push('export default renderFunction;');
+
+    // Export template object as named export
+    parts.push('');
+    parts.push('// Export template object as named export');
+    parts.push('export { template };');
 
     // Export handshake data if present
     if (handshake) {
@@ -230,7 +247,6 @@ function generateESModule(
       parts.push('// Export CSS');
       parts.push(`export const css = ${JSON.stringify(style.css)};`);
     }
-  }
-
+  } // else !isCSSOnly
   return parts.join('\n');
 }
