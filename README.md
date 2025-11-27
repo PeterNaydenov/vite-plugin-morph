@@ -205,14 +205,14 @@ function renderItem(item) {
 </style>
 ```
 
-### Handshake (JSON)
+### Handshake (JSON-like)
 
 ```javascript
-<script type="application/json">
-{
+<script type="application/json">{
+// JSON-like syntax with comments and flexible quotes
   "title": "Card Title",
-  "description": "Card description",
-  "items": [
+  "description": "Card description", // Comments are allowed
+  'items': [  // Single quotes work too
               { "name": "Item 1" },
               { "name": "Item 2" },
               { "name": "Item 3" }
