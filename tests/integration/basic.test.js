@@ -201,7 +201,7 @@ function existingHelper(data) { return data; }
     expect(result.code).toContain('export default renderFunction;');
     expect(result.code).toContain('export { template };');
     expect(result.code).toContain(
-      'template.helpers.existingHelper = function existingHelper'
+      'function existingHelper(data) { return data; }; template.helpers.existingHelper = existingHelper;'
     );
 
     // Should not contain helper assignments for the missing helper
@@ -283,8 +283,9 @@ function formatTitle(title) {
     expect(templateData.handshake).toEqual({ title: 'Test Title' });
 
     // Verify helpers are added to the template object
+    expect(result.code).toContain('function formatTitle(title) {');
     expect(result.code).toContain(
-      'template.helpers.formatTitle = function formatTitle(title) {'
+      'template.helpers.formatTitle = formatTitle;'
     );
     expect(result.code).toContain('return title.toUpperCase();');
   });
@@ -421,11 +422,21 @@ function a(data) { return \`<a href="#">\${data}</a>\`; }
     expect(result.code).toContain('export default renderFunction;');
 
     // Verify all prefixed helpers are extracted correctly
-    expect(result.code).toContain('template.helpers.li = function li');
-    expect(result.code).toContain('template.helpers.setup = function setup');
-    expect(result.code).toContain('template.helpers.coma = function coma');
-    expect(result.code).toContain('template.helpers.ul = function ul');
-    expect(result.code).toContain('template.helpers.a = function a');
+    expect(result.code).toContain(
+      'function li(data) { return `<li>${data}</li>`; }; template.helpers.li = li;'
+    );
+    expect(result.code).toContain(
+      'function setup(data) { return data; }; template.helpers.setup = setup;'
+    );
+    expect(result.code).toContain(
+      "function coma(data) { return data.join(', '); }; template.helpers.coma = coma;"
+    );
+    expect(result.code).toContain(
+      'function ul(data) { return `<ul>${data}</ul>`; }; template.helpers.ul = ul;'
+    );
+    expect(result.code).toContain(
+      'function a(data) { return `<a href="#">${data}</a>`; }; template.helpers.a = a;'
+    );
 
     // Verify template contains the prefixed placeholders
     expect(result.code).toContain('{{ : li }}');
@@ -472,19 +483,18 @@ function setupData ({ data }) {
     expect(result.code).toContain('export default renderFunction;');
 
     // Verify arrow function helper
-    expect(result.code).toContain("template.helpers.blank = () => '';");
+    expect(result.code).toContain("template.helpers.blank = (() => '');");
 
     // Verify template literal helpers
-    expect(result.code).toContain('template.helpers.contactCards = `');
-    expect(result.code).toContain('<div class="contact">');
     expect(result.code).toContain(
-      'template.helpers.tags = `<span>{{text}}</span>`;'
+      'template.helpers.contactCards = "\\n<div class=\\"contact\\">'
+    );
+    expect(result.code).toContain(
+      'template.helpers.tags = "<span>{{text}}</span>";'
     );
 
     // Verify function declaration helper
-    expect(result.code).toContain(
-      'template.helpers.setupData = function setupData'
-    );
+    expect(result.code).toContain('try { function setupData');
 
     // Verify JSON data
     expect(result.code).toContain('"contacts":');

@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🐛 Fixed
 
 - **Handshake data availability**: Fixed `template.handshake` to always contain handshake data instead of being empty in development mode
+- **Template-only files**: Fixed crash when processing `.morph` files with no script content (null reference error)
+- **Null input handling**: Added null checks to script processing functions to prevent crashes on template-only files
 - **JSDoc type references**: Updated JSDoc comments to use JSDoc-compatible type syntax instead of TypeScript import syntax
 - **TypeScript declaration generation**: Created proper `.d.ts` files with complete type definitions for TypeScript users
 
@@ -28,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🔧 Technical Improvements
 
 - **Handshake processing**: Ensured handshake data is always available in generated template objects
+- **Template-only file support**: Added proper handling for morph files containing only HTML templates
+- **Null safety**: Implemented comprehensive null checks throughout the processing pipeline
 - **Type generation**: Set up proper TypeScript declaration file generation pipeline
 - **Code quality**: Improved overall code maintainability and type safety
 

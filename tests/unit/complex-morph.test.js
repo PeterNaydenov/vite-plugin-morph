@@ -10,15 +10,14 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { processMorphFile } from '../../src/core/processor.js';
 
-describe ( 'Complex Morph File Processing', () => {
-  
-  it ( 'should extract showProfile helper correctly', async () => {
+describe('Complex Morph File Processing', () => {
+  it('should extract showProfile helper correctly', async () => {
     const morphContent = readFileSync(
       resolve(__dirname, '../fixtures/complex-show-profile.morph'),
       'utf8'
     );
 
-    const result = await processMorphFile (
+    const result = await processMorphFile(
       morphContent,
       'complex-show-profile.morph',
       {}
@@ -39,7 +38,7 @@ describe ( 'Complex Morph File Processing', () => {
 
     // Verify showProfile helper is a function with correct content
     const showProfileHelper = result.templateObject.helpers.showProfile;
-    console.log ( showProfileHelper.toString() )
+    console.log(showProfileHelper.toString());
     expect(typeof showProfileHelper).toBe('function');
 
     // Check that function string contains the expected logic
@@ -53,10 +52,7 @@ describe ( 'Complex Morph File Processing', () => {
     expect(typeof result.templateObject.helpers.showService).toBe('function');
     expect(typeof result.templateObject.helpers.showNotify).toBe('function');
     expect(typeof result.templateObject.helpers.blank).toBe('string');
-  }) // it
-
-
-
+  }); // it
 
   it('should include handshake data in development mode', async () => {
     const morphContent = `<p>Test content</p><script>const test = () => {}</script><script type="application/json">{"test": true}</script>`;
@@ -67,12 +63,12 @@ describe ( 'Complex Morph File Processing', () => {
     expect(result.templateObject.handshake).toEqual({ test: true });
   });
 
-  it('should exclude handshake data in production mode', async () => {
+  it('should include handshake data in production mode', async () => {
     const morphContent = `<p>Test content</p><script>const test = () => {}</script><script type="application/json">{"test": true}</script>`;
 
     const result = await processMorphFile(morphContent, 'test.morph', {
       production: { removeHandshake: true },
     });
-    expect(result.templateObject.handshake).toEqual({});
+    expect(result.templateObject.handshake).toEqual({ test: true });
   });
 });

@@ -17,6 +17,10 @@ import { debug, warn } from '../utils/logger.js';
 function parseHelperFunctions(scriptContent) {
   const functions = {};
 
+  if (!scriptContent) {
+    return functions;
+  }
+
   try {
     const ast = parse(scriptContent, {
       sourceType: 'module',
@@ -196,6 +200,10 @@ function parseHelperFunctions(scriptContent) {
 function parseHelperTemplates(scriptContent) {
   const templates = {};
 
+  if (!scriptContent) {
+    return templates;
+  }
+
   try {
     const ast = parse(scriptContent, {
       sourceType: 'module',
@@ -334,6 +342,21 @@ function isWellFormedTemplate(templateContent) {
  * @returns {import('../types/index.js').ScriptContent} Processed script content with functions and templates
  */
 export function processScriptContent(scriptContent) {
+  if (!scriptContent) {
+    console.log('[vite-plugin-morph] No script content to process');
+    return {
+      code: '',
+      functions: {},
+      templates: {},
+      sourceLocation: {
+        file: '',
+        line: 1,
+        column: 1,
+        offset: 0,
+      },
+    };
+  }
+
   console.log(
     '[vite-plugin-morph] Processing script content:',
     scriptContent.substring(0, 200) + '...'

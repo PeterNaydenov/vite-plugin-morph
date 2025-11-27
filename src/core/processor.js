@@ -51,7 +51,7 @@ export async function processMorphFile(content, filePath, options) {
     const scriptRaw = extractScriptContent(document, 'text/javascript');
 
     // Process script content to extract functions and templates
-    const script = processScriptContent(scriptRaw);
+    const script = scriptRaw ? processScriptContent(scriptRaw) : null;
     console.log(
       '[vite-plugin-morph] Script processing result:',
       script
@@ -356,7 +356,6 @@ function generateESModule(
     .filter((part) => part != null)
     .map((part) => String(part));
   const code = safeParts.join('\n');
-
 
   return code;
 }
