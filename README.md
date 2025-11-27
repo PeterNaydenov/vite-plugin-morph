@@ -1,4 +1,4 @@
-<img src="morph-head.png" alt="Morph header image"  />
+<img src="./header.png" alt="Morph header image"  />
 
 # Morph Plugin for Vite (@peter.naydenov/vite-plugin-morph)
 
@@ -6,8 +6,6 @@
 ![npm license](https://img.shields.io/npm/l/@peter.naydenov/vite-plugin-morph.svg)
 ![bundle size](https://img.shields.io/bundlephobia/minzip/@peter.naydenov/vite-plugin-morph.svg)
 ![Morph compatibility](https://img.shields.io/badge/@peter.naydenov/morph-v3.1.5-blue)
-
-
 
 A Vite plugin for processing `.morph` files with HTML-like syntax, CSS modules, and JavaScript helpers. Built on top of `@peter.naydenov/morph` v3.1.5.
 
@@ -112,6 +110,53 @@ const customButton = Button({
 });
 
 document.body.innerHTML = customButton;
+```
+
+## TypeScript Support
+
+The plugin includes full TypeScript definitions. Import morph files directly in TypeScript:
+
+```typescript
+// TypeScript usage
+import Button, { styles, handshake } from './components/Button.morph';
+
+// Type-safe component rendering
+const buttonHtml = Button({
+  text: 'Submit',
+  variant: 'primary',
+  action: 'handleSubmit',
+});
+
+// Access typed handshake data
+console.log(handshake.text); // string
+console.log(handshake.variant); // string
+
+// Use typed CSS module classes
+const className = styles.btn; // string
+```
+
+### Type Definitions
+
+The plugin generates `.d.ts` files for all morph components:
+
+```typescript
+// Generated types for Button.morph
+export declare function Button(data?: {
+  text?: string;
+  variant?: string;
+  action?: string;
+}): string;
+
+export declare const styles: {
+  readonly btn: string;
+  readonly [key: string]: string;
+};
+
+export declare const handshake: {
+  text: string;
+  variant: string;
+  action: string;
+};
 ```
 
 ## Morph File Structure

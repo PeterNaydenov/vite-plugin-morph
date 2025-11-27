@@ -17,6 +17,9 @@
     "dist",
     "README.md"
   ],
+  "banner" : {
+    "image" : "./header.png"
+  },
   "scripts": {
     "test": "vitest",
     "test:run": "vitest run",
