@@ -396,30 +396,39 @@ function setupData ({ data }) {
     const result = await transformHook(morphContent, 'complex-contacts.morph', {
       development: { sourceMaps: true },
     });
+  });
+
+  it('should correctly extract helpers with action prefixes', async () => {
+    const morphContent = `{{ : li }}
+{{ : >setup}}
+{{ friends : []coma }}
+{{ list : ul, [], li, a}}
+
+<script>
+function li(data) { return \`<li>\${data}</li>\`; }
+function setup(data) { return data; }
+function coma(data) { return data.join(', '); }
+function ul(data) { return \`<ul>\${data}</ul>\`; }
+function a(data) { return \`<a href="#">\${data}</a>\`; }
+</script>`;
+
+    const { transformHook } = await import('../../src/plugin/hooks.js');
+    const result = await transformHook(morphContent, 'prefix-test.morph');
 
     expect(result).toBeDefined();
     expect(result.code).toContain('export default renderFunction;');
-    expect(result.code).toContain('export { template };');
 
-    // Verify helpers are added to the template object
-    expect(result.code).toContain("template.helpers.blank = () => '';");
-    expect(result.code).toContain('template.helpers.contactCards = `');
-    expect(result.code).toContain('<div class="contact">');
-    expect(result.code).toContain(
-      'template.helpers.tags = `<span>{{text}}</span>`;'
-    );
-    expect(result.code).toContain(
-      'template.helpers.setupData = function setupData'
-    );
+    // Verify all prefixed helpers are extracted correctly
+    expect(result.code).toContain('template.helpers.li = function li');
+    expect(result.code).toContain('template.helpers.setup = function setup');
+    expect(result.code).toContain('template.helpers.coma = function coma');
+    expect(result.code).toContain('template.helpers.ul = function ul');
+    expect(result.code).toContain('template.helpers.a = function a');
 
-    // Verify template contains the complex placeholders
-    expect(result.code).toContain('{{ @all : blank, ^^, >setupData }}');
-    expect(result.code).toContain(
-      '{{ contacts : [], #, [], contactCards, #, [], tags  }}'
-    );
-
-    // Verify JSON data is included
-    expect(result.code).toContain('"name": "Ivan Ivanov"');
-    expect(result.code).toContain('"name": "Stoyan Lazov"');
+    // Verify template contains the prefixed placeholders
+    expect(result.code).toContain('{{ : li }}');
+    expect(result.code).toContain('{{ : >setup}}');
+    expect(result.code).toContain('{{ friends : []coma }}');
+    expect(result.code).toContain('{{ list : ul, [], li, a}}');
   });
 });

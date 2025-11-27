@@ -24,63 +24,64 @@ export async function transformHook(code, id, options = {}) {
   const pluginOptions = getPluginOptions(options);
 
   try {
-    // Process the morph file
-    const result = await processMorphFile ( code, id, pluginOptions );
+          // Process the morph file
+          const result = await processMorphFile ( code, id, pluginOptions );
 
-    // Check if processing resulted in errors
-    if ( result.errors && result.errors.length > 0) {
-      // Return error in meta for tests to inspect
-      return {
-        code: `// Processing Error: ${result.errors[0].message}`,
-        map: null,
-        meta: {
-          'vite-plugin-morph': {
-            type: 'morph',
-            errors: result.errors,
-            processingTime: result.processingTime,
-            isCSSOnly: false,
-          },
-        },
-      };
-    }
+          // Check if processing resulted in errors
+          if ( result.errors && result.errors.length > 0) {
+                  // Return error in meta for tests to inspect
+                  return {
+                    code : `// Processing Error: ${result.errors[0].message}`,
+                    map  : null,
+                    meta : {
+                            'vite-plugin-morph': {
+                                            type: 'morph',
+                                            errors: result.errors,
+                                            processingTime: result.processingTime,
+                                            isCSSOnly: false,
+                                    }
+                        }
+                  }
+            }
 
-    // Create transform result
-    const transformResult = {
-      code: result.code,
-      map: result.map,
-      meta: {
-        'vite-plugin-morph': {
-          type: 'morph',
-          warnings: result.warnings || [],
-          processingTime: result.processingTime,
-          isCSSOnly: result.isCSSOnly || false,
-        },
-      },
-    };
+          // Create transform result
+          const transformResult = {
+                    code : result.code,
+                    map  : result.map,
+                    meta : {
+                        'vite-plugin-morph': {
+                                        type: 'morph',
+                                        warnings: result.warnings || [],
+                                        processingTime: result.processingTime,
+                                        isCSSOnly: result.isCSSOnly || false,
+                                },
+                          },
+            }
 
-    info(`Successfully transformed ${id} in ${result.processingTime}ms`);
-    return transformResult;
-  } catch (err) {
-    error(`Transform failed for ${id}: ${err.message}`);
+          info ( `Successfully transformed ${id} in ${result.processingTime}ms` )
+          return transformResult
+    } // try 
+  catch (err) {
+          error ( `Transform failed for ${id}: ${err.message}` )
 
-    // Create error with location information
-    const morphError = createMorphError(err, id, null, 'TRANSFORM_ERROR');
+          // Create error with location information
+          const morphError = createMorphError(err, id, null, 'TRANSFORM_ERROR');
 
-    // Return error in meta for tests to inspect
-    return {
-      code: `// Transform Error: ${morphError.message}`,
-      map: null,
-      meta: {
-        'vite-plugin-morph': {
-          type: 'morph',
-          errors: [morphError],
-          processingTime: 0,
-          isCSSOnly: false,
-        },
-      },
-    };
-  }
-}
+          // Return error in meta for tests to inspect
+          return {
+                    code: `// Transform Error: ${morphError.message}`,
+                    map: null,
+                    meta: {
+                              'vite-plugin-morph': {
+                                          type: 'morph',
+                                          errors: [morphError],
+                                          processingTime: 0,
+                                          isCSSOnly: false,
+                                  }
+                      }
+            }
+      } // catch
+} // transformHook func.
 
 /**
  * Handle hot module replacement for .morph files

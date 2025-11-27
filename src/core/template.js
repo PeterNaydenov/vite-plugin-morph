@@ -99,8 +99,15 @@ export function extractRequiredHelpers(templateHtml) {
         ) {
           // Exclude single characters
 
-          // Remove special prefixes like '>' that might indicate function calls
-          const cleanName = item.replace(/^>/, '');
+          // Remove special prefixes that indicate different action types
+          // > - data functions, [] - mixing functions, ? - conditional render
+          // + - extended render, ^ - memory actions, ^^ - overwrite action
+          let cleanName = item;
+          cleanName = cleanName.replace(/^\^+/, ''); // Remove ^^ or ^ prefixes
+          cleanName = cleanName.replace(/^\?\??/, ''); // Remove ? or ?? prefixes
+          cleanName = cleanName.replace(/^\+\+?/, ''); // Remove + or ++ prefixes
+          cleanName = cleanName.replace(/^\[\]/, ''); // Remove [] prefix
+          cleanName = cleanName.replace(/^>/, ''); // Remove > prefix
 
           if (cleanName && cleanName !== '') {
             helpers.add(cleanName);
