@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.7] - 2025-11-27
+
+### 🐛 Critical Fixes
+
+- **Vite import analysis compatibility**: Fixed "Failed to parse source for import analysis" errors by replacing custom AST walker with acorn-walk
+- **Function parsing with comments**: Fixed helper function extraction when functions have trailing comments (removes `// comment` from extracted code)
+- **Template validation**: Improved `isWellFormedTemplate()` to properly handle self-closing HTML tags (`<input>`, `<br>`, `<img>`, etc.)
+- **Malformed template rejection**: Fixed test case where invalid templates with unbalanced HTML were incorrectly accepted
+- **Syntax error fixes**: Resolved multiple JavaScript syntax errors in core files that caused Vite compilation failures
+
+### 🔧 Technical Improvements
+
+- **AST processing stability**: Switched from custom AST walker to acorn-walk for reliable node traversal
+- **Comment-aware parsing**: Added automatic comment removal from extracted function code before eval()
+- **Enhanced HTML validation**: Improved template validation to correctly identify self-closing tags (`<input>`, `<br>`, `<img>`, etc.)
+- **Error resilience**: Improved error handling throughout the parsing pipeline
+- **Code quality**: Fixed syntax errors and improved overall code reliability
+
+### 📚 Documentation & Types
+
+- **JSDoc consistency**: Updated all JSDoc comments to reference proper typedefs instead of inline property definitions
+- **Type definitions**: Aligned typedefs with actual function return values (`ProcessingResult`, `ProcessingMetadata`, `ScriptContent`)
+- **Version updates**: Updated all `@version` tags across the codebase to 0.0.7
+- **Type accuracy**: Ensured typedefs match the actual data structures used in the implementation
+
+### 🧪 Testing
+
+- **All tests passing**: Fixed the failing "malformed template" test case
+- **Test stability**: Resolved Vite import analysis issues that were causing test failures
+- **Edge case coverage**: Added validation for templates with unbalanced HTML tags
+
 ## [0.0.6] - 2025-11-27
 
 ### 🚀 Features
@@ -20,9 +51,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🔧 Technical Improvements
 
+- **AST parsing overhaul**: Replaced @babel/parser + @babel/traverse with acorn + acorn-walk for more stable and lightweight AST processing
 - **parseJsonLike() function**: New parser that handles JSON-like syntax while maintaining backward compatibility
+- **String literal templates**: `const helper = 'content'` now treated as definite template helpers (not potential)
 - **Fallback parsing**: First attempts standard JSON.parse(), falls back to comment removal and quote conversion
 - **Error handling**: Clear error messages for invalid JSON-like syntax
+- **Dependency cleanup**: Removed heavy @babel dependencies in favor of lightweight acorn stack
 
 ## [0.0.5] - 2025-11-27
 
