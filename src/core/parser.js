@@ -69,13 +69,38 @@ export function extractScriptContent(document, scriptType) {
 
   const scriptNodes = findScriptNodes(document);
 
+  console.log(
+    '[vite-plugin-morph] Found',
+    scriptNodes.length,
+    'script nodes for type:',
+    scriptType
+  );
+
   if (scriptNodes.length > 0) {
     // Return the concatenated content of all script tags
-    return scriptNodes
-      .map((node) => node.childNodes.map((child) => child.value || '').join(''))
+    const scriptContent = scriptNodes
+      .map((node) => {
+        const content = node.childNodes
+          .map((child) => child.nodeValue || child.value || '')
+          .join('');
+        console.log(
+          '[vite-plugin-morph] Script content extracted:',
+          content.substring(0, 200) + '...'
+        );
+        return content;
+      })
       .join('');
+    console.log(
+      '[vite-plugin-morph] Extracted script content:',
+      scriptContent.substring(0, 200) + '...'
+    );
+    return scriptContent;
   }
 
+  console.log(
+    '[vite-plugin-morph] No script content found for type:',
+    scriptType
+  );
   return null;
 }
 
@@ -148,13 +173,45 @@ export function extractHandshakeContent(document, scriptType) {
 
   const scriptNodes = findScriptNodes(document);
 
+  console.log(
+    '[vite-plugin-morph] Found',
+    scriptNodes.length,
+    'handshake script nodes for type:',
+    scriptType
+  );
+
   if (scriptNodes.length > 0) {
     // Return the concatenated content of all script tags
-    return scriptNodes
-      .map((node) => node.childNodes.map((child) => child.value || '').join(''))
+    const handshakeContent = scriptNodes
+      .map((node) => {
+        console.log(
+          '[vite-plugin-morph] Handshake script node childNodes:',
+          node.childNodes.length
+        );
+        return node.childNodes
+          .map((child) => {
+            console.log(
+              '[vite-plugin-morph] Handshake child node:',
+              child.nodeName,
+              'value:',
+              child.nodeValue || child.value
+            );
+            return child.nodeValue || child.value || '';
+          })
+          .join('');
+      })
       .join('');
+    console.log(
+      '[vite-plugin-morph] Extracted handshake content:',
+      handshakeContent.substring(0, 200) + '...'
+    );
+    return handshakeContent;
   }
 
+  console.log(
+    '[vite-plugin-morph] No handshake content found for type:',
+    scriptType
+  );
   return null;
 }
 

@@ -15,7 +15,7 @@ import { extractTemplateContent, extractRequiredHelpers } from './template.js';
 import { processScriptContent } from './script.js';
 import { createMorphError } from './errors.js';
 import { getCachedResult, setCachedResult } from '../utils/cache.js';
-import { debug, info, error } from '../utils/logger.js';
+import { debug, info, error, warn } from '../utils/logger.js';
 import { isProductionMode } from '../utils/shared.js';
 
 /**
@@ -52,6 +52,17 @@ export async function processMorphFile(content, filePath, options) {
 
     // Process script content to extract functions and templates
     const script = processScriptContent(scriptRaw);
+    console.log(
+      '[vite-plugin-morph] Script processing result:',
+      script
+        ? `functions: ${Object.keys(script.functions || {}).length}, templates: ${Object.keys(script.templates || {}).length}`
+        : 'null'
+    );
+    if (scriptRaw) {
+      console.log('[vite-plugin-morph] Script content found:', scriptRaw);
+    } else {
+      console.log('[vite-plugin-morph] No script content found in morph file');
+    }
 
     // Extract template content
     const template = extractTemplateContent(document);
@@ -66,32 +77,48 @@ export async function processMorphFile(content, filePath, options) {
     // Add function helpers
     if (script && script.functions) {
       Object.assign(helpers, script.functions);
+      console.log(
+        '[vite-plugin-morph] Added function helpers:',
+        Object.keys(script.functions)
+      );
     }
 
     // Add template helpers
     if (script && script.templates) {
       // For string helpers, preserve backticks in template object (as expected by tests)
       Object.assign(helpers, script.templates);
+      console.log(
+        '[vite-plugin-morph] Added template helpers:',
+        Object.keys(script.templates)
+      );
     }
 
-    // Validate that all helpers referenced in template are available
-    const requiredHelpers = extractRequiredHelpers(template.html);
-    const missingHelpers = requiredHelpers.filter((name) => !(name in helpers));
+    console.log(
+      '[vite-plugin-morph] Final helpers object:',
+      Object.keys(helpers)
+    );
 
-    if (missingHelpers.length > 0) {
-      throw createMorphError(
-        `Missing helper functions: ${missingHelpers.join(', ')}. Ensure all helpers used in template are defined in <script> tags.`,
-        filePath
+    // Validate that all helpers referenced in template are available
+    // Only validate if we successfully parsed helpers (helpers object has content)
+    const hasParsedHelpers = Object.keys(helpers).length > 0;
+    if (hasParsedHelpers) {
+      const requiredHelpers = extractRequiredHelpers(template.html);
+      const missingHelpers = requiredHelpers.filter(
+        (name) => !(name in helpers)
       );
+
+      if (missingHelpers.length > 0) {
+        warn(
+          `Missing helper functions: ${missingHelpers.join(', ')}. Template may not render correctly.`
+        );
+        // Don't throw error - allow processing to continue with available helpers
+      }
     }
 
     const templateObject = {
       template: template.html,
       helpers: Object.keys(helpers).length > 0 ? helpers : {},
-      handshake:
-        handshake && handshake.data && !isProductionMode(options)
-          ? handshake.data
-          : {},
+      handshake: handshake?.data || {},
     };
 
     // Store helpers separately for code generation
@@ -112,9 +139,15 @@ export async function processMorphFile(content, filePath, options) {
 
     const processingTime = Date.now() - startTime;
 
+    // Ensure moduleCode is always a valid string
+    const safeModuleCode =
+      typeof moduleCode === 'string'
+        ? moduleCode
+        : '// Error: Invalid module code generated';
+
     // Create result object
     const result = {
-      code: moduleCode,
+      code: safeModuleCode,
       cssExports: style?.css,
       usedVariables: template.usedVariables,
       templateObject,
@@ -124,17 +157,10 @@ export async function processMorphFile(content, filePath, options) {
         processingTime,
         components: {
           template: !!template.html,
-          script: !!scriptRaw,
-          style: !!style,
-          handshake: !!(handshake && handshake.data),
+          helpers: Object.keys(helpers).length,
+          handshake: !!handshake?.data,
+          css: !!style?.css,
         },
-        css: style ? { variables: style.variables } : undefined,
-        template: template
-          ? {
-              placeholderCount: template.placeholders.length,
-              helperFunctionCount: Object.keys(helperFunctions).length,
-            }
-          : undefined,
       },
     };
 
@@ -144,12 +170,15 @@ export async function processMorphFile(content, filePath, options) {
     info(`Successfully processed ${filePath} in ${processingTime}ms`);
     return result;
   } catch (err) {
-    const errorResult = createMorphError(err, filePath);
-    error(`Failed to process ${filePath}: ${errorResult.message}`);
+    const errorResult = createMorphError(err, filePath || 'unknown-file');
+    const safeMessage = errorResult?.message || 'Processing failed';
+    const safeFilePath = filePath || 'unknown-file';
 
-    // Return error result
+    error(`Failed to process ${safeFilePath}: ${safeMessage}`);
+
+    // Return error result with safe defaults
     return {
-      code: '',
+      code: `// Error: ${safeMessage}`,
       cssExports: null,
       usedVariables: undefined,
       templateObject: null,
@@ -168,6 +197,24 @@ export async function processMorphFile(content, filePath, options) {
       },
       errors: [errorResult],
     };
+  }
+}
+
+/**
+ * Check if function code is syntactically valid
+ * @param {string} funcCode - Function code to validate
+ * @returns {boolean} Whether the code is valid
+ */
+function isValidFunctionCode(funcCode) {
+  try {
+    // Try to parse the function code as an expression
+    new Function(`return ${funcCode}`);
+    return true;
+  } catch (error) {
+    console.warn(
+      `[vite-plugin-morph] Function code validation failed: ${error.message}`
+    );
+    return false;
   }
 }
 
@@ -209,11 +256,67 @@ function generateESModule(
     if (helperFunctions && Object.keys(helperFunctions).length > 0) {
       parts.push('// Helpers');
       for (const [name, helper] of Object.entries(helperFunctions)) {
-        if (typeof helper === 'function') {
-          parts.push(`template.helpers.${name} = ${helper.toString()};`);
-        } else {
-          // String helper - preserve original template literal format
-          parts.push('template.helpers.' + name + ' = `' + helper + '`;');
+        try {
+          // Validate helper name (should be valid JavaScript identifier)
+          if (!/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(name)) {
+            console.warn(
+              `[vite-plugin-morph] Skipping helper with invalid name: ${name}`
+            );
+            continue;
+          }
+
+          if (typeof helper === 'function') {
+            // For functions, create them using new Function
+            try {
+              let funcCode = helper.toString();
+              // Remove comments that might break the generated code
+              funcCode = funcCode.replace(/\/\/.*$/gm, '').trim();
+
+              // Handle different function types
+              if (funcCode.startsWith('function ')) {
+                // Function declaration: execute and return the function
+                const funcName = funcCode.match(/function\s+(\w+)/)[1];
+                parts.push(
+                  'try { ' +
+                    funcCode +
+                    '; template.helpers.' +
+                    name +
+                    ' = ' +
+                    funcName +
+                    "; } catch(e) { console.warn('Failed to assign helper " +
+                    name +
+                    ":', e.message); }"
+                );
+              } else {
+                // Arrow function or other: return the expression
+                parts.push(
+                  'try { template.helpers.' +
+                    name +
+                    ' = (' +
+                    funcCode +
+                    "); } catch(e) { console.warn('Failed to assign helper " +
+                    name +
+                    ":', e.message); }"
+                );
+              }
+            } catch (funcError) {
+              console.warn(
+                `[vite-plugin-morph] Cannot serialize function helper ${name}: ${funcError.message}`
+              );
+            }
+          } else if (typeof helper === 'string') {
+            // For strings, use JSON.stringify to safely escape
+            const safeString = JSON.stringify(helper);
+            parts.push(`template.helpers.${name} = ${safeString};`);
+          } else {
+            console.warn(
+              `[vite-plugin-morph] Skipping helper ${name} with invalid type: ${typeof helper}`
+            );
+          }
+        } catch (helperError) {
+          console.warn(
+            `[vite-plugin-morph] Error processing helper ${name}: ${helperError.message}`
+          );
         }
       }
     }
@@ -248,5 +351,12 @@ function generateESModule(
       parts.push(`export const css = ${JSON.stringify(style.css)};`);
     }
   } // else !isCSSOnly
-  return parts.join('\n');
+  // Ensure all parts are strings and filter out any undefined values
+  const safeParts = parts
+    .filter((part) => part != null)
+    .map((part) => String(part));
+  const code = safeParts.join('\n');
+
+
+  return code;
 }

@@ -20,19 +20,27 @@ export function createMorphError(
   code = 'UNKNOWN_ERROR'
 ) {
   const message =
-    typeof originalError === 'string' ? originalError : originalError.message;
+    typeof originalError === 'string'
+      ? originalError
+      : originalError?.message || originalError?.toString() || 'Unknown error';
 
-  return {
-    name: 'MorphPluginError',
-    message,
-    code,
-    location: location || { file: filePath, line: 1, column: 1, offset: 0 },
-    filePath,
-    severity: 'error',
-    originalError:
-      typeof originalError === 'object' ? originalError : undefined,
-    stack: typeof originalError === 'object' ? originalError.stack : undefined,
+  const error = new Error(message);
+  error.name = 'MorphPluginError';
+  error.code = code;
+  error.location = location || {
+    file: filePath,
+    line: 1,
+    column: 1,
+    offset: 0,
   };
+  error.filePath = filePath;
+  error.severity = 'error';
+  error.originalError =
+    typeof originalError === 'object' ? originalError : undefined;
+  error.stack =
+    typeof originalError === 'object' ? originalError.stack : error.stack;
+
+  return error;
 }
 
 /**

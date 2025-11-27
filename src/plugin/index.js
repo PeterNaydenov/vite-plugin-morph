@@ -18,25 +18,57 @@ export function createMorphPlugin(options = {}) {
 
     // Handle .morph file transformation
     async transform(code, id) {
-      if (!id.endsWith('.morph')) {
+      if (!id || !id.endsWith('.morph')) {
         return null;
+      }
+
+      // Validate inputs
+      if (typeof code !== 'string') {
+        throw new Error(
+          `Invalid code parameter: expected string, got ${typeof code}`
+        );
+      }
+      if (typeof id !== 'string') {
+        throw new Error(
+          `Invalid id parameter: expected string, got ${typeof id}`
+        );
       }
 
       try {
         const result = await processMorphFile(code, id, resolvedOptions);
+
+        // Validate result
+        if (!result || typeof result.code !== 'string') {
+          throw new Error(
+            `processMorphFile returned invalid result: ${JSON.stringify(result)}`
+          );
+        }
+
         return {
           code: result.code,
           map: result.map,
           meta: {
             'vite-plugin-morph': {
               type: 'morph',
-              warnings: result.warnings,
-              processingTime: result.processingTime,
+              warnings: result.warnings || [],
+              processingTime: result.processingTime || 0,
             },
           },
         };
       } catch (error) {
-        throw createMorphError(error, id);
+        // Ensure error has a valid message
+        const safeError =
+          error && typeof error === 'object'
+            ? error
+            : new Error(
+                typeof error === 'string' ? error : 'Unknown transform error'
+              );
+
+        if (!safeError.message) {
+          safeError.message = 'Transform failed with no error message';
+        }
+
+        throw await createMorphError(safeError, id || 'unknown-file');
       }
     },
 
