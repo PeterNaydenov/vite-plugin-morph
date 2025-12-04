@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.0.9] - 2025-12-04
+- [x] Fix: Template content was modified;
+
+
+
 ## [0.0.8] - 2025-12-01
 - [x] Updated version of `@peter.naydenov/morph` to 3.2.0
 - [ ] Bug: Template content was modified
