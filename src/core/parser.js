@@ -5,7 +5,7 @@
  * @version 0.0.7
  */
 
-import { parse, parseFragment } from 'parse5';
+import { parseFragment } from 'parse5';
 
 /**
  * Parse JSON-like content with comments and flexible syntax
@@ -48,7 +48,7 @@ export function parseJsonLike(content) {
  */
 export function parseMorphFile(content) {
   try {
-    return parse(content);
+    return parseFragment(content);
   } catch (error) {
     throw new Error(`Failed to parse morph file: ${error.message}`);
   }

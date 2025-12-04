@@ -42,8 +42,8 @@ describe('HTML Parser', () => {
       const result = parseMorphFile('');
       expect(result).toBeDefined();
       expect(result.childNodes).toBeDefined();
-      // parse5 creates a full HTML document even for empty content
-      expect(result.childNodes.length).toBeGreaterThan(0);
+      // parse5 fragment creates an empty document for empty content
+      expect(result.childNodes.length).toBe(0);
     }); // it
   }); // describe
 
@@ -175,10 +175,12 @@ describe('HTML Parser', () => {
 
       const templateContent = extractTemplateContent(document);
       expect(templateContent.html).not.toContain('.test');
-      // Should contain basic HTML structure
-      expect(templateContent.html).toContain('<html>');
-      expect(templateContent.html).toContain('<head>');
-      expect(templateContent.html).toContain('<body>');
+      // Should contain the template content without HTML wrapper
+      expect(templateContent.html).toContain('<div class="container">');
+      expect(templateContent.html).toContain('<h1>Title</h1>');
+      expect(templateContent.html).toContain('<p>Content</p>');
+      expect(templateContent.html).not.toContain('<script>');
+      expect(templateContent.html).not.toContain('<style>');
     }); // it
 
     it('should handle comments in template', () => {

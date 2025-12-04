@@ -82,15 +82,23 @@ describe('Morph Library Integration', () => {
     expect(result).toBeDefined();
     expect(result.code).toBeDefined();
 
-    // CSS-only files should include morph utilities since they have template
-    expect(result.code).toContain("import morph from '@peter.naydenov/morph'");
-    expect(result.code).toContain('const template = {');
-    expect(result.code).toContain('"template":');
-    expect(result.code).toContain(
+    // CSS-only files should NOT include morph utilities or template structure
+    expect(result.code).not.toContain(
+      "import morph from '@peter.naydenov/morph'"
+    );
+    expect(result.code).not.toContain('const template = {');
+    expect(result.code).not.toContain('"template":');
+    expect(result.code).not.toContain(
       'const renderFunction = morph.build(template);'
     );
-    expect(result.code).toContain('export default renderFunction;');
-    expect(result.code).toContain('export { template };');
-    expect(result.code).toContain('export const css =');
+    expect(result.code).not.toContain('export default renderFunction;');
+    expect(result.code).not.toContain('export { template };');
+
+    // Should only export CSS styles
+    expect(result.code).toContain('// Export CSS styles');
+    expect(result.code).toContain('export const styles =');
+    expect(result.code).toContain('.btn { background: blue; }');
+    // CSS-only files export as 'styles', not 'css'
+    expect(result.code).not.toContain('export const css =');
   }); // it
 });
