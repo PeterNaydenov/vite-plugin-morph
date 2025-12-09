@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.0.10] - 2025-12-09
+- [x] Static CSS files;
+- [x] CSS Themes;
+- [x] Composition of components using config file;
+
+
+
+
 ## [0.0.9] - 2025-12-04
 - [x] Fix: Template content was modified;
 - [x] Fix:  TypeScript types weren't generating correctly
