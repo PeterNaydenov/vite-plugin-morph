@@ -1,13 +1,13 @@
-<img src="./header.png" alt="Morph header image"  />
+<img src="./header.png" alt="Morph header image" />
 
 # Morph Plugin for Vite (@peter.naydenov/vite-plugin-morph)
 
 ![npm version](https://img.shields.io/npm/v/@peter.naydenov/vite-plugin-morph.svg)
 ![npm license](https://img.shields.io/npm/l/@peter.naydenov/vite-plugin-morph.svg)
 ![bundle size](https://img.shields.io/bundlephobia/minzip/@peter.naydenov/vite-plugin-morph.svg)
-![Morph compatibility](https://img.shields.io/badge/@peter.naydenov/morph-v3.1.5-blue)
+![Morph compatibility](https://img.shields.io/badge/@peter.naydenov/morph-v3.2.0-blue)
 
-A Vite plugin for processing `.morph` files with HTML-like syntax, CSS modules, and JavaScript helpers. Built on top of `@peter.naydenov/morph` v3.1.5.
+A Vite plugin for processing `.morph` files with HTML-like syntax, CSS modules, and JavaScript helpers. Built on top of `@peter.naydenov/morph` v3.2.0.
 
 ## Features
 
@@ -16,8 +16,9 @@ A Vite plugin for processing `.morph` files with HTML-like syntax, CSS modules, 
 - 🔥 **Hot Module Replacement** - Instant development updates
 - 🛠️ **TypeScript Support** - Full type definitions included
 - ⚡ **Vite Integration** - Seamless Vite 4.x plugin API integration
-- 🎯 **Zero Config** - Works out of the box with sensible defaults
 - 🔄 **Morph Syntax** - Full support for `@peter.naydenov/morph` template syntax and helpers
+- ⚙️ **Zero Config** - Works out of the box with sensible defaults
+- 🎯 **Production Optimized** - Built-in optimizations for production builds
 
 ## Installation
 
@@ -45,32 +46,36 @@ For the best development experience with `.morph` files, install the **Morph Tem
 
 - **Extension Name**: `PeterNaydenov.morph-template-syntax-highlighting`
 - **Marketplace Link**: https://marketplace.visualstudio.com/items?itemName=PeterNaydenov.morph-template-syntax-highlighting
-- **Features**:
-  - 🎨 Full syntax highlighting for `.morph` files
-  - 📦 HTML-like template support
-  - 🎯 JavaScript helper function highlighting
-  - 🎭 CSS style section support
-  - 📋 JSON handshake data highlighting
-  - 🔧 Auto-completion for morph syntax
-  - 🚀 Error checking and validation
-  - 🌙 Dark/light theme support
 
-This extension provides **professional editing experience** with syntax highlighting, IntelliSense, and real-time error detection for your `.morph` files.
+**Features**:
 
-### 2. Create a Morph Component
+- 🎨 Full syntax highlighting for `.morph` files
+- 📦 HTML-like template support
+- 🎯 JavaScript helper function highlighting
+- 🎭 CSS style section support
+- 📋 JSON handshake data highlighting
+- 🧠 Auto-completion for morph syntax
+- 🚀 Error checking and validation
+- 🌙 Dark/light theme support
+
+This extension provides a **professional editing experience** with syntax highlighting, IntelliSense, and real-time error detection for your `.morph` files.
+
+### 3. Create a Morph Component
 
 ```html
 <!-- src/components/Button.morph -->
-<button class="btn {{variant}}" data-click="{{action}}">{{text}}</button>
+<button class="btn {{ variant : getVariantClass }}" data-click="{{action}}">
+  {{text}}
+</button>
 
 <script>
-  function getVariantClass(variant) {
+  function getVariantClass ({ data }) {
     const variants = {
       primary: 'btn-primary',
       secondary: 'btn-secondary',
       danger: 'btn-danger',
     };
-    return variants[variant] || variants.primary;
+    return variants[data] || variants.primary;
   }
 </script>
 
@@ -97,7 +102,7 @@ This extension provides **professional editing experience** with syntax highligh
 </script>
 ```
 
-### 3. Use in Your Application
+### 4. Use in Your Application
 
 ```javascript
 import Button, { styles } from './components/Button.morph';
@@ -110,6 +115,13 @@ const customButton = Button({
 });
 
 document.body.innerHTML = customButton;
+
+// Access typed handshake data
+console.log(handshake.text); // string
+console.log(handshake.variant); // string
+
+// Use typed CSS module classes
+const className = styles.btn; // string
 ```
 
 ## TypeScript Support
@@ -135,30 +147,6 @@ console.log(handshake.variant); // string
 const className = styles.btn; // string
 ```
 
-### Type Definitions
-
-The plugin generates `.d.ts` files for all morph components:
-
-```typescript
-// Generated types for Button.morph
-export declare function Button(data?: {
-  text?: string;
-  variant?: string;
-  action?: string;
-}): string;
-
-export declare const styles: {
-  readonly btn: string;
-  readonly [key: string]: string;
-};
-
-export declare const handshake: {
-  text: string;
-  variant: string;
-  action: string;
-};
-```
-
 ## Morph File Structure
 
 A `.morph` file contains four main sections:
@@ -167,8 +155,8 @@ A `.morph` file contains four main sections:
 
 ```html
 <div class="card">
-  <h2>{{title}}</h2>
-  <p>{{description}}</p>
+  <h2>{{ title }}</h2>
+  <p>{{ description }}</p>
   {{ items : [], renderItem }}
   <button data-click="save">Save</button>
 </div>
@@ -179,17 +167,12 @@ A `.morph` file contains four main sections:
 ```javascript
 <script>
 function formatTitle({data}) {
-      return data.toUpperCase();
-  }
+  return data.title.toUpperCase()
+}
 
-function truncate({data}) {
-      const length = 100;
-      return data.length > length ? data.substring(0, length) + '...' : data;
-  }
-
-function renderItem(item) {
-      return `<li>${item.name}</li>`;
-  }
+function renderItem ({ data }) {
+  return `<li>${data.name}</li>`;
+}
 </script>
 ```
 
@@ -198,25 +181,30 @@ function renderItem(item) {
 ```css
 <style>
 .card {
-        background: var(--card-bg, #fff);
-        padding: 1rem;
-        border-radius: 8px;
-    }
+  background: var(--card-bg, #fff);
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.btn {
+  padding: var(--btn-padding, 0.5rem 1rem);
+  border-radius: var(--btn-radius, 4px);
+}
 </style>
 ```
 
 ### Handshake (JSON-like)
 
 ```javascript
-<script type="application/json">{
-// JSON-like syntax with comments and flexible quotes
+<script type="application/json">
+{
   "title": "Card Title",
   "description": "Card description", // Comments are allowed
-  'items': [  // Single quotes work too
-              { "name": "Item 1" },
-              { "name": "Item 2" },
-              { "name": "Item 3" }
-          ]
+  "items": [
+    { 'name' : "Item 1"}, // Single quotes are allowed
+    { "name" : "Item 2"},
+    { "name" : "Item 3"}
+  ]
 }
 </script>
 ```
@@ -233,6 +221,7 @@ export default defineConfig({
       globalCSS: {
         directory: 'src/styles',
         include: ['**/*.css'],
+        exclude: ['**/*.min.css'],
       },
     }),
   ],
@@ -242,6 +231,7 @@ export default defineConfig({
 ### Production Optimization
 
 ```javascript
+// vite.config.js
 export default defineConfig({
   plugins: [
     morphPlugin({
@@ -254,53 +244,110 @@ export default defineConfig({
 });
 ```
 
-## CSS Modules
-
-The plugin automatically generates CSS module exports:
+### Development Settings
 
 ```javascript
-import Button, { styles } from './components/Button.morph';
-
-console.log(styles.btn); // "btn_a1b2c3"
+// vite.config.js
+export default defineConfig({
+  plugins: [
+    morphPlugin({
+      development: {
+        sourceMaps: true,
+        hmr: true,
+      },
+    }),
+  ],
+});
 ```
 
-## CSS-Only Morph Files
+### Error Handling
 
-For global styles and design systems, you can create CSS-only morph files:
+```javascript
+// vite.config.js
+export default defineConfig({
+  plugins: [
+    morphPlugin({
+      errorHandling: {
+        failOnError: true,
+        showLocation: true,
+        maxErrors: 10,
+      },
+    }),
+  ],
+});
+```
+
+## Advanced Features
+
+### CSS-Only Morph Files
+
+For global styles and design systems, create CSS-only morph files:
 
 ```html
-<!-- src/styles/global.morph -->
+<!-- src/styles/theme.morph -->
 <style>
   :root {
     --primary-color: #007bff;
     --secondary-color: #6c757d;
+    --btn-padding: 0.5rem 1rem;
+    --btn-radius: 4px;
   }
 
   .btn {
     background: var(--primary-color);
     color: white;
-    padding: 0.5rem 1rem;
+    padding: var(--btn-padding);
+    border-radius: var(--btn-radius);
   }
 </style>
 ```
 
-CSS-only files export styles without a component function:
+### Template Helpers
 
-```javascript
-import { styles } from './styles/global.morph';
+Use powerful template helpers for dynamic content:
 
-// styles contains CSS class definitions
-// No component function is exported
+```html
+<div class="user-card">
+  <h2>{{user.name}}</h2>
+  <p>{{user.email}}</p>
+  {{#if user.isAdmin}}
+  <button class="admin-btn">Admin Panel</button>
+  {{/if}} {{#each user.roles}}
+  <span class="role-{{this}}">{{this}}</span>
+  {{/each}}
+</div>
 ```
 
-### CSS-Only vs Component Files
+### JavaScript Helpers
 
-- **CSS-only files**: Export `export const styles`, preserve class names, used for global styles
-- **Component files**: Export `export default function`, scoped CSS, used for components
+Define reusable helper functions:
+
+```javascript
+<script>
+function formatDate({data}) {
+  return new Date(data.timestamp).toLocaleDateString();
+}
+
+function calculateTotal({data}) {
+  return data.items.reduce((sum, item) => sum + item.price, 0);
+}
+
+function validateEmail({data}) {
+  const email = data.email.trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+</script>
+```
 
 ## Development
 
-![Node.js support](https://img.shields.io/badge/Node.js-16%2B-blue) ![Vite support](https://img.shields.io/badge/Vite-4.x-green) d
+### Requirements
+
+- Node.js 16+
+- Vite 4.x
+- @peter.naydenov/morph v3.1.5
+
+### Setup Development Environment
 
 ```bash
 # Install dependencies
@@ -315,20 +362,120 @@ npm run test:coverage
 # Run linting
 npm run lint
 
-# Build
+# Build for production
 npm run build
 ```
 
-## Test Coverage
+### Test Coverage
 
-The project includes comprehensive test coverage:
+The project includes comprehensive test coverage with **137 tests passing**:
 
-- **68.36%** statement coverage
-- **58.11%** branch coverage
-- **66.66%** function coverage
-- **68.47%** line coverage
+- **76.05%** statement coverage
+- **64.57%** branch coverage
+- **78.15%** function coverage
+- **76.01%** line coverage
 
 Run `npm run test:coverage` to generate detailed HTML reports in `./coverage/`.
+
+### Project Structure
+
+```
+src/
+├── core/           # Core processing logic
+│   ├── parser.js      # HTML parsing and content extraction
+│   ├── processor.js   # Main morph file processing pipeline
+│   ├── template.js    # Template compilation and helpers
+│   ├── script.js      # JavaScript helper processing
+│   ├── themer.js      # Theme processing and generation
+│   ├── composer.js    # Component composition system
+│   ├── config-loader.js # Configuration loading
+│   └── errors.js      # Error handling utilities
+├── plugin/          # Vite plugin integration
+│   ├── index.js       # Main plugin factory
+│   ├── hooks.js       # Transform and HMR hooks
+│   └── config.js      # Plugin configuration
+├── services/        # Advanced services
+│   ├── css-generation.js    # CSS processing and generation
+│   ├── theme-runtime.js      # Theme management API
+│   └── theme-discovery.js   # Theme file discovery
+├── utils/           # Shared utilities
+│   ├── logger.js      # Logging system
+│   ├── cache.js       # Performance caching
+│   ├── file-watcher.js # File watching for HMR
+│   └── shared.js      # Common utilities
+└── types/           # TypeScript type definitions
+    └── index.js       # Complete type definitions
+```
+
+## API Reference
+
+### Core Functions
+
+#### `processMorphFile(content, filePath, options)`
+
+Process a morph file and return compiled result.
+
+**Parameters:**
+
+- `content` (string): Raw morph file content
+- `filePath` (string): File path for error reporting
+- `options` (MorphPluginOptions): Plugin configuration options
+
+**Returns:** `Promise<ProcessingResult>`
+
+#### `isProductionMode(options)`
+
+Check if running in production mode.
+
+**Parameters:**
+
+- `options` (MorphPluginOptions): Plugin configuration
+
+**Returns:** `boolean`
+
+### Configuration Options
+
+See `src/types/index.js` for complete type definitions.
+
+## Version History
+
+See [CHANGELOG.md](./CHANGELOG.md) for complete version history and migration information.
+
+## Performance
+
+The plugin includes built-in optimizations:
+
+- **Caching**: Automatic file processing cache
+- **Lazy Loading**: On-demand template compilation
+- **Incremental Builds**: Only process changed files
+- **Source Maps**: Optional for development debugging
+
+## Browser Support
+
+- Chrome 88+
+- Firefox 78+
+- Safari 14+
+- Edge 88+
+
+## Contributing
+
+Contributions are welcome! Please see our [Contributing Guide](./CONTRIBUTING.md) for details.
+
+## Test Coverage
+
+The project maintains comprehensive test coverage:
+
+- **137 tests passing** ✅
+- **0 tests failing** ✅
+- **2 tests skipped** (intentionally skipped features)
+
+Run tests with:
+
+```bash
+npm test                    # Run all tests
+npm run test:coverage      # Run with coverage report
+npm run test:watch         # Watch mode for development
+```
 
 ## Requirements
 
@@ -339,16 +486,17 @@ Run `npm run test:coverage` to generate detailed HTML reports in `./coverage/`.
 ## Links
 
 - [CHANGELOG.md](./CHANGELOG.md) - Version history and changes
-- [Quickstart Guide](./specs/001-morph-plugin/quickstart.md)
-- [Transformation Examples](./docs/morph-transformation.md)
-- [API Reference](./specs/001-morph-plugin/spec.md)
-- See the [examples](./examples/) directory for complete component examples.
-- [Morph Documentation](https://github.com/peter-naydenov/morph)
-- [Morph vscode extension](https://marketplace.visualstudio.com/items?itemName=peter-naydenov.morph)
+- [Quickstart Guide](./specs/001-morph-plugin/quickstart.md) - Getting started tutorial
+- [API Reference](./specs/001-morph-plugin/spec.md) - Complete API documentation
+- [Transformation Examples](./docs/morph-transformation.md) - Advanced usage examples
+- [Examples](./examples/) directory - Complete component examples
+- [Morph Documentation](https://github.com/peter-naydenov/morph) - Morph syntax and features
+- [Morph VS Code Extension](https://marketplace.visualstudio.com/items?itemName=PeterNaydenov.morph-template-syntax-highlighting) - Editor support
+- [Report Issues](https://github.com/peter-naydenov/vite-plugin-morph/issues) - Bug reports and feature requests
 
 ## Credits
 
-'@peter.naydenov/vite-plugin-morph' was created and supported by Peter Naydenov.
+'@peter.naydenov/vite-plugin-morph' was created and is maintained by Peter Naydenov.
 
 ## License
 
