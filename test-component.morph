@@ -1,0 +1,10 @@
+<!-- Test component with CSS -->
+<style>
+.test-btn {
+  background: blue;
+  color: white;
+  padding: 0.5rem;
+}
+</style>
+
+<div class="test-btn">Test Button</div>

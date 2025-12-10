@@ -6,6 +6,10 @@
  */
 
 import configModule from './config.js';
+import {
+  startCssCollection,
+  finalizeCssCollection,
+} from '../services/css-collection.js';
 
 /**
  * Create Vite plugin for morph file processing
@@ -88,6 +92,17 @@ export function createMorphPlugin(options = {}) {
     configResolved(config) {
       // Validate configuration
       validatePluginConfig(resolvedOptions, config);
+    },
+
+    // Build lifecycle hooks for CSS collection
+    buildStart() {
+      // Start collecting component CSS
+      startCssCollection({ outputDir: 'dist/components' });
+    },
+
+    async buildEnd() {
+      // Finalize CSS collection and generate bundle
+      await finalizeCssCollection();
     },
   };
 }

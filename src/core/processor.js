@@ -18,6 +18,7 @@ import { createMorphError } from './errors.js';
 import { getCachedResult, setCachedResult } from '../utils/cache.js';
 import { debug, info, error, warn } from '../utils/logger.js';
 import { isProductionMode } from '../utils/shared.js';
+import { getCssCollector } from '../services/css-collection.js';
 
 /**
  * Process a morph file and return compiled result
@@ -350,6 +351,8 @@ function generateESModule(
       parts.push('');
       parts.push('// Export CSS');
       parts.push(`export const css = ${JSON.stringify(style.css)};`);
+
+      // TODO: Add CSS collection later
     }
   } // else !isCSSOnly
   // Ensure all parts are strings and filter out any undefined values
