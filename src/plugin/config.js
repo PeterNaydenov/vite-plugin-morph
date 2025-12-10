@@ -47,9 +47,9 @@ const defaultConfig = {
 
   // Legacy configuration validation
   globalCSS: {
-    directory: null,
-    include: null,
-    exclude: null,
+    directory: 'src/styles',
+    include: ['**/*.css'],
+    exclude: [],
   },
 
   production: {

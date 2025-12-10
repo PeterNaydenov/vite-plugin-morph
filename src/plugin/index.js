@@ -5,10 +5,12 @@
  * @version 0.0.7
  */
 
+import configModule from './config.js';
+
 /**
  * Create Vite plugin for morph file processing
  * @param {import('../types/index.js').MorphPluginOptions} options - Plugin configuration
- * @returns {import('vite').Plugin} Vite plugin instance
+ * @returns {*} Vite plugin instance
  */
 export function createMorphPlugin(options = {}) {
   const resolvedOptions = resolveOptions(options);
@@ -96,28 +98,7 @@ export function createMorphPlugin(options = {}) {
  * @returns {import('../types/index.js').MorphPluginOptions} Resolved options
  */
 function resolveOptions(options) {
-  const defaults = {
-    globalCSS: {
-      directory: 'src/styles',
-      include: ['**/*.css'],
-      exclude: [],
-    },
-    production: {
-      removeHandshake: true,
-      minifyCSS: true,
-    },
-    development: {
-      sourceMaps: true,
-      hmr: true,
-    },
-    errorHandling: {
-      failOnError: true,
-      showLocation: true,
-      maxErrors: 10,
-    },
-  };
-
-  return mergeOptions(defaults, options);
+  return mergeOptions(configModule.defaultConfig, options);
 }
 
 /**
