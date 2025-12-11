@@ -1,14 +1,24 @@
 /**
  * CSS Scoping Utilities
  * Generates scoped class names for CSS modules
+ * @fileoverview CSS class name scoping and transformation utilities
+ * @author Peter Naydenov
+ * @version 0.0.10
  */
 
 import { debug, info, warn } from '../utils/logger.js';
 
 /**
  * CSS Scoper for generating scoped class names
+ * @class
  */
 export class CSSScoper {
+  /**
+   * Create CSS scoper instance
+   * @param {Object} [options={}] - Scoping options
+   * @param {string} [options.generateScopedName='[name]_[local]_[hash:base64:5]'] - Scoped name pattern
+   * @param {Function} [options.hashFunction] - Hash function for class names
+   */
   constructor(options = {}) {
     this.options = {
       generateScopedName:
@@ -134,6 +144,12 @@ export function getCssScoper(options = {}) {
  * @param {string} css - CSS content
  * @param {string} componentName - Component name
  */
+/**
+ * Scope CSS content for a component
+ * @param {string} css - CSS content to scope
+ * @param {string} componentName - Component name for scoping
+ * @returns {Object} Scoped CSS result with classes and content
+ */
 export function scopeCss(css, componentName) {
   const scoper = getCssScoper();
   return scoper.processCss(css, componentName);
@@ -143,6 +159,7 @@ export function scopeCss(css, componentName) {
  * Generate scoped class name
  * @param {string} componentName - Component name
  * @param {string} className - Original class name
+ * @returns {string} Scoped class name
  */
 export function generateScopedClassName(componentName, className) {
   const scoper = getCssScoper();

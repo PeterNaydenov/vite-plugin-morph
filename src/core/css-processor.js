@@ -1,6 +1,9 @@
 /**
  * CSS Processing Utilities
  * Handles PostCSS processing and CSS transformations
+ * @fileoverview PostCSS integration with autoprefixer, cssnano, and source maps
+ * @author Peter Naydenov
+ * @version 0.0.10
  */
 
 import postcss from 'postcss';
@@ -11,9 +14,17 @@ import postcssNested from 'postcss-nested';
 import { debug, info, warn, error } from '../utils/logger.js';
 
 /**
- * CSS Processing Service
+ * CSS Processing Service with PostCSS integration
+ * @class
  */
 export class CSSProcessor {
+  /**
+   * Create CSS processor instance
+   * @param {Object} [options={}] - Processing options
+   * @param {boolean} [options.minify=false] - Enable CSS minification
+   * @param {boolean} [options.sourceMaps=true] - Generate source maps
+   * @param {boolean} [options.autoprefixer=true] - Enable autoprefixer
+   */
   constructor(options = {}) {
     this.options = {
       minify: options.minify || false,
@@ -27,6 +38,8 @@ export class CSSProcessor {
 
   /**
    * Create PostCSS processor with configured plugins
+   * @private
+   * @returns {import('postcss').Processor} Configured PostCSS processor
    */
   createProcessor() {
     const plugins = [];
@@ -60,10 +73,12 @@ export class CSSProcessor {
   }
 
   /**
-   * Process CSS content
+   * Process CSS content with PostCSS
    * @param {string} css - CSS content to process
-   * @param {Object} options - Processing options
-   * @returns {Promise<Object>} Processed CSS result
+   * @param {Object} [options={}] - Processing options
+   * @param {string} [options.from] - Source file path
+   * @param {string} [options.to] - Output file path
+   * @returns {Promise<{css: string, map: Object, warnings: Array}>} Processed CSS result
    */
   async process(css, options = {}) {
     try {
@@ -93,7 +108,7 @@ export class CSSProcessor {
   /**
    * Validate CSS syntax
    * @param {string} css - CSS content to validate
-   * @returns {Object} Validation result
+   * @returns {{valid: boolean, errors: string[], warnings: Array}} Validation result
    */
   validate(css) {
     try {
@@ -119,6 +134,8 @@ let defaultProcessor = null;
 
 /**
  * Get CSS processor instance with options
+ * @param {Object} [options={}] - Processor options
+ * @returns {CSSProcessor} CSS processor instance
  */
 export function getCssProcessor(options = {}) {
   // Always create a new processor instance with the given options
@@ -128,8 +145,9 @@ export function getCssProcessor(options = {}) {
 
 /**
  * Process CSS with default processor
- * @param {string} css - CSS content
- * @param {Object} options - Processing options
+ * @param {string} css - CSS content to process
+ * @param {Object} [options={}] - Processing options
+ * @returns {Promise<{css: string, map: Object, warnings: Array}>} Processed CSS result
  */
 export async function processCss(css, options = {}) {
   const processor = getCssProcessor(options);
@@ -138,7 +156,8 @@ export async function processCss(css, options = {}) {
 
 /**
  * Validate CSS syntax
- * @param {string} css - CSS content
+ * @param {string} css - CSS content to validate
+ * @returns {{valid: boolean, errors: string[], warnings: Array}} Validation result
  */
 export function validateCss(css) {
   const processor = getCssProcessor();

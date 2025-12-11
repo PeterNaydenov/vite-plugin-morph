@@ -2,45 +2,110 @@
  * JSDoc type definitions for Vite Morph Plugin
  * @fileoverview TypeScript-compatible type definitions for JavaScript implementation
  * @author Peter Naydenov
- * @version 0.0.7
+ * @version 0.0.10
  */
 
 /**
  * Plugin configuration options
- * @typedef {Object} MorphPluginOptions
- * @property {Object} [globalCSS] - Global CSS configuration
- * @property {string} globalCSS.directory - Directory containing global CSS files with variables
- * @property {string[]} [globalCSS.include] - File patterns to include, defaults to array of patterns
- * @property {string[]} [globalCSS.exclude] - File patterns to exclude, defaults to []
- * @property {Object} [production] - Production optimization settings
- * @property {boolean} [production.removeHandshake=true] - Remove handshake data in production builds
- * @property {boolean} [production.minifyCSS=true] - Minify generated CSS
- * @property {Object} [development] - Development settings
- * @property {boolean} [development.sourceMaps=true] - Include source maps for debugging
- * @property {boolean} [development.hmr=true] - Enable hot module replacement
- * @property {Object} [errorHandling] - Error handling configuration
- * @property {Object} [css] - CSS processing configuration
- * @property {boolean} [css.enabled=true] - Enable CSS processing features
- * @property {Object} [css.postcss] - PostCSS configuration
- * @property {Object} [css.modules] - CSS modules configuration
- * @property {boolean} [css.modules.enabled=true] - Enable CSS modules for component scoping
- * @property {string} [css.modules.generateScopedName] - Scoped class name pattern
- * @property {Object} [css.layers] - CSS layers configuration
- * @property {boolean} [css.layers.enabled=true] - Enable CSS @layer for cascade control
- * @property {string[]} [css.layers.order] - Layer precedence order
- * @property {Object} [css.treeShaking] - CSS tree-shaking configuration
- * @property {boolean} [css.treeShaking.enabled=true] - Enable CSS tree-shaking
- * @property {Object} [css.bundling] - CSS bundling configuration
- * @property {boolean} [css.bundling.enabled=true] - Enable CSS bundling
- * @property {string} [css.bundling.outputDir] - CSS bundle output directory
- * @property {Object} [css.chunking] - CSS chunking configuration
- * @property {boolean} [css.chunking.enabled=false] - Enable CSS chunking for large bundles
- * @property {string} [css.chunking.strategy='size'] - Chunking strategy ('size', 'category', 'manual')
- * @property {number} [css.chunking.maxChunkSize=51200] - Maximum chunk size in bytes (50KB)
- * @property {boolean} [errorHandling.failOnError=true] - Fail build on errors
- * @property {boolean} [errorHandling.showLocation=true] - Show detailed error locations
- * @property {number} [errorHandling.maxErrors=10] - Maximum number of errors to report
  */
+export interface MorphPluginOptions {
+  /** Global CSS configuration */
+  globalCSS?: {
+    /** Directory containing global CSS files with variables */
+    directory: string;
+    /** File patterns to include */
+    include?: string[];
+    /** File patterns to exclude */
+    exclude?: string[];
+  };
+  /** Production optimization settings */
+  production?: {
+    /** Remove handshake data in production builds */
+    removeHandshake?: boolean;
+    /** Minify generated CSS */
+    minifyCSS?: boolean;
+  };
+  /** Development settings */
+  development?: {
+    /** Include source maps for debugging */
+    sourceMaps?: boolean;
+    /** Enable hot module replacement */
+    hmr?: boolean;
+    /** Enable CSS hot reloading */
+    cssHmr?: boolean;
+  };
+  /** Error handling configuration */
+  errorHandling?: {
+    /** Fail build on errors */
+    failOnError?: boolean;
+    /** Show detailed error locations */
+    showLocation?: boolean;
+    /** Maximum number of errors to report */
+    maxErrors?: number;
+    /** Enhanced CSS error reporting */
+    cssErrors?: boolean;
+  };
+  /** CSS processing configuration */
+  css?: {
+    /** Enable CSS processing features */
+    enabled?: boolean;
+    /** PostCSS configuration */
+    postcss?: {
+      /** Enable autoprefixer */
+      autoprefixer?: boolean;
+      /** Enable CSS minification */
+      minify?: boolean;
+      /** Generate source maps */
+      sourceMaps?: boolean;
+    };
+    /** CSS modules configuration */
+    modules?: {
+      /** Enable CSS modules for component scoping */
+      enabled?: boolean;
+      /** Scoped class name pattern */
+      generateScopedName?: string;
+    };
+    /** CSS layers configuration */
+    layers?: {
+      /** Enable CSS @layer for cascade control */
+      enabled?: boolean;
+      /** Layer precedence order */
+      order?: string[];
+    };
+    /** CSS tree-shaking configuration */
+    treeShaking?: {
+      /** Enable CSS tree-shaking */
+      enabled?: boolean;
+    };
+    /** CSS bundling configuration */
+    bundling?: {
+      /** Enable CSS bundling */
+      enabled?: boolean;
+      /** CSS bundle output directory */
+      outputDir?: string;
+    };
+    /** CSS chunking configuration */
+    chunking?: {
+      /** Enable CSS chunking for large bundles */
+      enabled?: boolean;
+      /** Chunking strategy ('size', 'category', 'manual') */
+      strategy?: string;
+      /** Maximum chunk size in bytes */
+      maxChunkSize?: number;
+    };
+    /** CSS output directory */
+    outputDir?: string;
+    /** CSS debugging configuration */
+    debug?: {
+      /** Enable CSS debugging */
+      enabled?: boolean;
+      /** Enable verbose logging */
+      verbose?: boolean;
+      /** Show source map information */
+      showSourceMaps?: boolean;
+    };
+  };
+}
 
 /**
  * Parsed HTML document from parse5

@@ -1,6 +1,9 @@
 /**
  * CSS Tree-Shaking Service
  * Analyzes component usage and filters CSS for tree-shaking
+ * @fileoverview CSS tree-shaking with component usage analysis
+ * @author Peter Naydenov
+ * @version 0.0.10
  */
 
 import { readFile } from 'fs/promises';
@@ -8,9 +11,16 @@ import { glob } from 'glob';
 import { debug, info, warn } from '../utils/logger.js';
 
 /**
- * CSS Tree-Shaking Service
+ * CSS Tree-Shaking Service for bundle optimization
+ * @class
  */
 export class CSSTreeShaker {
+  /**
+   * Create CSS tree-shaker instance
+   * @param {Object} [options={}] - Tree-shaking options
+   * @param {string} [options.srcDir='src'] - Source directory to analyze
+   * @param {string[]} [options.extensions=['.js', '.ts', '.jsx', '.tsx', '.mjs']] - File extensions to analyze
+   */
   constructor(options = {}) {
     this.options = {
       srcDir: options.srcDir || 'src',

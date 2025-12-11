@@ -1,6 +1,9 @@
 /**
  * CSS Collection Service
  * Collects and bundles component CSS for production builds
+ * @fileoverview CSS bundling, chunking, and cache invalidation service
+ * @author Peter Naydenov
+ * @version 0.0.10
  */
 
 import { writeFile, mkdir } from 'fs/promises';
@@ -9,9 +12,19 @@ import { debug, info, warn } from '../utils/logger.js';
 import { getCSSTreeShaker } from './css-tree-shaker.js';
 
 /**
- * CSS Collection Service
+ * CSS Collection Service for bundling and chunking
+ * @class
  */
 export class CSSCollectionService {
+  /**
+   * Create CSS collection service
+   * @param {Object} [options={}] - Service options
+   * @param {string} [options.outputDir='dist/components'] - Output directory
+   * @param {boolean} [options.chunkingEnabled=true] - Enable CSS chunking
+   * @param {number} [options.maxChunkSize=51200] - Max chunk size in bytes
+   * @param {string} [options.chunkStrategy='size'] - Chunking strategy ('size', 'category', 'manual')
+   * @param {boolean} [options.cacheEnabled=true] - Enable cache invalidation
+   */
   constructor(options = {}) {
     this.outputDir = options.outputDir || 'dist/components';
     this.components = new Map();
@@ -25,31 +38,24 @@ export class CSSCollectionService {
   }
 
   /**
-   * Start CSS collection
+   * Start CSS collection phase
    */
   startCollection() {
     this.isCollecting = true;
-    this.components.clear();
-    info('Started CSS collection for components');
+    info('Started CSS collection');
   }
 
   /**
    * Stop CSS collection and generate bundle
+   * @returns {Promise<void>}
    */
   async stopCollection() {
-    if (!this.isCollecting) return;
-
     this.isCollecting = false;
-
-    // Apply tree-shaking before generating bundle
-    await this.applyTreeShaking();
-
     await this.generateBundle();
-    info('Stopped CSS collection and generated bundle');
   }
 
   /**
-   * Add component CSS
+   * Add component CSS to collection
    * @param {string} componentName - Component name
    * @param {string} css - CSS content
    */
@@ -87,7 +93,8 @@ export class CSSCollectionService {
   }
 
   /**
-   * Generate bundled CSS file(s)
+   * Generate bundled CSS file(s) with chunking support
+   * @returns {Promise<void>}
    */
   async generateBundle() {
     if (this.components.size === 0) {

@@ -1,14 +1,25 @@
 /**
  * CSS Development Debugging Utilities
  * Provides debugging tools for CSS development and troubleshooting
+ * @fileoverview CSS inspection, logging, and debugging utilities
+ * @author Peter Naydenov
+ * @version 0.0.10
  */
 
 import { debug, info, warn } from '../utils/logger.js';
 
 /**
- * CSS Debug Utilities
+ * CSS Debug Utilities for development and troubleshooting
+ * @class
  */
 export class CSSDebugUtils {
+  /**
+   * Create CSS debug utilities instance
+   * @param {Object} [options={}] - Debug options
+   * @param {boolean} [options.enabled=true] - Enable debugging
+   * @param {boolean} [options.verbose=false] - Enable verbose logging
+   * @param {boolean} [options.showSourceMaps=true] - Show source map information
+   */
   constructor(options = {}) {
     this.enabled = options.enabled !== false;
     this.verbose = options.verbose || false;
@@ -19,6 +30,10 @@ export class CSSDebugUtils {
    * Log CSS processing information
    * @param {string} componentName - Component name
    * @param {Object} cssInfo - CSS processing information
+   * @param {number} [cssInfo.originalLength] - Original CSS length
+   * @param {number} [cssInfo.scopedLength] - Scoped CSS length
+   * @param {number} [cssInfo.processedLength] - Processed CSS length
+   * @param {string[]} [cssInfo.scopedClasses] - Scoped class names
    */
   logCssProcessing(componentName, cssInfo) {
     if (!this.enabled) return;
@@ -132,7 +147,7 @@ export class CSSDebugUtils {
    * Create CSS inspection utility for development
    * @param {string} css - CSS content
    * @param {string} componentName - Component name
-   * @returns {Object} Inspection utilities
+   * @returns {Object} Inspection utilities with analysis methods
    */
   createInspector(css, componentName) {
     return {
@@ -190,7 +205,7 @@ let globalCssDebugUtils = null;
 
 /**
  * Get global CSS debug utilities instance
- * @param {Object} options - Debug options
+ * @param {Object} [options={}] - Debug options
  * @returns {CSSDebugUtils} Debug utilities instance
  */
 export function getCssDebugUtils(options = {}) {
@@ -202,7 +217,7 @@ export function getCssDebugUtils(options = {}) {
 
 /**
  * Enable CSS debugging globally
- * @param {Object} options - Debug options
+ * @param {Object} [options={}] - Debug options
  */
 export function enableCssDebugging(options = {}) {
   globalCssDebugUtils = new CSSDebugUtils({ ...options, enabled: true });

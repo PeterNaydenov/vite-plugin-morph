@@ -2,7 +2,7 @@
  * Error handling and reporting system for morph plugin
  * @fileoverview Provides error creation, formatting, and management utilities
  * @author Peter Naydenov
- * @version 0.0.7
+ * @version 0.0.10
  */
 
 /**
