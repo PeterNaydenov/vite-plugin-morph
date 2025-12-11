@@ -2,7 +2,7 @@
  * Script content extraction and processing
  * @fileoverview Extracts and processes JavaScript from <script> tags in morph files
  * @author Peter Naydenov
- * @version 0.0.7
+ * @version 0.0.10
  */
 
 import { parse } from 'acorn';

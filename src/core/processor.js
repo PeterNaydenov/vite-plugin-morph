@@ -2,7 +2,7 @@
  * Main morph file processing pipeline
  * @fileoverview Orchestrates conversion of .morph files to ES modules
  * @author Peter Naydenov
- * @version 0.0.7
+ * @version 0.0.10
  */
 
 import {
@@ -14,10 +14,18 @@ import {
 } from './parser.js';
 import { extractTemplateContent, extractRequiredHelpers } from './template.js';
 import { processScriptContent } from './script.js';
-import { createMorphError } from './errors.js';
+import {
+  createMorphError,
+  createCssProcessingError,
+  createCssScopingError,
+  extractLocationFromPostCssError,
+} from './errors.js';
 import { getCachedResult, setCachedResult } from '../utils/cache.js';
 import { debug, info, error, warn } from '../utils/logger.js';
 import { isProductionMode } from '../utils/shared.js';
+import { scopeCss } from '../core/css-scoper.js';
+import { processCss } from '../core/css-processor.js';
+import { getCssCollector } from '../services/css-collection.js';
 
 /**
  * Process a morph file and return compiled result
@@ -48,7 +56,84 @@ export async function processMorphFile(content, filePath, options) {
     // Extract content in order: CSS first, then JS, then check what's left for template
     const styleRaw = extractStyleContent(document);
     const style = styleRaw ? { css: styleRaw } : null;
+    let cssSourceMap = null; // Will be set during CSS processing
     debug(`Extracted style: ${style ? 'yes' : 'no'}`);
+
+    // Process CSS immediately after extraction
+    if (style) {
+      try {
+        const componentName = filePath
+          .split(/[/\\]/)
+          .pop()
+          .replace('.morph', '');
+
+        // Simple scoping
+        const scopedClassesManual = {};
+        const classRegex = /\.([a-zA-Z_-][a-zA-Z0-9_-]*)/g;
+        const matches = [...style.css.matchAll(classRegex)];
+
+        for (const match of matches) {
+          const originalClass = match[1];
+          if (!scopedClassesManual[originalClass]) {
+            const hash = Math.random().toString(36).substr(2, 4);
+            scopedClassesManual[originalClass] =
+              `${componentName}_${originalClass}_${hash}`;
+          }
+        }
+
+        // Replace in CSS
+        let scopedCss = style.css;
+        for (const [original, scoped] of Object.entries(scopedClassesManual)) {
+          const regex = new RegExp(`\\.${original}\\b`, 'g');
+          scopedCss = scopedCss.replace(regex, `.${scoped}`);
+        }
+
+        // Apply PostCSS processing
+        let finalCss = scopedCss;
+        let cssSourceMap = null;
+        try {
+          const postCssResult = await processCss(scopedCss, {
+            minify: isProductionMode(),
+            autoprefixer: true,
+            from: filePath,
+          });
+          finalCss = postCssResult.css;
+          cssSourceMap = postCssResult.map;
+        } catch (err) {
+          const location = extractLocationFromPostCssError(err, filePath);
+          const cssError = createCssProcessingError(
+            `PostCSS processing failed for ${componentName}: ${err.message}`,
+            filePath,
+            location,
+            err
+          );
+          console.warn(cssError.message);
+          // Fall back to scoped CSS without PostCSS processing
+        }
+
+        // Wrap CSS in @layer for cascade control
+        const layeredCss = `@layer components {\n${finalCss}\n}`;
+
+        style.processedCss = layeredCss;
+        style.scopedClasses = scopedClassesManual;
+
+        // Add CSS to global collection for bundling (only in build environment)
+        if (
+          typeof globalThis !== 'undefined' &&
+          !process?.env?.NODE_ENV?.includes('test')
+        ) {
+          const collector = getCssCollector();
+          collector.addComponentCss(componentName, layeredCss);
+        }
+      } catch (err) {
+        const cssError = createCssScopingError(
+          `CSS scoping failed for ${componentName}: ${err.message}`,
+          filePath
+        );
+        console.warn(cssError.message);
+      }
+    }
+
     const scriptRaw = extractScriptContent(document, 'text/javascript');
 
     // Process script content to extract functions and templates
@@ -150,6 +235,7 @@ export async function processMorphFile(content, filePath, options) {
     const result = {
       code: safeModuleCode,
       cssExports: style?.css,
+      cssSourceMap: cssSourceMap,
       usedVariables: template.usedVariables,
       templateObject,
       isCSSOnly,
@@ -345,11 +431,13 @@ function generateESModule(
       parts.push(`export const handshake = ${JSON.stringify(handshake)};`);
     }
 
-    // Export CSS if present
+    // Export processed CSS if present
     if (style) {
+      const processedCss = style.processedCss || style.css;
+      const scopedClasses = style.scopedClasses || {};
+
       parts.push('');
-      parts.push('// Export CSS');
-      parts.push(`export const css = ${JSON.stringify(style.css)};`);
+      parts.push('// Export processed CSS');
     }
   } // else !isCSSOnly
   // Ensure all parts are strings and filter out any undefined values

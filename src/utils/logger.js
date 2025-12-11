@@ -2,7 +2,7 @@
  * Logging utilities for morph plugin
  * @fileoverview Provides structured logging with different levels
  * @author Peter Naydenov
- * @version 0.0.7
+ * @version 0.0.10
  */
 
 /**

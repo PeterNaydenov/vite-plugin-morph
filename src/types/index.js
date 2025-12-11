@@ -2,27 +2,110 @@
  * JSDoc type definitions for Vite Morph Plugin
  * @fileoverview TypeScript-compatible type definitions for JavaScript implementation
  * @author Peter Naydenov
- * @version 0.0.7
+ * @version 0.0.10
  */
 
 /**
  * Plugin configuration options
- * @typedef {Object} MorphPluginOptions
- * @property {Object} [globalCSS] - Global CSS configuration
- * @property {string} globalCSS.directory - Directory containing global CSS files with variables
- * @property {string[]} [globalCSS.include] - File patterns to include, defaults to array of patterns
- * @property {string[]} [globalCSS.exclude] - File patterns to exclude, defaults to []
- * @property {Object} [production] - Production optimization settings
- * @property {boolean} [production.removeHandshake=true] - Remove handshake data in production builds
- * @property {boolean} [production.minifyCSS=true] - Minify generated CSS
- * @property {Object} [development] - Development settings
- * @property {boolean} [development.sourceMaps=true] - Include source maps for debugging
- * @property {boolean} [development.hmr=true] - Enable hot module replacement
- * @property {Object} [errorHandling] - Error handling configuration
- * @property {boolean} [errorHandling.failOnError=true] - Fail build on errors
- * @property {boolean} [errorHandling.showLocation=true] - Show detailed error locations
- * @property {number} [errorHandling.maxErrors=10] - Maximum number of errors to report
  */
+export interface MorphPluginOptions {
+  /** Global CSS configuration */
+  globalCSS?: {
+    /** Directory containing global CSS files with variables */
+    directory: string;
+    /** File patterns to include */
+    include?: string[];
+    /** File patterns to exclude */
+    exclude?: string[];
+  };
+  /** Production optimization settings */
+  production?: {
+    /** Remove handshake data in production builds */
+    removeHandshake?: boolean;
+    /** Minify generated CSS */
+    minifyCSS?: boolean;
+  };
+  /** Development settings */
+  development?: {
+    /** Include source maps for debugging */
+    sourceMaps?: boolean;
+    /** Enable hot module replacement */
+    hmr?: boolean;
+    /** Enable CSS hot reloading */
+    cssHmr?: boolean;
+  };
+  /** Error handling configuration */
+  errorHandling?: {
+    /** Fail build on errors */
+    failOnError?: boolean;
+    /** Show detailed error locations */
+    showLocation?: boolean;
+    /** Maximum number of errors to report */
+    maxErrors?: number;
+    /** Enhanced CSS error reporting */
+    cssErrors?: boolean;
+  };
+  /** CSS processing configuration */
+  css?: {
+    /** Enable CSS processing features */
+    enabled?: boolean;
+    /** PostCSS configuration */
+    postcss?: {
+      /** Enable autoprefixer */
+      autoprefixer?: boolean;
+      /** Enable CSS minification */
+      minify?: boolean;
+      /** Generate source maps */
+      sourceMaps?: boolean;
+    };
+    /** CSS modules configuration */
+    modules?: {
+      /** Enable CSS modules for component scoping */
+      enabled?: boolean;
+      /** Scoped class name pattern */
+      generateScopedName?: string;
+    };
+    /** CSS layers configuration */
+    layers?: {
+      /** Enable CSS @layer for cascade control */
+      enabled?: boolean;
+      /** Layer precedence order */
+      order?: string[];
+    };
+    /** CSS tree-shaking configuration */
+    treeShaking?: {
+      /** Enable CSS tree-shaking */
+      enabled?: boolean;
+    };
+    /** CSS bundling configuration */
+    bundling?: {
+      /** Enable CSS bundling */
+      enabled?: boolean;
+      /** CSS bundle output directory */
+      outputDir?: string;
+    };
+    /** CSS chunking configuration */
+    chunking?: {
+      /** Enable CSS chunking for large bundles */
+      enabled?: boolean;
+      /** Chunking strategy ('size', 'category', 'manual') */
+      strategy?: string;
+      /** Maximum chunk size in bytes */
+      maxChunkSize?: number;
+    };
+    /** CSS output directory */
+    outputDir?: string;
+    /** CSS debugging configuration */
+    debug?: {
+      /** Enable CSS debugging */
+      enabled?: boolean;
+      /** Enable verbose logging */
+      verbose?: boolean;
+      /** Show source map information */
+      showSourceMaps?: boolean;
+    };
+  };
+}
 
 /**
  * Parsed HTML document from parse5
@@ -80,6 +163,7 @@
  * @property {string} code - Generated ES module code
  * @property {Object} [map] - Source map
  * @property {string} [cssExports] - CSS code (if any)
+ * @property {Object} [cssSourceMap] - CSS source map
  * @property {string[]} [usedVariables] - CSS variables used in template
  * @property {Object} templateObject - Template object for morph library
  * @property {boolean} isCSSOnly - True if this is CSS-only .morph file

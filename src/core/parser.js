@@ -2,7 +2,7 @@
  * HTML AST parsing utilities using parse5
  * @fileoverview Provides functions to parse and extract content from .morph files
  * @author Peter Naydenov
- * @version 0.0.7
+ * @version 0.0.10
  */
 
 import { parseFragment } from 'parse5';

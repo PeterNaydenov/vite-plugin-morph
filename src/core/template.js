@@ -2,7 +2,7 @@
  * Template content extraction and compilation
  * @fileoverview Handles template processing and @peter.naydenov/morph integration
  * @author Peter Naydenov
- * @version 0.0.7
+ * @version 0.0.10
  */
 
 import { createMorphError, ErrorCodes } from './errors.js';
