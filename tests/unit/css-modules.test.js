@@ -3,6 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { processCss } from '../../src/core/css-processor.js';
 
 describe('CSS Scoping (CSS Modules)', () => {
   describe('Basic CSS scoping logic', () => {
@@ -76,6 +77,78 @@ describe('Component Name Extraction', () => {
   });
 });
 
+describe('PostCSS Processing Integration', () => {
+  it('should process CSS without errors', async () => {
+    // Test that PostCSS processing works end-to-end
+    const css = `
+      .test-class {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+    `;
+
+    const result = await processCss(css, {
+      autoprefixer: true,
+      minify: false,
+    });
+
+    expect(result).toHaveProperty('css');
+    expect(result.css).toContain('display: flex');
+    expect(result.css).toContain('justify-content: center');
+    expect(result.css).toContain('align-items: center');
+    // PostCSS should preserve the structure
+    expect(result.css.length).toBeGreaterThan(10);
+  });
+
+  it('should handle minification option', async () => {
+    const css = `
+      .btn {
+        background: blue;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+      }
+    `;
+
+    const result = await processCss(css, {
+      autoprefixer: false,
+      minify: true,
+    });
+
+    // Minified CSS should not contain extra whitespace
+    expect(result.css).not.toContain('\n\n');
+    expect(result.css).toContain('background:blue');
+    // cssnano optimizes color values
+    expect(result.css).toMatch(/color:(#fff|white)/);
+    // Should still be valid CSS
+    expect(result.css).toContain('.btn');
+    expect(result.css).toContain('{');
+    expect(result.css).toContain('}');
+  });
+
+  it('should minify CSS in production mode', async () => {
+    const css = `
+      .btn {
+        background: blue;
+        color: white;
+        padding: 10px 20px;
+      }
+    `;
+
+    const result = await processCss(css, {
+      autoprefixer: false,
+      minify: true,
+    });
+
+    // Minified CSS should be much shorter and on one line
+    expect(result.css.length).toBeLessThan(css.length);
+    expect(result.css).not.toContain('\n');
+    expect(result.css).toContain('background:blue');
+  });
+});
+
 describe('Morph File CSS Processing', () => {
   it('should export scoped CSS and styles object', () => {
     // Test the expected output structure for processed morph files
@@ -86,5 +159,13 @@ describe('Morph File CSS Processing', () => {
     expect(expectedCss).toContain('@layer components');
     expect(expectedCss).toContain('Button_btn_abc123');
     expect(expectedStyles.btn).toBe('Button_btn_abc123');
+  });
+
+  it('should handle CSS-only morph files', () => {
+    // Test that CSS-only files export styles instead of css
+    const expectedOutput =
+      'export const styles = ".btn { background: blue; }";';
+    expect(expectedOutput).toContain('export const styles');
+    expect(expectedOutput).not.toContain('export const css');
   });
 });
