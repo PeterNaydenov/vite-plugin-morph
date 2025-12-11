@@ -1,6 +1,6 @@
 {
   "name": "@peter.naydenov/vite-plugin-morph",
-  "version": "0.0.9",
+  "version": "0.1.0",
   "description": "Vite plugin for processing .morph files with @peter.naydenov/morph",
   "license": "MIT",
   "author": "Peter Naydenov",
