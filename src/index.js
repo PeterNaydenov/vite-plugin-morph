@@ -20,4 +20,4 @@ export default function morphPlugin(options = {}) {
 export const morph = morphPlugin;
 
 // Export types for TypeScript users
-export * from './types/index.js';
+export * from './types/index.d.ts';

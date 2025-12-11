@@ -44,7 +44,7 @@ export function parseJsonLike(content) {
 /**
  * Parse morph file content into AST
  * @param {string} content - Raw morph file content
- * @returns {import('../types/index.js').Document} Parsed HTML document
+ * @returns {import('../types/index.d.ts').Document} Parsed HTML document
  */
 export function parseMorphFile(content) {
   try {
@@ -57,7 +57,7 @@ export function parseMorphFile(content) {
 /**
  * Parse HTML fragment (for template content)
  * @param {string} content - HTML fragment content
- * @returns {import('../types/index.js').Document} Parsed HTML fragment
+ * @returns {import('../types/index.d.ts').Document} Parsed HTML fragment
  */
 export function parseHTMLFragment(content) {
   try {
@@ -69,7 +69,7 @@ export function parseHTMLFragment(content) {
 
 /**
  * Extract content from specific script tags
- * @param {import('../types/index.js').Document} document - Parsed HTML document
+ * @param {import('../types/index.d.ts').Document} document - Parsed HTML document
  * @param {string} scriptType - Type of script tag ('text/javascript', 'application/json', etc.)
  * @returns {string|null} Script content or null if not found
  */
@@ -140,7 +140,7 @@ export function extractScriptContent(document, scriptType) {
 
 /**
  * Extract content from specific style tags
- * @param {import('../types/index.js').Document} document - Parsed HTML document
+ * @param {import('../types/index.d.ts').Document} document - Parsed HTML document
  * @returns {string|null} Style content or null if not found
  */
 export function extractStyleContent(document) {
@@ -173,7 +173,7 @@ export function extractStyleContent(document) {
 
 /**
  * Extract content from specific script tags
- * @param {import('../types/index.js').Document} document - Parsed HTML document
+ * @param {import('../types/index.d.ts').Document} document - Parsed HTML document
  * @param {string} scriptType - Type of script tag ('text/javascript', 'application/json', etc.)
  * @returns {string|null} Script content or null if not found
  */
@@ -251,8 +251,8 @@ export function extractHandshakeContent(document, scriptType) {
 
 /**
  * Get source location information from AST node
- * @param {import('../types/index.js').Node} node - AST node
- * @returns {import('../types/index.js').SourceLocation} Location information
+ * @param {import('../types/index.d.ts').Node} node - AST node
+ * @returns {import('../types/index.d.ts').SourceLocation} Location information
  */
 export function getNodeLocation(node) {
   // parse5 provides location information
@@ -275,6 +275,6 @@ export function getNodeLocation(node) {
 
 /**
  * Reconstruct HTML from AST nodes
- * @param {import('../types/index.js').Node[]} nodes - AST nodes
+ * @param {import('../types/index.d.ts').Node[]} nodes - AST nodes
  * @returns {string} Reconstructed HTML
  */

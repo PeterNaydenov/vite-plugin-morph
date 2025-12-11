@@ -3,12 +3,8 @@
  * Handles configuration for morph composition and theme system
  */
 
-import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
+import { resolve } from 'path';
 import { createMorphError, ErrorCodes } from '../core/errors.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 /**
  * Default configuration for morph composition and theme system

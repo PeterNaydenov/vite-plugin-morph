@@ -230,7 +230,7 @@ function isWellFormedTemplate(templateContent) {
 /**
  * Process script content and extract helpers
  * @param {string} scriptContent - JavaScript code from script tag
- * @returns {import('../types/index.js').ScriptContent} Script content with helpers
+ * @returns {import('../types/index.d.ts').ScriptContent} Script content with helpers
  */
 export function processScriptContent(scriptContent) {
   if (!scriptContent) {

@@ -31,8 +31,8 @@ import { getCssCollector } from '../services/css-collection.js';
  * Process a morph file and return compiled result
  * @param {string} content - Raw morph file content
  * @param {string} filePath - File path
- * @param {import('../../types/index.js').MorphPluginOptions} options - Plugin options
- * @returns {Promise<import('../../types/index.js').ProcessingResult>} Processing result
+ * @param {import('../../types/index.d.ts').MorphPluginOptions} options - Plugin options
+ * @returns {Promise<import('../../types/index.d.ts').ProcessingResult>} Processing result
  */
 export async function processMorphFile(content, filePath, options) {
   const startTime = Date.now();
@@ -307,11 +307,11 @@ function isValidFunctionCode(funcCode) {
 
 /**
  * Generate ES module code from processed morph components
- * @param {import('../../types/index.js').TemplateObject} templateObject - Processed template object
+ * @param {import('../../types/index.d.ts').TemplateObject} templateObject - Processed template object
  * @param {Object<string,Function>} helperFunctions - Helper functions
- * @param {import('../../types/index.js').StyleObject|null} style - Processed style object
- * @param {import('../../types/index.js').HandshakeObject|null} handshake - Handshake data
- * @param {import('../../types/index.js').MorphPluginOptions} options - Plugin options
+ * @param {import('../../types/index.d.ts').StyleObject|null} style - Processed style object
+ * @param {import('../../types/index.d.ts').HandshakeObject|null} handshake - Handshake data
+ * @param {import('../../types/index.d.ts').MorphPluginOptions} options - Plugin options
  * @param {boolean} isCSSOnly - Whether this is a CSS-only file
  * @returns {string} Generated ES module code
  */

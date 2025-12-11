@@ -15,8 +15,8 @@ import {
  * Process a morph file and return compiled result
  * @param {string} code - File content
  * @param {string} id - File path
- * @param {import('../types/index.js').MorphPluginOptions} options - Plugin options
- * @returns {Promise<import('../types/index.js').ProcessingResult>} Processing result
+ * @param {import('../types/index.d.ts').MorphPluginOptions} options - Plugin options
+ * @returns {Promise<import('../types/index.d.ts').ProcessingResult>} Processing result
  */
 async function processMorphFileForHmr(code, id, options) {
   // Import and call the processor
@@ -26,7 +26,7 @@ async function processMorphFileForHmr(code, id, options) {
 
 /**
  * Create Vite plugin for morph file processing
- * @param {import('../types/index.js').MorphPluginOptions} options - Plugin configuration
+ * @param {import('../types/index.d.ts').MorphPluginOptions} options - Plugin configuration
  * @returns {*} Vite plugin instance
  */
 export function createMorphPlugin(options = {}) {
@@ -161,8 +161,8 @@ export function createMorphPlugin(options = {}) {
 
 /**
  * Resolve and validate plugin options
- * @param {import('../types/index.js').MorphPluginOptions} options - Raw options
- * @returns {import('../types/index.js').MorphPluginOptions} Resolved options
+ * @param {import('../types/index.d.ts').MorphPluginOptions} options - Raw options
+ * @returns {import('../types/index.d.ts').MorphPluginOptions} Resolved options
  */
 function resolveOptions(options) {
   return mergeOptions(configModule.defaultConfig, options);
@@ -172,8 +172,8 @@ function resolveOptions(options) {
  * Process a morph file and return compiled result
  * @param {string} code - File content
  * @param {string} id - File path
- * @param {import('../types/index.js').MorphPluginOptions} options - Plugin options
- * @returns {Promise<import('../types/index.js').ProcessingResult>} Processing result
+ * @param {import('../types/index.d.ts').MorphPluginOptions} options - Plugin options
+ * @returns {Promise<import('../types/index.d.ts').ProcessingResult>} Processing result
  */
 async function processMorphFile(code, id, options) {
   // This will be implemented in core/processor.js
@@ -183,7 +183,7 @@ async function processMorphFile(code, id, options) {
 
 /**
  * Validate plugin configuration
- * @param {import('../types/index.js').MorphPluginOptions} options - Plugin options
+ * @param {import('../types/index.d.ts').MorphPluginOptions} options - Plugin options
  * @param {import('vite').ResolvedConfig} config - Vite config
  */
 function validatePluginConfig(options, config) {
@@ -197,7 +197,7 @@ function validatePluginConfig(options, config) {
  * Create morph error with location information
  * @param {Error} error - Original error
  * @param {string} filePath - File path
- * @returns {import('../types/index.js').MorphPluginError} Enhanced error
+ * @returns {import('../types/index.d.ts').MorphPluginError} Enhanced error
  */
 async function createMorphError(error, filePath) {
   // This will be implemented in core/errors.js

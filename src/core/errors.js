@@ -9,9 +9,9 @@
  * Create a morph plugin error with enhanced information
  * @param {Error|string} originalError - Original error or message
  * @param {string} filePath - File path where error occurred
- * @param {import('../types/index.js').SourceLocation} [location] - Error location in file
+ * @param {import('../types/index.d.ts').SourceLocation} [location] - Error location in file
  * @param {string} [code] - Error code
- * @returns {import('../types/index.js').MorphPluginError} Enhanced error object
+ * @returns {import('../types/index.d.ts').MorphPluginError} Enhanced error object
  */
 export function createMorphError(
   originalError,
@@ -47,9 +47,9 @@ export function createMorphError(
  * Create a morph plugin warning
  * @param {string} message - Warning message
  * @param {string} filePath - File path
- * @param {import('../types/index.js').SourceLocation} [location] - Warning location
+ * @param {import('../types/index.d.ts').SourceLocation} [location] - Warning location
  * @param {string} [code] - Error code
- * @returns {import('../types/index.js').MorphPluginError} Warning object
+ * @returns {import('../types/index.d.ts').MorphPluginError} Warning object
  */
 export function createMorphWarning(
   message,
@@ -69,7 +69,7 @@ export function createMorphWarning(
 
 /**
  * Format error for console output
- * @param {import('../types/index.js').MorphPluginError} error - Error object
+ * @param {import('../types/index.d.ts').MorphPluginError} error - Error object
  * @returns {string} Formatted error message
  */
 export function formatError(error) {
@@ -92,8 +92,8 @@ export function formatError(error) {
 
 /**
  * Format error for file output
- * @param {import('../types/index.js').MorphPluginError} error - Error object
- * @returns {import('../types/index.js').FormattedError} Formatted error for files
+ * @param {import('../types/index.d.ts').MorphPluginError} error - Error object
+ * @returns {import('../types/index.d.ts').FormattedError} Formatted error for files
  */
 export function formatErrorForFile(error) {
   return {
@@ -188,9 +188,9 @@ export const ErrorCodes = {
 /**
  * Create malformed template error
  * @param {string} filePath - File path
- * @param {import('./../types/index.js').SourceLocation} [location] - Error location
+ * @param {import('./../types/index.d.ts').SourceLocation} [location] - Error location
  * @param {string} [details] - Additional error details
- * @returns {import('./../types/index.js').MorphPluginError} Malformed template error
+ * @returns {import('./../types/index.d.ts').MorphPluginError} Malformed template error
  */
 export function createMalformedTemplateError(
   filePath,
@@ -212,9 +212,9 @@ export function createMalformedTemplateError(
 /**
  * Create invalid template tag error
  * @param {string} filePath - File path
- * @param {import('./../types/index.js').SourceLocation} [location] - Error location
+ * @param {import('./../types/index.d.ts').SourceLocation} [location] - Error location
  * @param {string} [tagName] - Name of the invalid tag
- * @returns {import('./../types/index.js').MorphPluginError} Invalid template tag error
+ * @returns {import('./../types/index.d.ts').MorphPluginError} Invalid template tag error
  */
 export function createInvalidTemplateTagError(
   filePath,
@@ -236,7 +236,7 @@ export function createInvalidTemplateTagError(
 /**
  * Create missing template error
  * @param {string} filePath - File path
- * @returns {import('./../types/index.js').MorphPluginError} Missing template error
+ * @returns {import('./../types/index.d.ts').MorphPluginError} Missing template error
  */
 export function createMissingTemplateError(filePath) {
   return createMorphError(
@@ -250,8 +250,8 @@ export function createMissingTemplateError(filePath) {
 /**
  * Create invalid script tag error
  * @param {string} filePath - File path
- * @param {import('./../types/index.js').SourceLocation} [location] - Error location
- * @returns {import('./../types/index.js').MorphPluginError} Invalid script tag error
+ * @param {import('./../types/index.d.ts').SourceLocation} [location] - Error location
+ * @returns {import('./../types/index.d.ts').MorphPluginError} Invalid script tag error
  */
 export function createInvalidScriptTagError(filePath, location = null) {
   return createMorphError(
@@ -265,8 +265,8 @@ export function createInvalidScriptTagError(filePath, location = null) {
 /**
  * Create invalid style tag error
  * @param {string} filePath - File path
- * @param {import('./../types/index.js').SourceLocation} [location] - Error location
- * @returns {import('./../types/index.js').MorphPluginError} Invalid style tag error
+ * @param {import('./../types/index.d.ts').SourceLocation} [location] - Error location
+ * @returns {import('./../types/index.d.ts').MorphPluginError} Invalid style tag error
  */
 export function createInvalidStyleTagError(filePath, location = null) {
   return createMorphError(
@@ -281,9 +281,9 @@ export function createInvalidStyleTagError(filePath, location = null) {
  * Create CSS processing error
  * @param {string} message - Error message
  * @param {string} filePath - File path
- * @param {import('./../types/index.js').SourceLocation} [location] - Error location
+ * @param {import('./../types/index.d.ts').SourceLocation} [location] - Error location
  * @param {Error} [originalError] - Original PostCSS error
- * @returns {import('./../types/index.js').MorphPluginError} CSS processing error
+ * @returns {import('./../types/index.d.ts').MorphPluginError} CSS processing error
  */
 export function createCssProcessingError(
   message,
@@ -306,8 +306,8 @@ export function createCssProcessingError(
  * Create CSS scoping error
  * @param {string} message - Error message
  * @param {string} filePath - File path
- * @param {import('./../types/index.js').SourceLocation} [location] - Error location
- * @returns {import('./../types/index.js').MorphPluginError} CSS scoping error
+ * @param {import('./../types/index.d.ts').SourceLocation} [location] - Error location
+ * @returns {import('./../types/index.d.ts').MorphPluginError} CSS scoping error
  */
 export function createCssScopingError(message, filePath, location = null) {
   const enhancedMessage = `CSS scoping failed: ${message}`;
@@ -323,7 +323,7 @@ export function createCssScopingError(message, filePath, location = null) {
  * Extract location from PostCSS error
  * @param {Error} postcssError - PostCSS error object
  * @param {string} filePath - File path
- * @returns {import('./../types/index.js').SourceLocation} Extracted location
+ * @returns {import('./../types/index.d.ts').SourceLocation} Extracted location
  */
 export function extractLocationFromPostCssError(postcssError, filePath) {
   if (postcssError && postcssError.source && postcssError.line) {

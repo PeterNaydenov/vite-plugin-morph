@@ -266,7 +266,7 @@ describe('File Watcher', () => {
   });
 
   describe('Pattern Matching', () => {
-    it.skip('should match files by extension', () => {
+    it('should match files by extension', () => {
       const callback = vi.fn();
       const mockWatcher = {
         on: vi.fn(),
@@ -291,7 +291,7 @@ describe('File Watcher', () => {
       expect(callback).toHaveBeenCalledTimes(1); // Should not increase
     });
 
-    it.skip('should handle multiple patterns', () => {
+    it('should handle multiple patterns', () => {
       const callback = vi.fn();
       const mockWatcher = {
         on: vi.fn(),

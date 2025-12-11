@@ -30,7 +30,7 @@ class FileWatcher {
   watch(path, callback) {
     if (this.watchers.has(path)) {
       warn(`Already watching ${path}`);
-      return () => { };
+      return () => {};
     }
 
     try {
@@ -39,7 +39,9 @@ class FileWatcher {
         { recursive: false },
         (eventType, filename) => {
           debug(`File change detected: ${eventType} - ${filename}`);
-          console.log(`[DEBUG] Watch listener triggered for ${path}, event: ${eventType}`);
+          console.log(
+            `[DEBUG] Watch listener triggered for ${path}, event: ${eventType}`
+          );
 
           // Debounce rapid changes
           this.debounceChange(path, callback, eventType, filename);
@@ -61,7 +63,7 @@ class FileWatcher {
       };
     } catch (err) {
       warn(`Failed to watch ${path}: ${err.message}`);
-      return () => { };
+      return () => {};
     }
   }
 
@@ -126,14 +128,37 @@ class FileWatcher {
 
   /**
    * Watch a directory with glob patterns
-   * @param {string} dir - Directory path
+   * @param {string} dir - Directory to watch
    * @param {string|string[]} patterns - Glob patterns
    * @param {Function} callback - Callback function
    * @returns {Function} Unwatch function
    */
   watchDirectory(dir, patterns, callback) {
-    // TODO: Implement pattern matching
-    return this.watch(dir, callback);
+    // Normalize patterns to array
+    const patternArray = Array.isArray(patterns) ? patterns : [patterns];
+
+    // Create a filtered callback that checks patterns
+    const filteredCallback = ({ eventType, filename, path }) => {
+      if (!filename) return;
+
+      // Check if filename matches any of the patterns
+      const matchesPattern = patternArray.some((pattern) => {
+        // Simple glob matching (supports * and **)
+        const regex = new RegExp(
+          pattern
+            .replace(/\./g, '\\.') // Escape dots
+            .replace(/\*\*/g, '.*') // ** matches any characters
+            .replace(/\*/g, '.*') // * matches any characters (including /)
+        );
+        return regex.test(filename);
+      });
+
+      if (matchesPattern) {
+        callback({ eventType, filename, path });
+      }
+    };
+
+    return this.watch(dir, filteredCallback);
   }
 }
 
