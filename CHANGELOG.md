@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
-## [0.0.10] - 2025-12-10
+## [0.0.10] - 2025-12-11
 - [x] Static CSS files;
 - [x] CSS Themes;
 - [x] Composition of components using config file;
+- [x] PostCSS with plugins (autoprefixer, cssnano);
+- [x] CSS modules for component styles;
+- [x] CSS @layer cascade layers;
+<!-- - [x] CSS tree-shaking. Getting rid of  CSS from unused components; -->
 
 
 
