@@ -171,6 +171,8 @@ function getDocumentation(code) {
 export const ErrorCodes = {
   PARSE_ERROR: 'PARSE_ERROR',
   CSS_PARSE_ERROR: 'CSS_PARSE_ERROR',
+  CSS_PROCESSING_ERROR: 'CSS_PROCESSING_ERROR',
+  CSS_SCOPING_ERROR: 'CSS_SCOPING_ERROR',
   JSON_PARSE_ERROR: 'JSON_PARSE_ERROR',
   TEMPLATE_ERROR: 'TEMPLATE_ERROR',
   SCRIPT_ERROR: 'SCRIPT_ERROR',
@@ -273,4 +275,70 @@ export function createInvalidStyleTagError(filePath, location = null) {
     location,
     ErrorCodes.INVALID_STYLE_TAG
   );
+}
+
+/**
+ * Create CSS processing error
+ * @param {string} message - Error message
+ * @param {string} filePath - File path
+ * @param {import('./../types/index.js').SourceLocation} [location] - Error location
+ * @param {Error} [originalError] - Original PostCSS error
+ * @returns {import('./../types/index.js').MorphPluginError} CSS processing error
+ */
+export function createCssProcessingError(
+  message,
+  filePath,
+  location = null,
+  originalError = null
+) {
+  const enhancedMessage = `CSS processing failed: ${message}`;
+  const error = createMorphError(
+    enhancedMessage,
+    filePath,
+    location,
+    ErrorCodes.CSS_PROCESSING_ERROR
+  );
+  error.originalError = originalError;
+  return error;
+}
+
+/**
+ * Create CSS scoping error
+ * @param {string} message - Error message
+ * @param {string} filePath - File path
+ * @param {import('./../types/index.js').SourceLocation} [location] - Error location
+ * @returns {import('./../types/index.js').MorphPluginError} CSS scoping error
+ */
+export function createCssScopingError(message, filePath, location = null) {
+  const enhancedMessage = `CSS scoping failed: ${message}`;
+  return createMorphError(
+    enhancedMessage,
+    filePath,
+    location,
+    ErrorCodes.CSS_SCOPING_ERROR
+  );
+}
+
+/**
+ * Extract location from PostCSS error
+ * @param {Error} postcssError - PostCSS error object
+ * @param {string} filePath - File path
+ * @returns {import('./../types/index.js').SourceLocation} Extracted location
+ */
+export function extractLocationFromPostCssError(postcssError, filePath) {
+  if (postcssError && postcssError.source && postcssError.line) {
+    return {
+      file: filePath,
+      line: postcssError.line,
+      column: postcssError.column || 1,
+      offset: postcssError.source.start ? postcssError.source.start.offset : 0,
+    };
+  }
+
+  return {
+    file: filePath,
+    line: 1,
+    column: 1,
+    offset: 0,
+  };
 }

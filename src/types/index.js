@@ -33,6 +33,10 @@
  * @property {Object} [css.bundling] - CSS bundling configuration
  * @property {boolean} [css.bundling.enabled=true] - Enable CSS bundling
  * @property {string} [css.bundling.outputDir] - CSS bundle output directory
+ * @property {Object} [css.chunking] - CSS chunking configuration
+ * @property {boolean} [css.chunking.enabled=false] - Enable CSS chunking for large bundles
+ * @property {string} [css.chunking.strategy='size'] - Chunking strategy ('size', 'category', 'manual')
+ * @property {number} [css.chunking.maxChunkSize=51200] - Maximum chunk size in bytes (50KB)
  * @property {boolean} [errorHandling.failOnError=true] - Fail build on errors
  * @property {boolean} [errorHandling.showLocation=true] - Show detailed error locations
  * @property {number} [errorHandling.maxErrors=10] - Maximum number of errors to report
@@ -94,6 +98,7 @@
  * @property {string} code - Generated ES module code
  * @property {Object} [map] - Source map
  * @property {string} [cssExports] - CSS code (if any)
+ * @property {Object} [cssSourceMap] - CSS source map
  * @property {string[]} [usedVariables] - CSS variables used in template
  * @property {Object} templateObject - Template object for morph library
  * @property {boolean} isCSSOnly - True if this is CSS-only .morph file

@@ -17,7 +17,7 @@ export class CSSProcessor {
   constructor(options = {}) {
     this.options = {
       minify: options.minify || false,
-      sourceMaps: options.sourceMaps || false,
+      sourceMaps: options.sourceMaps !== false, // Enable by default
       autoprefixer: options.autoprefixer !== false,
       ...options,
     };
@@ -72,14 +72,16 @@ export class CSSProcessor {
       const result = await this.processor.process(css, {
         from: options.from || 'input.css',
         to: options.to || 'output.css',
-        map: this.options.sourceMaps ? { inline: false } : false,
+        map: this.options.sourceMaps
+          ? { inline: false, annotation: false }
+          : false,
       });
 
       info(`CSS processed successfully (${result.css.length} chars output)`);
 
       return {
         css: result.css,
-        map: result.map,
+        map: result.map ? JSON.parse(result.map.toString()) : null,
         warnings: result.warnings,
       };
     } catch (err) {
@@ -116,13 +118,12 @@ export class CSSProcessor {
 let defaultProcessor = null;
 
 /**
- * Get default CSS processor instance
+ * Get CSS processor instance with options
  */
 export function getCssProcessor(options = {}) {
-  if (!defaultProcessor) {
-    defaultProcessor = new CSSProcessor(options);
-  }
-  return defaultProcessor;
+  // Always create a new processor instance with the given options
+  // This ensures options are applied correctly for each call
+  return new CSSProcessor(options);
 }
 
 /**

@@ -12,6 +12,19 @@ import {
 } from '../services/css-collection.js';
 
 /**
+ * Process a morph file and return compiled result
+ * @param {string} code - File content
+ * @param {string} id - File path
+ * @param {import('../types/index.js').MorphPluginOptions} options - Plugin options
+ * @returns {Promise<import('../types/index.js').ProcessingResult>} Processing result
+ */
+async function processMorphFileForHmr(code, id, options) {
+  // Import and call the processor
+  const { processMorphFile } = await import('../core/processor.js');
+  return processMorphFile(code, id, options);
+}
+
+/**
  * Create Vite plugin for morph file processing
  * @param {import('../types/index.js').MorphPluginOptions} options - Plugin configuration
  * @returns {*} Vite plugin instance
@@ -78,14 +91,44 @@ export function createMorphPlugin(options = {}) {
       }
     },
 
-    // Handle hot module replacement (not implemented yet)
+    // Handle hot module replacement
     async handleHotUpdate(context) {
       if (!context.file.endsWith('.morph')) {
         return null;
       }
 
-      // HMR will be implemented in a future update
-      return null;
+      try {
+        // Read the updated file content
+        const updatedContent = await context.read();
+
+        // Check if the file contains CSS
+        const hasCss = await checkFileHasCss(updatedContent);
+
+        if (hasCss) {
+          // For CSS changes, we need to invalidate the CSS bundle
+          // and send a CSS update to the client
+          const cssUpdate = await generateCssUpdate(
+            context.file,
+            updatedContent,
+            resolvedOptions
+          );
+
+          if (cssUpdate) {
+            return {
+              type: 'css-update',
+              path: cssUpdate.bundlePath,
+              acceptedPath: cssUpdate.bundlePath,
+              timestamp: context.timestamp,
+            };
+          }
+        }
+
+        // For non-CSS changes, return the module to be reloaded
+        return [context.modules[0]]; // Reload the main module
+      } catch (error) {
+        console.warn(`HMR update failed for ${context.file}:`, error.message);
+        return null;
+      }
     },
 
     // Configure plugin
@@ -96,8 +139,17 @@ export function createMorphPlugin(options = {}) {
 
     // Build lifecycle hooks for CSS collection
     buildStart() {
-      // Start collecting component CSS
-      startCssCollection({ outputDir: 'dist/components' });
+      // Start collecting component CSS with chunking options
+      const cssOptions = resolvedOptions.css || {};
+      const chunkingOptions = cssOptions.chunking || {};
+      const outputDir = cssOptions.outputDir || 'dist/components';
+
+      startCssCollection({
+        outputDir,
+        chunkingEnabled: chunkingOptions.enabled,
+        chunkStrategy: chunkingOptions.strategy,
+        maxChunkSize: chunkingOptions.maxChunkSize,
+      });
     },
 
     async buildEnd() {
@@ -151,6 +203,60 @@ async function createMorphError(error, filePath) {
   // This will be implemented in core/errors.js
   const { createMorphError } = await import('../core/errors.js');
   return createMorphError(error, filePath);
+}
+
+/**
+ * Check if a morph file contains CSS content
+ * @param {string} content - File content
+ * @returns {boolean} True if file contains CSS
+ */
+async function checkFileHasCss(content) {
+  try {
+    const { extractStyleContent } = await import('../core/parser.js');
+    const { parseMorphFile } = await import('../core/parser.js');
+
+    const document = parseMorphFile(content);
+    const styleContent = extractStyleContent(document);
+
+    return styleContent && styleContent.trim().length > 0;
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Generate CSS update for HMR
+ * @param {string} filePath - File path
+ * @param {string} content - File content
+ * @param {Object} options - Plugin options
+ * @returns {Object|null} CSS update info or null
+ */
+async function generateCssUpdate(filePath, content, options) {
+  try {
+    // Process the morph file to get the CSS
+    const result = await processMorphFileForHmr(content, filePath, options);
+
+    if (result.cssExports) {
+      // Invalidate CSS cache for this component
+      const { getCssCollector } = await import('../services/css-collection.js');
+      const collector = getCssCollector();
+      collector.clearCache();
+
+      // Return update info for the CSS bundle
+      return {
+        bundlePath: 'dist/components/components.css', // Default bundle path
+        css: result.cssExports,
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.warn(
+      `Failed to generate CSS update for ${filePath}:`,
+      error.message
+    );
+    return null;
+  }
 }
 
 /**

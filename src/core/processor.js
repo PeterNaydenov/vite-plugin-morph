@@ -14,11 +14,17 @@ import {
 } from './parser.js';
 import { extractTemplateContent, extractRequiredHelpers } from './template.js';
 import { processScriptContent } from './script.js';
-import { createMorphError } from './errors.js';
+import {
+  createMorphError,
+  createCssProcessingError,
+  createCssScopingError,
+  extractLocationFromPostCssError,
+} from './errors.js';
 import { getCachedResult, setCachedResult } from '../utils/cache.js';
 import { debug, info, error, warn } from '../utils/logger.js';
 import { isProductionMode } from '../utils/shared.js';
 import { scopeCss } from '../core/css-scoper.js';
+import { processCss } from '../core/css-processor.js';
 import { getCssCollector } from '../services/css-collection.js';
 
 /**
@@ -50,6 +56,7 @@ export async function processMorphFile(content, filePath, options) {
     // Extract content in order: CSS first, then JS, then check what's left for template
     const styleRaw = extractStyleContent(document);
     const style = styleRaw ? { css: styleRaw } : null;
+    let cssSourceMap = null; // Will be set during CSS processing
     debug(`Extracted style: ${style ? 'yes' : 'no'}`);
 
     // Process CSS immediately after extraction
@@ -81,10 +88,28 @@ export async function processMorphFile(content, filePath, options) {
           scopedCss = scopedCss.replace(regex, `.${scoped}`);
         }
 
-        // Apply basic PostCSS processing (autoprefixer simulation for MVP)
+        // Apply PostCSS processing
         let finalCss = scopedCss;
-        // TODO: Implement full async PostCSS processing in future iteration
-        // For now, just use scoped CSS
+        let cssSourceMap = null;
+        try {
+          const postCssResult = await processCss(scopedCss, {
+            minify: isProductionMode(),
+            autoprefixer: true,
+            from: filePath,
+          });
+          finalCss = postCssResult.css;
+          cssSourceMap = postCssResult.map;
+        } catch (err) {
+          const location = extractLocationFromPostCssError(err, filePath);
+          const cssError = createCssProcessingError(
+            `PostCSS processing failed for ${componentName}: ${err.message}`,
+            filePath,
+            location,
+            err
+          );
+          console.warn(cssError.message);
+          // Fall back to scoped CSS without PostCSS processing
+        }
 
         // Wrap CSS in @layer for cascade control
         const layeredCss = `@layer components {\n${finalCss}\n}`;
@@ -101,7 +126,11 @@ export async function processMorphFile(content, filePath, options) {
           collector.addComponentCss(componentName, layeredCss);
         }
       } catch (err) {
-        console.warn('DEBUG: CSS processing failed:', err.message);
+        const cssError = createCssScopingError(
+          `CSS scoping failed for ${componentName}: ${err.message}`,
+          filePath
+        );
+        console.warn(cssError.message);
       }
     }
 
@@ -206,6 +235,7 @@ export async function processMorphFile(content, filePath, options) {
     const result = {
       code: safeModuleCode,
       cssExports: style?.css,
+      cssSourceMap: cssSourceMap,
       usedVariables: template.usedVariables,
       templateObject,
       isCSSOnly,

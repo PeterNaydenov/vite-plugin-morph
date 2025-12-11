@@ -45,6 +45,16 @@ const defaultConfig = {
     minify: false,
   },
 
+  // CSS configuration
+  css: {
+    chunking: {
+      enabled: false,
+      strategy: 'size', // 'size', 'category', 'manual'
+      maxChunkSize: 50 * 1024, // 50KB
+    },
+    outputDir: 'dist/components',
+  },
+
   // Legacy configuration validation
   globalCSS: {
     directory: 'src/styles',
