@@ -83,16 +83,14 @@ export class CSSCollectionService {
   buildBundledCss() {
     const cssParts = [];
 
-    // Add layer declaration
-    cssParts.push('@layer components;');
+    // Add layer hierarchy declaration
+    cssParts.push('@layer reset, global, components, themes;');
 
-    // Add each component's CSS wrapped in layer
+    // Add each component's CSS (already wrapped in @layer components)
     for (const [componentName, css] of this.components) {
       cssParts.push('');
       cssParts.push(`/* ${componentName} */`);
-      cssParts.push(`@layer components {`);
       cssParts.push(css);
-      cssParts.push('}');
     }
 
     return cssParts.join('\n');

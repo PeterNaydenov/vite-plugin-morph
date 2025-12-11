@@ -19,6 +19,20 @@
  * @property {boolean} [development.sourceMaps=true] - Include source maps for debugging
  * @property {boolean} [development.hmr=true] - Enable hot module replacement
  * @property {Object} [errorHandling] - Error handling configuration
+ * @property {Object} [css] - CSS processing configuration
+ * @property {boolean} [css.enabled=true] - Enable CSS processing features
+ * @property {Object} [css.postcss] - PostCSS configuration
+ * @property {Object} [css.modules] - CSS modules configuration
+ * @property {boolean} [css.modules.enabled=true] - Enable CSS modules for component scoping
+ * @property {string} [css.modules.generateScopedName] - Scoped class name pattern
+ * @property {Object} [css.layers] - CSS layers configuration
+ * @property {boolean} [css.layers.enabled=true] - Enable CSS @layer for cascade control
+ * @property {string[]} [css.layers.order] - Layer precedence order
+ * @property {Object} [css.treeShaking] - CSS tree-shaking configuration
+ * @property {boolean} [css.treeShaking.enabled=true] - Enable CSS tree-shaking
+ * @property {Object} [css.bundling] - CSS bundling configuration
+ * @property {boolean} [css.bundling.enabled=true] - Enable CSS bundling
+ * @property {string} [css.bundling.outputDir] - CSS bundle output directory
  * @property {boolean} [errorHandling.failOnError=true] - Fail build on errors
  * @property {boolean} [errorHandling.showLocation=true] - Show detailed error locations
  * @property {number} [errorHandling.maxErrors=10] - Maximum number of errors to report

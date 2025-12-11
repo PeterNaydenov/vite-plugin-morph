@@ -18,6 +18,7 @@ import { createMorphError } from './errors.js';
 import { getCachedResult, setCachedResult } from '../utils/cache.js';
 import { debug, info, error, warn } from '../utils/logger.js';
 import { isProductionMode } from '../utils/shared.js';
+import { scopeCss } from '../core/css-scoper.js';
 import { getCssCollector } from '../services/css-collection.js';
 
 /**
@@ -50,6 +51,60 @@ export async function processMorphFile(content, filePath, options) {
     const styleRaw = extractStyleContent(document);
     const style = styleRaw ? { css: styleRaw } : null;
     debug(`Extracted style: ${style ? 'yes' : 'no'}`);
+
+    // Process CSS immediately after extraction
+    if (style) {
+      try {
+        const componentName = filePath
+          .split(/[/\\]/)
+          .pop()
+          .replace('.morph', '');
+
+        // Simple scoping
+        const scopedClassesManual = {};
+        const classRegex = /\.([a-zA-Z_-][a-zA-Z0-9_-]*)/g;
+        const matches = [...style.css.matchAll(classRegex)];
+
+        for (const match of matches) {
+          const originalClass = match[1];
+          if (!scopedClassesManual[originalClass]) {
+            const hash = Math.random().toString(36).substr(2, 4);
+            scopedClassesManual[originalClass] =
+              `${componentName}_${originalClass}_${hash}`;
+          }
+        }
+
+        // Replace in CSS
+        let scopedCss = style.css;
+        for (const [original, scoped] of Object.entries(scopedClassesManual)) {
+          const regex = new RegExp(`\\.${original}\\b`, 'g');
+          scopedCss = scopedCss.replace(regex, `.${scoped}`);
+        }
+
+        // Apply basic PostCSS processing (autoprefixer simulation for MVP)
+        let finalCss = scopedCss;
+        // TODO: Implement full async PostCSS processing in future iteration
+        // For now, just use scoped CSS
+
+        // Wrap CSS in @layer for cascade control
+        const layeredCss = `@layer components {\n${finalCss}\n}`;
+
+        style.processedCss = layeredCss;
+        style.scopedClasses = scopedClassesManual;
+
+        // Add CSS to global collection for bundling (only in build environment)
+        if (
+          typeof globalThis !== 'undefined' &&
+          !process?.env?.NODE_ENV?.includes('test')
+        ) {
+          const collector = getCssCollector();
+          collector.addComponentCss(componentName, layeredCss);
+        }
+      } catch (err) {
+        console.warn('DEBUG: CSS processing failed:', err.message);
+      }
+    }
+
     const scriptRaw = extractScriptContent(document, 'text/javascript');
 
     // Process script content to extract functions and templates
@@ -346,13 +401,13 @@ function generateESModule(
       parts.push(`export const handshake = ${JSON.stringify(handshake)};`);
     }
 
-    // Export CSS if present
+    // Export processed CSS if present
     if (style) {
-      parts.push('');
-      parts.push('// Export CSS');
-      parts.push(`export const css = ${JSON.stringify(style.css)};`);
+      const processedCss = style.processedCss || style.css;
+      const scopedClasses = style.scopedClasses || {};
 
-      // TODO: Add CSS collection later
+      parts.push('');
+      parts.push('// Export processed CSS');
     }
   } // else !isCSSOnly
   // Ensure all parts are strings and filter out any undefined values
