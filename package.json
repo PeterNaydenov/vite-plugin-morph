@@ -41,7 +41,7 @@
     "@vitest/coverage-v8": "^4.0.15",
     "autoprefixer": "^10.4.22",
     "cssnano": "^7.1.2",
-    "eslint": "^9.39.1",
+    "eslint": "^9.39.2",
     "glob": "^13.0.0",
     "jsdoc": "^4.0.2",
     "postcss": "^8.5.6",
