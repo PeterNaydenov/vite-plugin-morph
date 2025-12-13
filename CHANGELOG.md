@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.1.2] - 2025-12-13
+- [x] Dependency update. @peter.naydenov/morph 3.3.0;
+
+
+
 ## [0.1.1] - 2025-12-11
 - [x] Fix: Some types were missing;
 
