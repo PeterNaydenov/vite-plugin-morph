@@ -5,7 +5,7 @@
 ![npm version](https://img.shields.io/npm/v/@peter.naydenov/vite-plugin-morph.svg)
 ![npm license](https://img.shields.io/npm/l/@peter.naydenov/vite-plugin-morph.svg)
 ![bundle size](https://img.shields.io/bundlephobia/minzip/@peter.naydenov/vite-plugin-morph.svg)
-![Morph compatibility](https://img.shields.io/badge/@peter.naydenov/morph-v3.2.0-blue)
+![Morph compatibility](https://img.shields.io/badge/@peter.naydenov/morph-v3.3.0-blue)
 ![CSS Layers](https://img.shields.io/badge/CSS-Layers-orange)
 ![Tree Shaking](https://img.shields.io/badge/Tree-Shaking-green)
 
