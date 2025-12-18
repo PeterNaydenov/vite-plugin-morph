@@ -339,6 +339,12 @@ function generateESModule(
     parts.push(`const template = ${JSON.stringify(templateObject, null, 2)};`);
     parts.push('');
 
+    // Define styles map (scoped classes or empty)
+    parts.push('// Styles map');
+    const stylesMap = style && style.scopedClasses ? style.scopedClasses : {};
+    parts.push(`const styles = ${JSON.stringify(stylesMap)};`);
+    parts.push('');
+
     // Add helpers if present
     if (helperFunctions && Object.keys(helperFunctions).length > 0) {
       parts.push('// Helpers');
@@ -365,25 +371,25 @@ function generateESModule(
                 const funcName = funcCode.match(/function\s+(\w+)/)[1];
                 parts.push(
                   'try { ' +
-                    funcCode +
-                    '; template.helpers.' +
-                    name +
-                    ' = ' +
-                    funcName +
-                    "; } catch(e) { console.warn('Failed to assign helper " +
-                    name +
-                    ":', e.message); }"
+                  funcCode +
+                  '; template.helpers.' +
+                  name +
+                  ' = (props = {}, ...args) => (' +
+                  funcName +
+                  ')({ ...props, styles }, ...args); } catch(e) { console.warn(\'Failed to assign helper ' +
+                  name +
+                  ':\', e.message); }'
                 );
               } else {
                 // Arrow function or other: return the expression
                 parts.push(
                   'try { template.helpers.' +
-                    name +
-                    ' = (' +
-                    funcCode +
-                    "); } catch(e) { console.warn('Failed to assign helper " +
-                    name +
-                    ":', e.message); }"
+                  name +
+                  ' = (props = {}, ...args) => (' +
+                  funcCode +
+                  ')({ ...props, styles }, ...args); } catch(e) { console.warn(\'Failed to assign helper ' +
+                  name +
+                  ':\', e.message); }'
                 );
               }
             } catch (funcError) {
