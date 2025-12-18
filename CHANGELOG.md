@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.2.0] - 2025-12-18
+- [x] Enable helper functions in .morph files to access CSS module class mappings via a styles argument. This allows helpers to output correct scoped class names;
+
+
+
 ## [0.1.2] - 2025-12-13
 - [x] Dependency update. @peter.naydenov/morph 3.3.0;
 
