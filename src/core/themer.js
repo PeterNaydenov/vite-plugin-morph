@@ -15,13 +15,13 @@ import { isProductionMode } from '../utils/shared.js';
  * Theme file naming pattern
  * @type {RegExp}
  */
-const THEME_FILE_PATTERN = /^_css\.(.+)\.morph$/;
+const THEME_FILE_PATTERN = /^(_css\.(.+)\.morph|(.+)\.css)$/;
 
 /**
  * Default theme file pattern
  * @type {RegExp}
  */
-const DEFAULT_THEME_PATTERN = /^_css\.(.+)\.default\.morph$/;
+const DEFAULT_THEME_PATTERN = /^(_css\.(.+)\.default\.morph|(.+)\.default\.css)$/;
 
 /**
  * Parse theme name from filename
@@ -32,14 +32,30 @@ function parseThemeName(filename) {
   const match = filename.match(THEME_FILE_PATTERN);
   if (!match) return null;
 
-  const themeName = match[1];
-  const isDefault = filename.match(DEFAULT_THEME_PATTERN);
+  // Pattern matches:
+  // 1: Full morph match (_css.name.morph)
+  // 2: Morph name (name)
+  // 3: CSS name (name.css) which is group 3 in regex
+  let themeName = match[2] || match[3];
+
+  // Clean up if it matched whole group 3 including .css
+  if (themeName && themeName.endsWith('.css')) {
+    themeName = themeName.replace('.css', '');
+  }
+
+  const isDefault = DEFAULT_THEME_PATTERN.test(filename);
+
+  // Clean up .default from name if present
+  if (themeName && themeName.endsWith('.default')) {
+    themeName = themeName.replace('.default', '');
+  }
 
   return {
     name: themeName,
     isDefault: !!isDefault,
     filename,
     filePath: null, // Will be set when discovered
+    type: filename.endsWith('.morph') ? 'morph' : 'css'
   };
 }
 
@@ -56,7 +72,7 @@ function discoverThemes(dirPath) {
 
     for (const file of files) {
       const themeInfo = parseThemeName(file);
-      if (themeInfo) {
+      if (themeInfo && themeInfo.name) {
         themeInfo.filePath = resolve(dirPath, file);
         themes.push(themeInfo);
 
@@ -214,11 +230,19 @@ export async function processThemeFile(themePath, outputDir, options = {}) {
     }
 
     debug(
-      `Processing theme: ${themeInfo.name}${themeInfo.isDefault ? ' (default)' : ''}`
+      `Processing theme: ${themeInfo.name}${themeInfo.isDefault ? ' (default)' : ''} [${themeInfo.type}]`
     );
 
-    // Extract CSS content
-    const cssContent = extractCSSFromTheme(content);
+    // Extract CSS content based on file type
+    let cssContent = '';
+
+    if (themeInfo.type === 'css') {
+      // For .css files, use the content directly
+      cssContent = content;
+    } else {
+      // For .morph files, extract from <style> tags
+      cssContent = extractCSSFromTheme(content);
+    }
 
     if (!cssContent.trim()) {
       warn(`No CSS content found in theme file: ${themePath}`);
@@ -274,7 +298,7 @@ export async function processThemeFile(themePath, outputDir, options = {}) {
  * @param {Object} options - Processing options
  * @returns {Promise<Object>} Processing results
  */
-export async function processAllThemes(themesDir, outputDir, options = {}) {
+export async function processAllThemes ( themesDir, outputDir, options = {}) {
   const startTime = Date.now();
 
   try {
@@ -282,7 +306,7 @@ export async function processAllThemes(themesDir, outputDir, options = {}) {
     const results = {};
     const errors = {};
 
-    info(`Processing ${themes.length} themes from ${themesDir}`);
+    info (`Processing ${themes.length} themes from ${themesDir}`);
 
     for (const theme of themes) {
       try {
@@ -329,7 +353,7 @@ export async function processAllThemes(themesDir, outputDir, options = {}) {
  * @param {string} themeName - Theme name to query
  * @returns {Object|null} Theme metadata
  */
-export function getThemeMetadata(themesDir, themeName) {
+export function getThemeMetadata ( themesDir, themeName) {
   try {
     const outputDir = resolve(themesDir, '../dist/themes');
     const cssFilename = `${themeName}.css`;
