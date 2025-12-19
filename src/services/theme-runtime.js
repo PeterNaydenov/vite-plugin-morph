@@ -11,25 +11,45 @@ import { debug, info, warn } from '../utils/logger.js';
 export class ThemeRuntime {
   constructor(options = {}) {
     this.currentTheme = options.defaultTheme || 'default';
+    this.initialDefaultTheme = this.currentTheme;
     this.themes = new Map();
+    if (options.themes) {
+      if (options.themes instanceof Map) {
+        this.themes = options.themes;
+      } else {
+        this.themes = new Map(Object.entries(options.themes));
+      }
+    }
     this.subscribers = new Set();
     this.variables = new Map();
     this.componentStyles = new Map();
     this.isInitialized = false;
+
+    // Initialize immediately if themes are provided
+    if (this.themes.size > 0) {
+      this.initialize(this.themes, options);
+    }
   }
 
   /**
    * Initialize the theme runtime
-   * @param {Map} themes - Available themes
+   * @param {Map|Object|undefined} themes - Available themes (auto-discovered if not provided)
    * @param {Object} options - Initialization options
    */
-  async initialize(themes, options = {}) {
+  initialize(themes, options = {}) {
     try {
-      this.themes = new Map(themes);
+      if (themes) {
+        if (themes instanceof Map) {
+          this.themes = themes;
+        } else {
+          this.themes = new Map(Object.entries(themes));
+        }
+      }
+
       this.currentTheme = options.initialTheme || this.currentTheme;
 
       // Load initial theme
-      await this.loadTheme(this.currentTheme);
+      this.loadTheme(this.currentTheme);
 
       this.isInitialized = true;
       info(`Theme runtime initialized with theme '${this.currentTheme}'`);
@@ -48,9 +68,9 @@ export class ThemeRuntime {
   /**
    * Load a theme
    * @param {string} themeName - Theme name to load
-   * @returns {Promise<boolean>} True if loaded successfully
+   * @returns {boolean} True if loaded successfully
    */
-  async loadTheme(themeName) {
+  loadTheme(themeName) {
     if (!this.themes.has(themeName)) {
       warn(`Theme '${themeName}' not found`);
       return false;
@@ -92,10 +112,10 @@ export class ThemeRuntime {
   /**
    * Switch to a different theme
    * @param {string} themeName - Theme name to switch to
-   * @returns {Promise<boolean>} True if switched successfully
+   * @returns {boolean} True if switched successfully
    */
-  async switchTheme(themeName) {
-    if (!this.isInitialized) {
+  switchTheme(themeName) {
+    if (!this.isInitialized && this.themes.size === 0) {
       warn('Theme runtime not initialized');
       return false;
     }
@@ -105,7 +125,33 @@ export class ThemeRuntime {
       return true;
     }
 
-    return await this.loadTheme(themeName);
+    return this.loadTheme(themeName);
+  }
+
+  /**
+   * Alias for switchTheme to match requested API
+   * @param {string} themeName - Name of theme to switch to
+   */
+  set(themeName) {
+    return this.switchTheme(themeName);
+  }
+
+  /**
+   * Get list of available themes
+   * Matches requested API
+   * @returns {Array<string>} List of theme names
+   */
+  list() {
+    return this.getAvailableThemes();
+  }
+
+  /**
+   * Get default theme name
+   * Matches requested API
+   * @returns {string} Default theme name
+   */
+  getDefault() {
+    return this.initialDefaultTheme;
   }
 
   /**
@@ -452,8 +498,26 @@ let globalThemeRuntime = null;
  */
 export function getThemeRuntime(options = {}) {
   if (!globalThemeRuntime) {
+    console.log('[Morph Debug] Creating NEW globalThemeRuntime. Options keys:', Object.keys(options));
     globalThemeRuntime = new ThemeRuntime(options);
+  } else if (options.themes) {
+    console.log('[Morph Debug] Existing globalThemeRuntime found. Checking hydration.');
+    console.log('[Morph Debug] Current themes size:', globalThemeRuntime.themes.size);
+    // If instance exists but has no themes, we should try to hydrate it
+    if (globalThemeRuntime.themes.size === 0) {
+      console.log('[Morph Debug] Hydrating empty runtime with provided themes.');
+      const potentialThemes = options.themes instanceof Map
+        ? options.themes
+        : new Map(Object.entries(options.themes));
+
+      console.log('[Morph Debug] Potential themes to hydrate:', potentialThemes.size);
+      if (potentialThemes.size > 0) {
+        globalThemeRuntime.initialize(potentialThemes, options);
+        console.log('[Morph Debug] Hydration complete. New size:', globalThemeRuntime.themes.size);
+      }
+    }
   }
+  console.log('[Morph Debug] Returning globalThemeRuntime. Available themes:', Array.from(globalThemeRuntime.themes.keys()));
   return globalThemeRuntime;
 }
 

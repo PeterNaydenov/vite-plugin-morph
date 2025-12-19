@@ -10,7 +10,7 @@ import { debug, info, warn } from '../utils/logger.js';
 /**
  * Theme file extensions that are supported
  */
-const SUPPORTED_THEME_EXTENSIONS = ['.json', '.js', '.mjs'];
+const SUPPORTED_THEME_EXTENSIONS = ['.json', '.js', '.mjs', '.css'];
 
 /**
  * Theme discovery service
@@ -70,10 +70,16 @@ export class ThemeDiscovery {
 
       for (const entry of entries) {
         if (entry.isFile()) {
-          const theme = await this.loadThemeFile(join(directory, entry.name));
-          if (theme) {
-            const themeName = this.extractThemeName(entry.name);
-            themes[themeName] = theme;
+          const ext = extname(entry.name);
+          if (SUPPORTED_THEME_EXTENSIONS.includes(ext)) { // Check extension first
+            const theme = await this.loadThemeFile(join(directory, entry.name));
+            if (theme) {
+              const themeName = this.extractThemeName(entry.name);
+              // If the theme file explicitly defines a name (like in JSON), use it,
+              // otherwise use filename as discovered name, but ensure theme.name is set
+              if (!theme.name) theme.name = themeName;
+              themes[themeName] = theme;
+            }
           }
         } else if (entry.isDirectory()) {
           // Check for index.js or index.json in subdirectory
@@ -128,6 +134,10 @@ export class ThemeDiscovery {
           break;
         }
 
+        case '.css':
+          themeData = this.parseCssTheme(content, filePath);
+          break;
+
         default:
           warn(`Unsupported theme file extension: ${ext}`);
           return null;
@@ -152,6 +162,52 @@ export class ThemeDiscovery {
       warn(`Failed to load theme file ${filePath}: ${error.message}`);
       return null;
     }
+  }
+
+  /**
+   * Parse CSS content for theme variables
+   * @param {string} content - CSS content
+   * @param {string} filePath - Path to file
+   * @returns {Object} Theme data
+   */
+  parseCssTheme(content, filePath) {
+    const variables = {};
+
+    // Remove comments
+    const cleanContent = content.replace(/\/\*[\s\S]*?\*\//g, '');
+
+    // Simple regex to find :root { ... } block
+    // Captures the content inside the braces
+    const rootRegex = /:root\s*{([^}]+)}/g;
+    const match = rootRegex.exec(cleanContent);
+
+    if (match && match[1]) {
+      const blockContent = match[1];
+      // Split by semicolon to get lines/declarations
+      const lines = blockContent.split(';');
+
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) continue;
+
+        // Split by colon to get property and value
+        const [prop, ...valParts] = trimmed.split(':');
+        if (prop && valParts.length > 0) {
+          const key = prop.trim();
+          // Only extract custom properties (variables)
+          if (key.startsWith('--')) {
+            const value = valParts.join(':').trim(); // Rejoin in case value has colons (like urls)
+            variables[key] = value;
+          }
+        }
+      }
+    }
+
+    return {
+      name: this.extractThemeName(basename(filePath)), // Default name from file
+      variables,
+      components: {}
+    };
   }
 
   /**
