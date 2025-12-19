@@ -5,11 +5,12 @@
  * @version 0.0.10
  */
 
-import configModule from './config.js';
+import configModule, { resolveThemeDirectories } from './config.js';
 import {
   startCssCollection,
   finalizeCssCollection,
 } from '../services/css-collection.js';
+import { createThemeDiscovery } from '../services/theme-discovery.js';
 
 /**
  * Process a morph file and return compiled result
@@ -31,9 +32,47 @@ async function processMorphFileForHmr(code, id, options) {
  */
 export function createMorphPlugin(options = {}) {
   const resolvedOptions = resolveOptions(options);
+  let discoveredThemes = null;
+  let rootDir = process.cwd();
 
   return {
     name: 'vite-plugin-morph',
+
+    // Handle virtual module resolution
+    resolveId(id) {
+      if (id === 'virtual:morph-themes') {
+        return '\0virtual:morph-themes';
+      }
+    },
+
+    // Load virtual module content
+    async load(id) {
+      if (id === '\0virtual:morph-themes') {
+        // Always discover themes to ensure freshness
+        // Resolve theme directories relative to project root
+        const themeDirs = resolveThemeDirectories(resolvedOptions, rootDir);
+
+        const themeDiscovery = createThemeDiscovery({
+          directories: themeDirs,
+          defaultTheme: resolvedOptions.themes?.defaultTheme || 'default',
+        });
+        const discoveredThemes = await themeDiscovery.discoverThemes();
+
+        // Convert Map to object for export
+        const themesObject = {};
+        for (const [name, theme] of discoveredThemes) {
+          themesObject[name] = theme;
+        }
+
+        const serializedThemes = JSON.stringify(themesObject, null, 2);
+        console.log('[Morph Debug] Virtual Module Generation - Serialized Themes:', serializedThemes);
+
+        return `export const defaultTheme = ${JSON.stringify(
+          resolvedOptions.themes?.defaultTheme || 'default'
+        )};
+export default ${serializedThemes};`;
+      }
+    },
 
     // Handle .morph file transformation
     async transform(code, id) {
@@ -80,8 +119,8 @@ export function createMorphPlugin(options = {}) {
           error && typeof error === 'object'
             ? error
             : new Error(
-                typeof error === 'string' ? error : 'Unknown transform error'
-              );
+              typeof error === 'string' ? error : 'Unknown transform error'
+            );
 
         if (!safeError.message) {
           safeError.message = 'Transform failed with no error message';
@@ -133,6 +172,8 @@ export function createMorphPlugin(options = {}) {
 
     // Configure plugin
     configResolved(config) {
+      // Store root directory
+      rootDir = config.root || rootDir;
       // Validate configuration
       validatePluginConfig(resolvedOptions, config);
     },
