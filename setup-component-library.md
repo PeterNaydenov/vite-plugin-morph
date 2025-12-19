@@ -13,11 +13,11 @@ npm install --save-dev @peter.naydenov/vite-plugin-morph @peter.naydenov/morph
 Update your `vite.config.js`:
 
 ```javascript
-import { createMorphPlugin } from '@peter.naydenov/vite-plugin-morph';
+import morphPlugin from '@peter.naydenov/vite-plugin-morph';
 
 export default {
   plugins: [
-    createMorphPlugin({
+    morphPlugin({
       // 1. Theme Configuration
       themes: {
         enabled: true,
