@@ -27,6 +27,7 @@ A Vite plugin for processing `.morph` files with HTML-like syntax, CSS modules, 
 - 🔄 **Morph Syntax** - Full support for `@peter.naydenov/morph` template syntax and helpers
 - ⚙️ **Zero Config** - Works out of the box with sensible defaults
 - 🎯 **Production Optimized** - Built-in optimizations for production builds
+- 📚 **Library Mode** - Build distributable component libraries with runtime CSS control
 
 ## Installation
 
@@ -626,6 +627,48 @@ function validateEmail({data}) {
 }
 </script>
 ```
+
+
+## Library Mode
+
+Build distributable component libraries that work like Svelte - framework-free at runtime with full CSS control.
+
+### Quick Start
+
+**1. Create build script** (`scripts/build-library.js`):
+
+```javascript
+import { buildLibrary } from '@peter.naydenov/vite-plugin-morph';
+
+await buildLibrary({
+  entry: 'src/main.js',
+  library: {
+    name: '@myorg/my-components',
+    version: '1.0.0'
+  }
+});
+```
+
+**2. Define library exports** (`src/main.js`):
+
+```javascript
+export { default as Button } from './components/Button.morph';
+export { applyStyles, themesControl } from '@peter.naydenov/vite-plugin-morph/client';
+```
+
+**3. Build**: `npm run build:lib`
+
+### Using Your Library
+
+```javascript
+import { Button, applyStyles, themesControl } from '@myorg/my-components';
+
+applyStyles();  // Apply all CSS layers
+document.body.innerHTML = Button('render', { text: 'Click me' });
+themesControl.set('dark');  // Switch theme
+```
+
+**📖 Full documentation**: See [LIBRARY_MODE.md](./LIBRARY_MODE.md)
 
 ## Development
 
