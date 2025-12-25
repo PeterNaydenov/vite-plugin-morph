@@ -43,6 +43,9 @@ export function createMorphPlugin(options = {}) {
       if (id === 'virtual:morph-themes') {
         return '\0virtual:morph-themes';
       }
+      if (id === '@peter.naydenov/vite-plugin-morph/client') {
+        return '\0virtual:morph-client';
+      }
     },
 
     // Load virtual module content
@@ -71,6 +74,11 @@ export function createMorphPlugin(options = {}) {
           resolvedOptions.themes?.defaultTheme || 'default'
         )};
 export default ${serializedThemes};`;
+      }
+
+      if (id === '\0virtual:morph-client') {
+        // Generate client module code based on environment
+        return await generateClientModule(resolvedOptions, rootDir);
       }
     },
 
@@ -297,6 +305,57 @@ async function generateCssUpdate(filePath, content, options) {
       error.message
     );
     return null;
+  }
+}
+
+/**
+ * Generate client module code for dev or build mode
+ * @param {Object} options - Plugin options
+ * @param {string} rootDir - Project root directory
+ * @returns {Promise<string>} Generated module code
+ */
+async function generateClientModule(options, rootDir) {
+  const isDev = process.env.NODE_ENV !== 'production';
+
+  if (isDev) {
+    // Dev mode: applyStyles is a no-op, themesControl uses runtime discovery
+    return `
+import { getThemeRuntime } from '@peter.naydenov/vite-plugin-morph/browser';
+
+// Dev mode: Vite handles CSS injection via HMR
+export function applyStyles() {
+  // No-op in dev mode - Vite handles CSS automatically
+  console.log('[Morph Client] Dev mode: styles managed by Vite HMR');
+}
+
+// Theme control with auto-discovery
+const runtime = getThemeRuntime({
+  defaultTheme: ${JSON.stringify(options.themes?.defaultTheme || 'default')}
+});
+
+export const themesControl = {
+  list: () => runtime.list(),
+  getCurrent: () => runtime.getCurrentTheme(),
+  getDefault: () => runtime.getDefault(),
+  set: (themeName) => runtime.set(themeName)
+};
+`;
+  } else {
+    // Build mode: Will be replaced during bundle generation with actual assets
+    // This is a placeholder that will be updated in generateBundle hook
+    return `
+// Build mode placeholder - will be replaced with actual asset URLs
+export function applyStyles() {
+  console.warn('[Morph Client] Build mode: applyStyles not yet configured');
+}
+
+export const themesControl = {
+  list: () => [],
+  getCurrent: () => 'default',
+  getDefault: () => 'default',
+  set: () => false
+};
+`;
   }
 }
 
