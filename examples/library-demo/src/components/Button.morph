@@ -1,0 +1,53 @@
+<!-- Button Component -->
+<button class="btn {{ variant : getVariantClass }}">
+  {{ text }}
+</button>
+
+<script>
+  function getVariantClass({ data, styles }) {
+    const variants = {
+      primary: styles.primary,
+      secondary: styles.secondary,
+      outline: styles.outline
+    };
+    return `${styles.btn} ${variants[data] || variants.primary}`;
+  }
+</script>
+
+<style>
+  .btn {
+    padding: var(--btn-padding, 0.5rem 1rem);
+    border: none;
+    border-radius: var(--btn-radius, 4px);
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .primary {
+    background-color: var(--color-primary);
+    color: white;
+  }
+
+  .primary:hover {
+    opacity: 0.9;
+  }
+
+  .secondary {
+    background-color: var(--color-secondary);
+    color: white;
+  }
+
+  .outline {
+    background-color: transparent;
+    border: 2px solid var(--color-primary);
+    color: var(--color-primary);
+  }
+</style>
+
+<script type="application/json">
+{
+  "text": "Click me",
+  "variant": "primary"
+}
+</script>

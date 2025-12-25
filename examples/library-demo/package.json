@@ -1,0 +1,17 @@
+{
+    "name": "library-demo",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "build:lib": "node scripts/build-library.js",
+        "dev": "vite"
+    },
+    "devDependencies": {
+        "@peter.naydenov/vite-plugin-morph": "file:../..",
+        "vite": "^7.3.0"
+    },
+    "dependencies": {
+        "@peter.naydenov/morph": "^3.3.0"
+    }
+}

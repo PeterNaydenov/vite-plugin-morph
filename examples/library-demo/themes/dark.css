@@ -1,0 +1,10 @@
+/* Dark Theme */
+:root {
+    /* Colors */
+    --color-primary: #60a5fa;
+    --color-secondary: #9ca3af;
+    --color-text: #f3f4f6;
+    --color-text-secondary: #d1d5db;
+    --color-border: #374151;
+    --card-bg: #1f2937;
+}

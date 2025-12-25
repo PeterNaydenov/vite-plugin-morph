@@ -1,0 +1,52 @@
+<!-- Card Component -->
+<div class="{{ variant : getCardClass }}">
+  <h3 class="{{ styles.title }}">{{ title }}</h3>
+  <p class="{{ styles.content }}">{{ content }}</p>
+</div>
+
+<script>
+  function getCardClass({ data, styles }) {
+    const variants = {
+      default: styles.card,
+      elevated: `${styles.card} ${styles.elevated}`,
+      outlined: `${styles.card} ${styles.outlined}`
+    };
+    return variants[data] || variants.default;
+  }
+</script>
+
+<style>
+  .card {
+    padding: var(--spacing-md, 1rem);
+    border-radius: var(--radius-md, 8px);
+    background: var(--card-bg, white);
+  }
+
+  .title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--color-text);
+  }
+
+  .content {
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+  }
+
+  .elevated {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+
+  .outlined {
+    border: 1px solid var(--color-border);
+  }
+</style>
+
+<script type="application/json">
+{
+  "title": "Card Title",
+  "content": "Card content goes here",
+  "variant": "default"
+}
+</script>

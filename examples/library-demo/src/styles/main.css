@@ -1,0 +1,19 @@
+/* General Styles */
+@layer reset, global, components, themes;
+
+@layer reset {
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+}
+
+@layer global {
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        line-height: 1.5;
+        color: var(--color-text);
+        background: var(--card-bg);
+    }
+}
