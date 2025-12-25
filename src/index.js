@@ -6,6 +6,7 @@
  */
 
 import { createMorphPlugin } from './plugin/index.js';
+import { buildLibrary } from './build-library.js';
 
 /**
  * Vite plugin factory function
@@ -18,6 +19,9 @@ export default function morphPlugin(options = {}) {
 
 // Also export as named export for convenience
 export const morph = morphPlugin;
+
+// Export library builder
+export { buildLibrary };
 
 // Export types for TypeScript users
 export * from './types/index.d.ts';
