@@ -423,12 +423,12 @@ async function generateCssUpdate(filePath, content, options) {
 async function generateClientModule(options, rootDir) {
   const isDev = process.env.NODE_ENV !== 'production';
 
-  if (isDev) {
-    // Dev mode: Provide configuration data for runtime consumption
-    const collector = getCssCollector();
-    const morphCss = Array.from(collector.components.values()).join('\n\n');
-    const globalCss = collector.getGlobalCss() || '';
-    const collectedCss = globalCss ? `${globalCss}\n\n${morphCss}` : morphCss;
+    if (isDev) {
+      // Dev mode: Provide configuration data for runtime consumption
+      const collector = getCssCollector();
+      const morphCss = Array.from(collector.components.values()).join('\n\n');
+      // In dev, global CSS is loaded via import in main.js, so only include component CSS here
+      const collectedCss = morphCss;
 
     // Get theme information from theme discovery
     const themeDiscovery = await createThemeDiscovery({
@@ -454,13 +454,14 @@ async function generateClientModule(options, rootDir) {
      });
 
      return `
-// CSS hash: ${cssHash}
 import { setMorphConfig } from '@peter.naydenov/vite-plugin-morph/client';
 
-// Development mode configuration for unified runtime
+const collectedCss = ${JSON.stringify(collectedCss)};
+
 const config = {
   environment: 'development',
-  css: ${JSON.stringify(collectedCss)},
+  css: collectedCss,
+  baseCss: ${JSON.stringify(collectedCss)},
   themes: ${JSON.stringify(themeNames)},
   defaultTheme: ${JSON.stringify(defaultTheme)},
   themeUrls: ${JSON.stringify(themeUrls)}
