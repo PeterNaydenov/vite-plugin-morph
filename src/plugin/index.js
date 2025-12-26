@@ -5,7 +5,7 @@
  * @version 0.0.10
  */
 
-import path from 'path';
+import path, { join } from 'path';
 import configModule, { resolveThemeDirectories } from './config.js';
 import {
   startCssCollection,
@@ -387,70 +387,62 @@ async function generateClientModule(options, rootDir) {
   const isDev = process.env.NODE_ENV !== 'production';
 
   if (isDev) {
-    // Dev mode: Get collected CSS and embed it directly
+    // Dev mode: Provide configuration data for runtime consumption
     const collector = getCssCollector();
     const morphCss = Array.from(collector.components.values()).join('\n\n');
     const globalCss = collector.getGlobalCss() || '';
     const collectedCss = globalCss ? `${globalCss}\n\n${morphCss}` : morphCss;
 
-    // Dev mode: applyStyles injects collected CSS, themesControl uses runtime discovery
+    // Get theme information from theme discovery
+    const themeDiscovery = await createThemeDiscovery({
+      directories: [join(rootDir, 'themes')],
+      defaultTheme: options.themes?.defaultTheme || 'default',
+    });
+    const themes = await themeDiscovery.discoverThemes();
+    const themeNames = Array.from(themes.keys());
+    const defaultTheme = options.themes?.defaultTheme || 'default';
+
+    // Generate theme URL mapping for dev mode
+    const themeUrls = {};
+    themeNames.forEach(name => {
+      themeUrls[name] = `/themes/${name}.css`;
+    });
+
     return `
-import { getThemeRuntime } from '@peter.naydenov/vite-plugin-morph/browser';
+import { setMorphConfig } from '@peter.naydenov/vite-plugin-morph/client';
 
-// Collected CSS from processed morph files and global CSS (updatable via HMR)
-let collectedCss = ${JSON.stringify(collectedCss)};
+// Development mode configuration for unified runtime
+const config = {
+  environment: 'development',
+  css: ${JSON.stringify(collectedCss)},
+  themes: ${JSON.stringify(themeNames)},
+  defaultTheme: ${JSON.stringify(defaultTheme)},
+  themeUrls: ${JSON.stringify(themeUrls)}
+};
 
-// Dev mode: Inject collected CSS directly into DOM
-export function applyStyles() {
-  if (typeof document !== 'undefined' && collectedCss) {
-    // Check if already injected, if so update it
-    let existing = document.getElementById('morph-collected-css');
-    if (!existing) {
-      const styleElement = document.createElement('style');
-      styleElement.id = 'morph-collected-css';
-      styleElement.textContent = collectedCss;
-      document.head.appendChild(styleElement);
-    } else {
-      // Update existing style tag with new CSS
-      existing.textContent = collectedCss;
-    }
-  }
-}
+setMorphConfig(config);
 
 // HMR support: Update CSS when morph files change
 if (import.meta.hot) {
   import.meta.hot.on('morph-css-update', (newCss) => {
-    collectedCss = newCss;
-    applyStyles();
+    setMorphConfig({ css: newCss });
   });
 }
 
-// Theme control with auto-discovery
-const runtime = getThemeRuntime({
-  defaultTheme: ${JSON.stringify(options.themes?.defaultTheme || 'default')}
-});
-
-export const themesControl = {
-  list: () => runtime.getAvailableThemes(),
-  getCurrent: () => runtime.getCurrentTheme(),
-  getDefault: () => runtime.getCurrentThemeData()?.name || 'default',
-  set: (themeName) => runtime.switchTheme(themeName)
-};
+// Export config for debugging
+export const __morphConfig__ = config;
 `;
   } else {
-    // Build mode: Will be replaced during bundle generation with actual assets
-    // This is a placeholder that will be updated in generateBundle hook
+    // Build mode: Provide placeholder configuration
+    // This will be replaced during bundle generation with actual asset URLs
     return `
-// Build mode: applyStyles will be replaced with actual asset URLs
-export function applyStyles(assets = {}) {
-  console.warn('[Morph Client] Build mode: applyStyles placeholder - will be replaced with actual assets');
-}
-
-export const themesControl = {
-  list: () => [],
-  getCurrent: () => 'default',
-  getDefault: () => 'default',
-  set: () => false
+// Build mode configuration placeholder - will be replaced with actual assets
+export const __morphConfig__ = {
+  environment: 'build',
+  css: '',
+  themes: [],
+  defaultTheme: 'default',
+  themeUrls: {}
 };
 `;
   }

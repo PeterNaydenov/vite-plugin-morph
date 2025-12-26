@@ -4,6 +4,44 @@
  * @fileoverview Runtime helpers for @peter.naydenov/vite-plugin-morph/client
  */
 
+// Configuration populated by plugin (will be set externally)
+let morphConfig = { css: '', themes: [], defaultTheme: 'default', themeUrls: {} };
+
+/**
+ * Set configuration (called by plugin-generated code)
+ * @param {Object} config - Configuration object
+ */
+export function setMorphConfig(config) {
+  morphConfig = { ...morphConfig, ...config };
+}
+
+/**
+ * Get current configuration
+ * @returns {Object} Configuration object
+ */
+function getConfig() {
+  return morphConfig;
+}
+
+/**
+ * Detect the current execution environment
+ * @returns {'development' | 'build' | 'library'} Environment type
+ */
+function detectEnvironment() {
+  // Development: Vite dev server provides import.meta.hot
+  if (typeof import.meta !== 'undefined' && import.meta.hot) {
+    return 'development';
+  }
+
+  // Library: Global flag set by library bundler
+  if (typeof window !== 'undefined' && window.__MORPH_LIBRARY_MODE__) {
+    return 'library';
+  }
+
+  // Build: Default production/static mode
+  return 'build';
+}
+
 /**
  * Create and inject a <link> tag for CSS
  * @param {string} href - CSS file URL
@@ -110,62 +148,146 @@ export function createThemeController(config) {
 }
 
 /**
- * Apply all CSS layers (general, components, default theme)
- * @param {Object} [assets] - CSS asset URLs (build mode) or undefined (dev mode)
- * @param {string} [assets.main] - Main/general CSS URL
- * @param {string[]} [assets.components] - Component CSS URLs (chunks)
- * @param {string} [assets.defaultTheme] - Default theme CSS URL
+ * Apply all CSS layers (general, components, themes) in correct order
  */
-export function applyStyles(assets) {
-  // If no assets provided, we're in dev mode - this function should be overridden
-  // by the generated client module which embeds the CSS directly
-  if (!assets) {
-    console.warn('[Morph Client] applyStyles() called in dev mode without embedded CSS. Make sure the client module is properly generated.');
-    return;
-  }
+export function applyStyles() {
+  const env = detectEnvironment();
 
-  // Build mode: Load CSS from URLs
-  const { main, components = [], defaultTheme } = assets;
-
-  // 1. Apply general/main styles
-  if (main) {
-    createStyleLink(main, 'morph-main');
-  }
-
-  // 2. Apply component CSS (all chunks)
-  components.forEach((componentCss, index) => {
-    createStyleLink(componentCss, `morph-components-${index}`);
-  });
-
-  // 3. Apply default theme
-  if (defaultTheme) {
-    createStyleLink(defaultTheme, 'morph-theme');
+  switch (env) {
+    case 'development':
+      return applyStylesDev();
+    case 'library':
+      return applyStylesLibrary();
+    case 'build':
+      return applyStylesBuild();
+    default:
+      console.warn(`[Morph Client] Unknown environment: ${env}`);
   }
 }
 
 /**
- * Pre-configured theme controller for basic theme switching
- * Note: This is a basic implementation. Libraries should create their own
- * theme controller with proper theme URLs using createThemeController().
+ * Apply CSS in development mode (embedded styles)
+ * Ensures proper ordering: general → components → themes
+ */
+function applyStylesDev() {
+  const config = getConfig();
+
+  // Apply general/global styles first
+  if (typeof document !== 'undefined' && config.css) {
+    // Check if already injected, if so update it
+    let existing = document.getElementById('morph-collected-css');
+    if (!existing) {
+      const styleElement = document.createElement('style');
+      styleElement.id = 'morph-collected-css';
+      styleElement.textContent = config.css;
+      document.head.appendChild(styleElement);
+    } else {
+      // Update existing style tag with new CSS
+      existing.textContent = config.css;
+    }
+  }
+
+  // Apply default theme last (if available)
+  const defaultTheme = config.defaultTheme;
+  if (defaultTheme && config.themes.includes(defaultTheme)) {
+    const themeUrl = config.themeUrls[defaultTheme];
+    if (themeUrl) {
+      createStyleLink(themeUrl, 'morph-theme');
+    }
+  }
+}
+
+/**
+ * Apply CSS in library mode (URL-based loading)
+ */
+function applyStylesLibrary() {
+  const config = getConfig();
+  // In library mode, we assume CSS is pre-loaded by the library bundler
+  // This is a no-op since the library should have already applied styles
+  console.log('[Morph Client] Library mode: CSS should be pre-loaded by library');
+}
+
+/**
+ * Apply CSS in build mode (URL-based loading)
+ */
+function applyStylesBuild() {
+  // In build mode, CSS URLs would be provided via config
+  // This is handled by the build process embedding actual URLs
+  console.log('[Morph Client] Build mode: CSS URLs should be embedded by build process');
+}
+
+/**
+ * Unified theme controller for runtime theme switching
+ * Uses DOM link manipulation for theme switching
  */
 export const themesControl = {
+  /**
+   * Get list of available themes
+   * @returns {string[]} Array of theme names
+   */
   list() {
-    console.warn('[Morph Client] themesControl.list() - implement in your library');
-    return [];
+    const config = getConfig();
+    return config.themes || [];
   },
 
+  /**
+   * Get current active theme by inspecting DOM
+   * @returns {string} Current theme name
+   */
   getCurrent() {
-    console.warn('[Morph Client] themesControl.getCurrent() - implement in your library');
-    return 'default';
+    if (typeof document === 'undefined') return getConfig().defaultTheme || 'default';
+
+    const themeLink = document.getElementById('morph-theme');
+    if (!themeLink) return getConfig().defaultTheme || 'default';
+
+    // Extract theme name from URL
+    const href = themeLink.href;
+    const match = href.match(/\/themes\/([^/?]+)\.css/);
+    return match ? match[1] : getConfig().defaultTheme || 'default';
   },
 
+  /**
+   * Get default theme name
+   * @returns {string} Default theme name
+   */
   getDefault() {
-    console.warn('[Morph Client] themesControl.getDefault() - implement in your library');
-    return 'default';
+    const config = getConfig();
+    return config.defaultTheme || 'default';
   },
 
+  /**
+   * Switch to specified theme via DOM link manipulation
+   * @param {string} themeName - Name of theme to switch to
+   * @returns {boolean} Success status
+   */
   set(themeName) {
-    console.warn(`[Morph Client] themesControl.set('${themeName}') - implement in your library`);
-    return false;
+    if (typeof document === 'undefined') {
+      console.warn('[Morph Client] Cannot switch themes in non-browser environment');
+      return false;
+    }
+
+    const config = getConfig();
+
+    // Check if theme is available
+    if (!config.themes.includes(themeName)) {
+      console.warn(`[Morph Client] Theme '${themeName}' not found. Available: ${config.themes.join(', ')}`);
+      return false;
+    }
+
+    try {
+      const themeUrl = config.themeUrls[themeName];
+      if (!themeUrl) {
+        console.warn(`[Morph Client] No URL found for theme '${themeName}'`);
+        return false;
+      }
+
+      // Create or update theme link
+      createStyleLink(themeUrl, 'morph-theme');
+
+      return true;
+    } catch (error) {
+      console.warn(`[Morph Client] Failed to switch to theme '${themeName}':`, error.message);
+      return false;
+    }
   }
 };

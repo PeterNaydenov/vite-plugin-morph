@@ -64,16 +64,17 @@ describe('Library Builder', () => {
             expect(code).toContain('import css1 from');
             expect(code).toContain('import theme_default from');
             expect(code).toContain('import theme_dark from');
-            expect(code).toContain('export function applyStyles()');
-            expect(code).toContain('export const themesControl');
+            expect(code).toContain('import { setMorphConfig } from');
+            expect(code).toContain('export { applyStyles, themesControl } from');
+            expect(code).toContain('export { config as __morphConfig__ }');
         });
 
         it('should handle empty CSS assets', () => {
             const builder = createLibraryBuilder();
             const code = builder.generateClientModule([], new Map());
 
-            expect(code).toContain('export function applyStyles()');
-            expect(code).toContain('const cssAssets = []');
+            expect(code).toContain('export { applyStyles, themesControl } from');
+            expect(code).toContain('environment: \'library\'');
         });
 
         it('should use configured default theme', () => {

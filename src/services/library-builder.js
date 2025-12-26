@@ -238,30 +238,33 @@ export class LibraryBuilder {
             `import theme_${name} from './themes/${name}.css?url';`
         ).join('\n');
 
+        // Generate theme URL mapping
+        const themeUrls = {};
+        themeNames.forEach((name, index) => {
+            themeUrls[name] = `theme_${name}`;
+        });
+
         return `
 ${cssImports}
 ${themeImports}
-import { applyStyles as applyStylesRuntime, createThemeController } from './runtime.js';
+import { setMorphConfig } from './runtime.js';
 
-const cssAssets = [${cssAssets.map((_, i) => `css${i}`).join(', ')}];
-
-const themeUrls = {
-${themeNames.map(name => `  '${name}': theme_${name}`).join(',\n')}
-};
-
-export function applyStyles() {
-  applyStylesRuntime({
-    main: cssAssets[0],
-    components: cssAssets.slice(1),
-    defaultTheme: themeUrls['${defaultTheme}']
-  });
-}
-
-export const themesControl = createThemeController({
+// Library mode configuration for unified runtime
+const config = {
+  environment: 'library',
+  css: '', // CSS is loaded via URLs in library mode
   themes: ${JSON.stringify(themeNames)},
   defaultTheme: '${defaultTheme}',
-  getThemeUrl: (themeName) => themeUrls[themeName]
-});
+  themeUrls: ${JSON.stringify(themeUrls)}
+};
+
+setMorphConfig(config);
+
+// Export config for debugging
+export { config as __morphConfig__ };
+
+// Re-export unified runtime functions
+export { applyStyles, themesControl } from './runtime.js';
 `;
     }
 }
