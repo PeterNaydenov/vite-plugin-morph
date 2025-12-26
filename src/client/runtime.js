@@ -2,6 +2,7 @@
  * Client Runtime for Style and Theme Management
  * Provides utilities for injecting CSS links and managing themes
  * @fileoverview Runtime helpers for @peter.naydenov/vite-plugin-morph/client
+ * @browser
  */
 
 // Configuration populated by plugin (will be set externally)
@@ -12,7 +13,29 @@ let morphConfig = { css: '', themes: [], defaultTheme: 'default', themeUrls: {} 
  * @param {Object} config - Configuration object
  */
 export function setMorphConfig(config) {
+  console.log('[Morph Client] Setting config:', {
+    environment: config.environment,
+    cssLength: config.css ? config.css.length : 0,
+    themes: config.themes,
+    defaultTheme: config.defaultTheme
+  });
   morphConfig = { ...morphConfig, ...config };
+
+  // Auto-apply styles if we're in a browser environment and have CSS
+  if (typeof document !== 'undefined' && config.css) {
+    console.log('[Morph Client] Auto-applying styles on config set');
+
+    // If DOM is ready, apply immediately, otherwise wait
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => applyStyles());
+    } else {
+      applyStyles();
+    }
+  }
+}
+
+export function getMorphConfig() {
+  return morphConfig;
 }
 
 /**
@@ -27,7 +50,7 @@ function getConfig() {
  * Detect the current execution environment
  * @returns {'development' | 'build' | 'library'} Environment type
  */
-function detectEnvironment() {
+export function detectEnvironment() {
   // Development: Vite dev server provides import.meta.hot
   if (typeof import.meta !== 'undefined' && import.meta.hot) {
     return 'development';
@@ -166,54 +189,97 @@ export function applyStyles() {
 }
 
 /**
- * Apply CSS in development mode (embedded styles)
+ * Apply CSS in development mode (embedded styles + theme links)
  * Ensures proper ordering: general → components → themes
  */
 function applyStylesDev() {
+  console.log('[Morph Client] applyStylesDev called');
   const config = getConfig();
+  console.log('[Morph Client] Config:', { cssLength: config.css.length, themes: config.themes, defaultTheme: config.defaultTheme });
 
-  // Apply general/global styles first
+  // Apply general/component styles as embedded style element
   if (typeof document !== 'undefined' && config.css) {
-    // Check if already injected, if so update it
-    let existing = document.getElementById('morph-collected-css');
+    console.log('[Morph Client] Injecting CSS, length:', config.css.length);
+    let existing = document.getElementById('morph-general-css');
     if (!existing) {
       const styleElement = document.createElement('style');
-      styleElement.id = 'morph-collected-css';
+      styleElement.id = 'morph-general-css';
       styleElement.textContent = config.css;
       document.head.appendChild(styleElement);
+      console.log('[Morph Client] CSS element created and added to head');
     } else {
-      // Update existing style tag with new CSS
       existing.textContent = config.css;
+      console.log('[Morph Client] CSS element updated');
     }
+  } else {
+    console.log('[Morph Client] No CSS to inject or document not available');
   }
 
-  // Apply default theme last (if available)
+  // Apply default theme via link tag
+  applyDefaultTheme(config);
+}
+
+/**
+ * Apply CSS in library mode (URL-based loading for all layers)
+ */
+function applyStylesLibrary() {
+  const config = getConfig();
+  console.log('[Morph Client] Library mode: Applying CSS via URL links');
+  
+  // Library mode should have CSS URLs configured
+  // Apply general CSS if URL provided
+  if (config.generalCssUrl) {
+    createStyleLink(config.generalCssUrl, 'morph-general-css');
+  }
+  
+  // Apply component CSS if URL provided
+  if (config.componentCssUrl) {
+    createStyleLink(config.componentCssUrl, 'morph-component-css');
+  }
+  
+  // Apply default theme
+  applyDefaultTheme(config);
+}
+
+/**
+ * Apply CSS in build mode (URL-based loading for all layers)
+ */
+function applyStylesBuild() {
+  const config = getConfig();
+  console.log('[Morph Client] Build mode: Applying CSS via URL links');
+  
+  // Build mode should have CSS URLs configured by build process
+  // Apply general CSS if URL provided
+  if (config.generalCssUrl) {
+    createStyleLink(config.generalCssUrl, 'morph-general-css');
+  }
+  
+  // Apply component CSS if URL provided
+  if (config.componentCssUrl) {
+    createStyleLink(config.componentCssUrl, 'morph-component-css');
+  }
+  
+  // Apply default theme
+  applyDefaultTheme(config);
+}
+
+/**
+ * Apply default theme using link tag
+ * @param {Object} config - Configuration object
+ */
+function applyDefaultTheme(config) {
   const defaultTheme = config.defaultTheme;
   if (defaultTheme && config.themes.includes(defaultTheme)) {
     const themeUrl = config.themeUrls[defaultTheme];
     if (themeUrl) {
+      console.log('[Morph Client] Applying theme:', defaultTheme, 'URL:', themeUrl);
       createStyleLink(themeUrl, 'morph-theme');
+    } else {
+      console.warn('[Morph Client] No URL found for default theme:', defaultTheme);
     }
+  } else {
+    console.log('[Morph Client] No default theme to apply');
   }
-}
-
-/**
- * Apply CSS in library mode (URL-based loading)
- */
-function applyStylesLibrary() {
-  const config = getConfig();
-  // In library mode, we assume CSS is pre-loaded by the library bundler
-  // This is a no-op since the library should have already applied styles
-  console.log('[Morph Client] Library mode: CSS should be pre-loaded by library');
-}
-
-/**
- * Apply CSS in build mode (URL-based loading)
- */
-function applyStylesBuild() {
-  // In build mode, CSS URLs would be provided via config
-  // This is handled by the build process embedding actual URLs
-  console.log('[Morph Client] Build mode: CSS URLs should be embedded by build process');
 }
 
 /**

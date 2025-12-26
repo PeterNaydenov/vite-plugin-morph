@@ -10,6 +10,10 @@ export default [
         console: 'readonly',
         process: 'readonly',
         Buffer: 'readonly',
+        window: 'readonly',
+        document: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
       },
     },
     rules: {

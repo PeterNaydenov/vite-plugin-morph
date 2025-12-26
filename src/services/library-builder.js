@@ -221,7 +221,7 @@ export class LibraryBuilder {
     }
 
     /**
-     * Generate client module for library
+     * Generate unified client module for library
      * @param {Array} cssAssets - CSS asset paths
      * @param {Map} themes - Available themes
      * @returns {string} Client module code
@@ -244,10 +244,16 @@ export class LibraryBuilder {
             themeUrls[name] = `theme_${name}`;
         });
 
+        // Determine which CSS asset is general vs component
+        const generalCssUrl = cssAssets.find(asset => asset.includes('main')) ? 
+            cssAssets.find(asset => asset.includes('main')).replace('./', '') : '';
+        const componentCssUrl = cssAssets.find(asset => !asset.includes('main')) ? 
+            cssAssets.find(asset => !asset.includes('main')).replace('./', '') : '';
+
         return `
 ${cssImports}
 ${themeImports}
-import { setMorphConfig } from './runtime.js';
+import { setMorphConfig, applyStyles, themesControl } from './runtime.js';
 
 // Library mode configuration for unified runtime
 const config = {
@@ -255,16 +261,20 @@ const config = {
   css: '', // CSS is loaded via URLs in library mode
   themes: ${JSON.stringify(themeNames)},
   defaultTheme: '${defaultTheme}',
-  themeUrls: ${JSON.stringify(themeUrls)}
+  themeUrls: ${JSON.stringify(themeUrls)},
+  generalCssUrl: ${generalCssUrl ? `'${generalCssUrl}'` : 'undefined'},
+  componentCssUrl: ${componentCssUrl ? `'${componentCssUrl}'` : 'undefined'}
 };
 
+// Initialize the unified runtime
 setMorphConfig(config);
 
-// Export config for debugging
-export { config as __morphConfig__ };
+// Auto-apply styles on module load
+applyStyles();
 
-// Re-export unified runtime functions
-export { applyStyles, themesControl } from './runtime.js';
+// Export unified runtime API
+export { applyStyles, themesControl };
+export const __morphConfig__ = config;
 `;
     }
 }

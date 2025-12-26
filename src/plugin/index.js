@@ -61,6 +61,9 @@ export function createMorphPlugin(options = {}) {
       if (id === 'virtual:morph-css') {
         return '\0virtual:morph-css';
       }
+      if (id === 'virtual:morph-client') {
+        return '\0virtual:morph-client';
+      }
       if (id === '\0virtual:morph-client') {
         return '\0virtual:morph-client';
       }
@@ -122,8 +125,21 @@ export default ${JSON.stringify(themesObject, null, 2)};`;
       }
     },
 
-    // Handle .morph file transformation
+    // Handle client interface imports and generate config
     async transform(code, id) {
+      // If this file imports the client interface and we have global CSS configured,
+      // inject the virtual client module import
+      if (code.includes('@peter.naydenov/vite-plugin-morph/client') &&
+          !id.endsWith('.morph') &&
+          resolvedOptions.globalCSS) {
+        // Inject import of virtual client module
+        const injectedCode = `import 'virtual:morph-client';\n${code}`;
+        return {
+          code: injectedCode,
+          map: null,
+        };
+      }
+
       if (!id || !id.endsWith('.morph')) {
         return null;
       }
@@ -395,7 +411,7 @@ async function generateClientModule(options, rootDir) {
 
     // Get theme information from theme discovery
     const themeDiscovery = await createThemeDiscovery({
-      directories: [join(rootDir, 'themes')],
+      directories: [join(rootDir, 'src/themes')],
       defaultTheme: options.themes?.defaultTheme || 'default',
     });
     const themes = await themeDiscovery.discoverThemes();
@@ -406,6 +422,12 @@ async function generateClientModule(options, rootDir) {
     const themeUrls = {};
     themeNames.forEach(name => {
       themeUrls[name] = `/themes/${name}.css`;
+    });
+
+    console.log('[Vite Plugin Morph] Generated CSS for client:', {
+      cssLength: collectedCss.length,
+      containsVariables: collectedCss.includes('--color-main-background'),
+      containsRoot: collectedCss.includes(':root')
     });
 
     return `

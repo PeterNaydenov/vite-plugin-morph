@@ -4,9 +4,70 @@
  */
 
 import { readFileSync, existsSync } from 'fs';
-import { resolve, join, extname } from 'path';
+import { resolve, join, extname, dirname } from 'path';
 import { glob } from 'glob';
 import { debug, info, warn, error } from '../utils/logger.js';
+
+/**
+ * Process CSS imports and inline them
+ * @param {string} css - CSS content
+ * @param {string} filePath - Path to the CSS file
+ * @param {Set<string>} processedFiles - Set of already processed files to avoid circular imports
+ * @returns {string} CSS with imports inlined
+ */
+function processCssImports(css, filePath, processedFiles = new Set()) {
+  const importRegex = /@import\s+['"]([^'"]+)['"]\s*;/g;
+  let processedCss = css;
+  let match;
+
+  // Prevent circular imports
+  if (processedFiles.has(filePath)) {
+    warn(`Circular CSS import detected: ${filePath}`);
+    return '';
+  }
+  processedFiles.add(filePath);
+
+  while ((match = importRegex.exec(css)) !== null) {
+    const importPath = match[0];
+    const importUrl = match[1];
+
+    // Resolve the import path relative to the current file
+    const fileDir = dirname(filePath);
+    let resolvedPath;
+
+    try {
+      // Try to resolve the import path
+      if (importUrl.startsWith('./') || importUrl.startsWith('../') || !importUrl.includes('/')) {
+        resolvedPath = resolve(fileDir, importUrl);
+        // Ensure it has .css extension if not specified
+        if (!resolvedPath.endsWith('.css')) {
+          resolvedPath += '.css';
+        }
+      } else {
+        // Absolute paths or URLs - skip processing
+        continue;
+      }
+
+      // Check if the resolved file exists
+      if (existsSync(resolvedPath)) {
+        // Read the imported CSS
+        const importedCss = readFileSync(resolvedPath, 'utf8');
+        // Recursively process imports in the imported file
+        const processedImportedCss = processCssImports(importedCss, resolvedPath, processedFiles);
+
+        // Replace the @import with the processed CSS content
+        processedCss = processedCss.replace(importPath, processedImportedCss);
+        debug(`Inlined CSS import: ${importUrl} -> ${resolvedPath}`);
+      } else {
+        warn(`CSS import not found: ${importUrl} (resolved to ${resolvedPath})`);
+      }
+    } catch (err) {
+      warn(`Failed to process CSS import ${importUrl}: ${err.message}`);
+    }
+  }
+
+  return processedCss;
+}
 
 /**
  * Read CSS files based on configuration
@@ -39,9 +100,14 @@ export async function readCSSFiles(options) {
         // Only process CSS files
         if (extname(filePath).toLowerCase() === '.css') {
           try {
-            const content = readFileSync(filePath, 'utf8');
-            cssFiles.set(filePath, content);
-            debug(`Read global CSS file: ${filePath} (${content.length} chars)`);
+            const rawContent = readFileSync(filePath, 'utf8');
+            // Process @import statements and inline imported CSS
+            const processedContent = processCssImports(rawContent, filePath);
+            cssFiles.set(filePath, processedContent);
+            debug(`Read and processed global CSS file: ${filePath} (${processedContent.length} chars, originally ${rawContent.length})`);
+            if (processedContent !== rawContent) {
+              info(`Processed CSS imports in ${filePath}: ${rawContent.length} -> ${processedContent.length} chars`);
+            }
           } catch (err) {
             warn(`Failed to read CSS file ${filePath}: ${err.message}`);
           }

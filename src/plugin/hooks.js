@@ -259,7 +259,7 @@ export async function enhancedTransformHook(code, id, options = {}) {
 
   try {
     // Process the morph file
-    const result = await processMorphFile(code, id, finalOptions);
+    const result = await processMorphFile(code, id, pluginOptions);
 
     // Handle composition if enabled
     if (pluginOptions.composition?.enabled && result.componentData) {
