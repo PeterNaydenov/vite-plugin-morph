@@ -38,6 +38,7 @@ As a developer, I want to include CSS in my .morph files using <style> tags and 
 3. **Given** a .morph file with CSS, **When** the component is rendered, **Then** the scoped styles are correctly applied to the template elements
 4. **Given** a global CSS file with defined variables, **When** a .morph file uses those variables in its <style> tag, **Then** the variables are resolved and applied correctly
 5. **Given** a .morph file with CSS using framework global variables, **When** compiled, **Then** the framework variables are accessible and properly applied
+6. **Given** a .morph file with helper functions that need to reference scoped CSS classes, **When** the helpers access `dependencies.styles.className`, **Then** they receive the correct scoped class names
 
 ---
 

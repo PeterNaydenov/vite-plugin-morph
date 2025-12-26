@@ -284,7 +284,7 @@ The plugin handles ALL CSS processing and automatically generates CSS module exp
 ```javascript
 import Button, { styles } from './components/Button.morph';
 
-// Access generated class names
+// Access generated class names from outside
 console.log(styles.container); // "container_a1b2c3"
 console.log(styles.btn);       // "btn_d4e5f6"
 
@@ -293,6 +293,28 @@ console.log(styles.btn);       // "btn_d4e5f6"
   composes: container from './components/Button.morph';
 }
 ```
+
+### Accessing CSS Modules in Helper Functions
+
+Within your `.morph` component, helper functions can access scoped CSS class names through the `dependencies` parameter:
+
+```html
+<button class="{{ : getButtonClass }}">{{ text }}</button>
+
+<script>
+function getButtonClass({data, dependencies}) {
+  // Access scoped CSS class names
+  const baseClass = dependencies.styles.btn || 'btn';
+  const variantClass = data.variant === 'primary'
+    ? dependencies.styles['btn-primary'] || 'btn-primary'
+    : '';
+
+  return `${baseClass} ${variantClass}`.trim();
+}
+</script>
+```
+
+The `dependencies.styles` object contains all scoped CSS class names defined in your component's `<style>` tag, mapped by their original names.
 
 **Important**: Since @peter.naydenov/morph doesn't support CSS, all CSS processing (scoping, variables, modules) is handled entirely by this plugin.
 

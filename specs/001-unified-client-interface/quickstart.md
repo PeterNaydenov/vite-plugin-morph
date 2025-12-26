@@ -44,7 +44,7 @@ import { Button, applyStyles, themesControl } from '@my-morph-library';
 applyStyles();
 
 // Use components and themes
-const button = Button('render', { text: 'Click me', variant: 'primary' });
+const button = Button({ text: 'Click me', variant: 'primary' });
 themesControl.set('ocean');
 ```
 
