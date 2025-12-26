@@ -5,10 +5,12 @@
  * @version 0.0.10
  */
 
+import path from 'path';
 import configModule, { resolveThemeDirectories } from './config.js';
 import {
   startCssCollection,
   finalizeCssCollection,
+  getCssCollector,
 } from '../services/css-collection.js';
 import { createThemeDiscovery } from '../services/theme-discovery.js';
 
@@ -34,32 +36,63 @@ export function createMorphPlugin(options = {}) {
   const resolvedOptions = resolveOptions(options);
   let discoveredThemes = null;
   let rootDir = process.cwd();
+  let cssDependencies = new Map(); // Track CSS dependencies
 
   return {
     name: 'vite-plugin-morph',
+    enforce: 'pre', // Run before other plugins
+
+    // Configure Vite to handle .morph files
+    configureServer(server) {
+      server.middlewares.use('/src/**/*.morph', async (req, res, next) => {
+        // This shouldn't be needed, but let's see if it helps
+        console.log('[vite-plugin-morph] Middleware hit for:', req.url);
+        next();
+      });
+    },
+
+
 
     // Handle virtual module resolution
     resolveId(id) {
       if (id === 'virtual:morph-themes') {
         return '\0virtual:morph-themes';
       }
-      if (id === '@peter.naydenov/vite-plugin-morph/client') {
+      if (id === 'virtual:morph-css') {
+        return '\0virtual:morph-css';
+      }
+      if (id === '\0virtual:morph-client') {
         return '\0virtual:morph-client';
+      }
+      // Handle .morph files - let Vite resolve them normally
+      // We'll handle them in load/transform hooks
+    },
+
+    // Load .morph files
+    async load(id) {
+      if (id.endsWith('.morph')) {
+        console.log('[vite-plugin-morph] Loading .morph file:', id);
+        // In dev mode, Vite handles file reading, but we need to return the content
+        // for the transform hook to work
+        const fs = await import('fs');
+        const code = fs.readFileSync(id.replace(/\?.*$/, ''), 'utf8');
+        return code;
       }
     },
 
     // Load virtual module content
     async load(id) {
       if (id === '\0virtual:morph-themes') {
-        // Always discover themes to ensure freshness
-        // Resolve theme directories relative to project root
-        const themeDirs = resolveThemeDirectories(resolvedOptions, rootDir);
+        if (!discoveredThemes) {
+          // Resolve theme directories relative to project root
+          const themeDirs = resolveThemeDirectories(resolvedOptions, rootDir);
 
-        const themeDiscovery = createThemeDiscovery({
-          directories: themeDirs,
-          defaultTheme: resolvedOptions.themes?.defaultTheme || 'default',
-        });
-        const discoveredThemes = await themeDiscovery.discoverThemes();
+          const themeDiscovery = createThemeDiscovery({
+            directories: themeDirs,
+            defaultTheme: resolvedOptions.themes?.defaultTheme || 'default',
+          });
+          discoveredThemes = await themeDiscovery.discoverThemes();
+        }
 
         // Convert Map to object for export
         const themesObject = {};
@@ -67,13 +100,20 @@ export function createMorphPlugin(options = {}) {
           themesObject[name] = theme;
         }
 
-        const serializedThemes = JSON.stringify(themesObject, null, 2);
-        console.log('[Morph Debug] Virtual Module Generation - Serialized Themes:', serializedThemes);
+        const defaultTheme = resolvedOptions.themes?.defaultTheme || 'default';
 
-        return `export const defaultTheme = ${JSON.stringify(
-          resolvedOptions.themes?.defaultTheme || 'default'
-        )};
-export default ${serializedThemes};`;
+        return `export const defaultTheme = "${defaultTheme}";
+export default ${JSON.stringify(themesObject, null, 2)};`;
+      }
+
+      if (id === '\0virtual:morph-css') {
+        // Get collected CSS from the collector
+        const collector = getCssCollector();
+
+        // Get all collected CSS as a single string
+        const allCss = Array.from(collector.components.values()).join('\n\n');
+
+        return `export const collectedCss = ${JSON.stringify(allCss)};`;
       }
 
       if (id === '\0virtual:morph-client') {
@@ -100,8 +140,16 @@ export default ${serializedThemes};`;
         );
       }
 
+      // Pass CSS variables file path to processor
+      const cssVarsFile = resolvedOptions.css?.variablesFile;
+
       try {
-        const result = await processMorphFile(code, id, resolvedOptions);
+        const result = await processMorphFile(code, id, {
+        ...resolvedOptions,
+        cssVarsFile: resolvedOptions.css?.variablesFile,
+        rootDir,
+        test: process.env.NODE_ENV === 'test'
+      });
 
         // Validate result
         if (!result || typeof result.code !== 'string') {
@@ -109,7 +157,6 @@ export default ${serializedThemes};`;
             `processMorphFile returned invalid result: ${JSON.stringify(result)}`
           );
         }
-
         return {
           code: result.code,
           map: result.map,
@@ -140,38 +187,49 @@ export default ${serializedThemes};`;
 
     // Handle hot module replacement
     async handleHotUpdate(context) {
-      if (!context.file.endsWith('.morph')) {
+      if (!context.file.endsWith('.morph') && !context.file.endsWith('.css')) {
         return null;
       }
 
       try {
-        // Read the updated file content
-        const updatedContent = await context.read();
+        // Handle morph files
+        if (context.file.endsWith('.morph')) {
+          // Read the updated file content
+          const updatedContent = await context.read();
 
-        // Check if the file contains CSS
-        const hasCss = await checkFileHasCss(updatedContent);
+          // Check if the file contains CSS
+          const hasCss = await checkFileHasCss(updatedContent);
 
-        if (hasCss) {
-          // For CSS changes, we need to invalidate the CSS bundle
-          // and send a CSS update to the client
-          const cssUpdate = await generateCssUpdate(
-            context.file,
-            updatedContent,
-            resolvedOptions
-          );
+          if (hasCss) {
+            // For CSS changes in dev mode, trigger module reload
+            // This will regenerate the client module with updated CSS
+            return context.modules;
+          }
 
-          if (cssUpdate) {
-            return {
-              type: 'css-update',
-              path: cssUpdate.bundlePath,
-              acceptedPath: cssUpdate.bundlePath,
-              timestamp: context.timestamp,
-            };
+          // For non-CSS changes, return the module to be reloaded
+          return context.modules;
+        }
+
+        // Handle global CSS files
+        if (context.file.endsWith('.css') && resolvedOptions.globalCSS) {
+          // Check if this CSS file is in the global CSS directory
+          const globalCssDir = path.join(rootDir, resolvedOptions.globalCSS.directory);
+          const isInGlobalDir = context.file.startsWith(globalCssDir);
+
+          if (isInGlobalDir) {
+            // Read the updated CSS content
+            const cssContent = await context.read();
+
+            // Update the global CSS in the collector
+            const collector = getCssCollector();
+            collector.updateGlobalCss(context.file, cssContent);
+
+            // Trigger HMR by returning modules that depend on CSS
+            return context.modules;
           }
         }
 
-        // For non-CSS changes, return the module to be reloaded
-        return [context.modules[0]]; // Reload the main module
+        return null;
       } catch (error) {
         console.warn(`HMR update failed for ${context.file}:`, error.message);
         return null;
@@ -187,18 +245,29 @@ export default ${serializedThemes};`;
     },
 
     // Build lifecycle hooks for CSS collection
-    buildStart() {
+    async buildStart() {
       // Start collecting component CSS with chunking options
       const cssOptions = resolvedOptions.css || {};
       const chunkingOptions = cssOptions.chunking || {};
       const outputDir = cssOptions.outputDir || 'dist/components';
 
-      startCssCollection({
+      const collector = startCssCollection({
         outputDir,
         chunkingEnabled: chunkingOptions.enabled,
         chunkStrategy: chunkingOptions.strategy,
         maxChunkSize: chunkingOptions.maxChunkSize,
       });
+
+      // Read and collect global CSS files if configured
+      if (resolvedOptions.globalCSS) {
+        const { readCSSFiles } = await import('../services/css-reader.js');
+        const globalCssFiles = await readCSSFiles({
+          directory: path.join(rootDir, resolvedOptions.globalCSS.directory),
+          include: resolvedOptions.globalCSS.include,
+          exclude: resolvedOptions.globalCSS.exclude,
+        });
+        collector.addGlobalCss(globalCssFiles);
+      }
     },
 
     async buildEnd() {
@@ -318,14 +387,42 @@ async function generateClientModule(options, rootDir) {
   const isDev = process.env.NODE_ENV !== 'production';
 
   if (isDev) {
-    // Dev mode: applyStyles is a no-op, themesControl uses runtime discovery
+    // Dev mode: Get collected CSS and embed it directly
+    const collector = getCssCollector();
+    const morphCss = Array.from(collector.components.values()).join('\n\n');
+    const globalCss = collector.getGlobalCss() || '';
+    const collectedCss = globalCss ? `${globalCss}\n\n${morphCss}` : morphCss;
+
+    // Dev mode: applyStyles injects collected CSS, themesControl uses runtime discovery
     return `
 import { getThemeRuntime } from '@peter.naydenov/vite-plugin-morph/browser';
 
-// Dev mode: Vite handles CSS injection via HMR
+// Collected CSS from processed morph files and global CSS (updatable via HMR)
+let collectedCss = ${JSON.stringify(collectedCss)};
+
+// Dev mode: Inject collected CSS directly into DOM
 export function applyStyles() {
-  // No-op in dev mode - Vite handles CSS automatically
-  console.log('[Morph Client] Dev mode: styles managed by Vite HMR');
+  if (typeof document !== 'undefined' && collectedCss) {
+    // Check if already injected, if so update it
+    let existing = document.getElementById('morph-collected-css');
+    if (!existing) {
+      const styleElement = document.createElement('style');
+      styleElement.id = 'morph-collected-css';
+      styleElement.textContent = collectedCss;
+      document.head.appendChild(styleElement);
+    } else {
+      // Update existing style tag with new CSS
+      existing.textContent = collectedCss;
+    }
+  }
+}
+
+// HMR support: Update CSS when morph files change
+if (import.meta.hot) {
+  import.meta.hot.on('morph-css-update', (newCss) => {
+    collectedCss = newCss;
+    applyStyles();
+  });
 }
 
 // Theme control with auto-discovery
@@ -334,19 +431,19 @@ const runtime = getThemeRuntime({
 });
 
 export const themesControl = {
-  list: () => runtime.list(),
+  list: () => runtime.getAvailableThemes(),
   getCurrent: () => runtime.getCurrentTheme(),
-  getDefault: () => runtime.getDefault(),
-  set: (themeName) => runtime.set(themeName)
+  getDefault: () => runtime.getCurrentThemeData()?.name || 'default',
+  set: (themeName) => runtime.switchTheme(themeName)
 };
 `;
   } else {
     // Build mode: Will be replaced during bundle generation with actual assets
     // This is a placeholder that will be updated in generateBundle hook
     return `
-// Build mode placeholder - will be replaced with actual asset URLs
-export function applyStyles() {
-  console.warn('[Morph Client] Build mode: applyStyles not yet configured');
+// Build mode: applyStyles will be replaced with actual asset URLs
+export function applyStyles(assets = {}) {
+  console.warn('[Morph Client] Build mode: applyStyles placeholder - will be replaced with actual assets');
 }
 
 export const themesControl = {

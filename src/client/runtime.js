@@ -111,12 +111,20 @@ export function createThemeController(config) {
 
 /**
  * Apply all CSS layers (general, components, default theme)
- * @param {Object} assets - CSS asset URLs
+ * @param {Object} [assets] - CSS asset URLs (build mode) or undefined (dev mode)
  * @param {string} [assets.main] - Main/general CSS URL
  * @param {string[]} [assets.components] - Component CSS URLs (chunks)
  * @param {string} [assets.defaultTheme] - Default theme CSS URL
  */
-export function applyStyles(assets = {}) {
+export function applyStyles(assets) {
+  // If no assets provided, we're in dev mode - this function should be overridden
+  // by the generated client module which embeds the CSS directly
+  if (!assets) {
+    console.warn('[Morph Client] applyStyles() called in dev mode without embedded CSS. Make sure the client module is properly generated.');
+    return;
+  }
+
+  // Build mode: Load CSS from URLs
   const { main, components = [], defaultTheme } = assets;
 
   // 1. Apply general/main styles
@@ -134,3 +142,30 @@ export function applyStyles(assets = {}) {
     createStyleLink(defaultTheme, 'morph-theme');
   }
 }
+
+/**
+ * Pre-configured theme controller for basic theme switching
+ * Note: This is a basic implementation. Libraries should create their own
+ * theme controller with proper theme URLs using createThemeController().
+ */
+export const themesControl = {
+  list() {
+    console.warn('[Morph Client] themesControl.list() - implement in your library');
+    return [];
+  },
+
+  getCurrent() {
+    console.warn('[Morph Client] themesControl.getCurrent() - implement in your library');
+    return 'default';
+  },
+
+  getDefault() {
+    console.warn('[Morph Client] themesControl.getDefault() - implement in your library');
+    return 'default';
+  },
+
+  set(themeName) {
+    console.warn(`[Morph Client] themesControl.set('${themeName}') - implement in your library`);
+    return false;
+  }
+};
