@@ -39,6 +39,10 @@ export async function processMorphFile(content, filePath, options) {
   const startTime = Date.now();
 
   try {
+    // Extract template placeholders from raw content BEFORE HTML parsing
+    const { extractPlaceholdersFromHTML } = await import('./template.js');
+    const rawPlaceholders = extractPlaceholdersFromHTML(content);
+
     // Check cache first (include options in cache key for production mode differences)
     const cacheKey = JSON.stringify({ content, options, version: 3 });
     const cached = getCachedResult(cacheKey);
@@ -66,7 +70,7 @@ export async function processMorphFile(content, filePath, options) {
     const script = scriptRaw ? processScriptContent(scriptRaw) : null;
 
     // Extract template content (everything that's not script or style)
-    const template = extractTemplateContent(document);
+    const template = extractTemplateContent(document, content, rawPlaceholders);
 
     // Extract handshake data from script
     const handshakeRaw = extractHandshakeContent(document, 'application/json');
@@ -147,6 +151,13 @@ export async function processMorphFile(content, filePath, options) {
       helpers: Object.keys(helpers).length > 0 ? helpers : {},
       handshake: handshake?.data || {},
     };
+
+    // Debug: log template content
+    console.log('Template object:', {
+      template: templateObject.template.substring(0, 100) + '...',
+      helpers: Object.keys(templateObject.helpers),
+      handshake: templateObject.handshake
+    });
 
     // Store helpers separately for code generation
     const helperFunctions = helpers;
@@ -337,6 +348,11 @@ function generateESModule(
     parts.push(`const styles = ${JSON.stringify(stylesMap)};`);
     parts.push('');
 
+    // Prepare build dependencies
+    const buildDependencies = Object.keys(stylesMap).length > 0 ? { styles: stylesMap } : {};
+
+
+
     // Add helpers if present
     if (helperFunctions && Object.keys(helperFunctions).length > 0) {
       parts.push('// Helpers');
@@ -409,7 +425,9 @@ function generateESModule(
     // Build render function
     parts.push('');
     parts.push('// Build render function');
-    parts.push('const renderFunction = morph.build(template);');
+    const dependenciesJson = JSON.stringify(buildDependencies);
+    parts.push(`const buildDependencies = ${dependenciesJson};`);
+    parts.push('const renderFunction = morph.build(template, false, buildDependencies);');
     parts.push('');
 
     // Export render function as default
