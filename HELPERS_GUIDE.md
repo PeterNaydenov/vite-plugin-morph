@@ -12,12 +12,15 @@ There are two types of helpers:
 ## 📖 Syntax
 
 ```html
-{{ data : ActionName }}
+{{ data : ActionName : placeHolderName }}
 ```
 
 - **`data`** - The data to apply the helper
-- **`:`** - The "apply helper" operator
+- **`:`** - Separation operator
 - **`ActionName`** - Action - the name of the helper to use
+- **`placeHolderName`** - Name of the placeholder.(Optional)
+
+
 
 ## 🚀 Quick Examples
 
@@ -25,15 +28,19 @@ There are two types of helpers:
 
 ```javascript
 // Script section - define helper function
-function formatName ( name ) {
-      return name.toUpperCase();
+function formatName ( {data} ) {
+      return data.toUpperCase();
   }
 ```
 
 ```html
 <!-- Template section - use helper function -->
-<h1>{{ formatName(name) }}</h1>
+<h1>{{ name :formatName }}</h1>
 ```
+Use as data source.name, execute formatName helper and result will substitute the placeholder. 
+
+
+
 
 ### Helper Templates
 
@@ -45,18 +52,23 @@ const listItem = `<li>{{name}}</li>`;
 ```html
 <!-- Template section - use helper template -->
 <ul>
-  {{ projects : listItem }}
+  {{ projects : [], listItem }}
 </ul>
 ```
+Get source.projects array, execute listItem helper template and results should be mixed as a single string that will substitute the placeholder.
+
 
 
 
 ## 🔧 Why Use Helpers?
 
 1. **Separation of Concerns** - Keep HTML structure separate from data formatting
-2. **Reusability** - Use the same helper with different data
+2. **Reusability** - Use the same helper with different data and placeholders
 3. **Maintainability** - Update helper in one place, affects all usages
 4. **Readability** - Complex iteration logic moved to helper templates
+
+
+
 
 ## 📚 Data Structure
 
@@ -74,6 +86,9 @@ Helpers work with any array data from your JSON handshake:
   ]
 }
 ```
+
+
+
 
 
 
