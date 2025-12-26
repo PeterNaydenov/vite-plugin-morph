@@ -78,24 +78,23 @@ export function createStyleLink(href, id, rel = 'stylesheet') {
     return null;
   }
 
-  // Check if link already exists
-  const existing = document.getElementById(id);
-  if (existing) {
-    // Update href if different
-    if (existing.href !== href) {
-      existing.href = href;
-    }
-    return existing;
-  }
+   // Check if link already exists
+   const existing = document.getElementById(id);
+   if (existing) {
+     // Update href with cache busting
+     const newHref = `${href}?v=${Date.now()}`;
+     existing.href = newHref;
+     return existing;
+   }
 
-  // Create new link element
-  const link = document.createElement('link');
-  link.id = id;
-  link.rel = rel;
-  link.href = href;
-  
-  // Insert into head
-  document.head.appendChild(link);
+   // Create new link element
+   const link = document.createElement('link');
+   link.id = id;
+   link.rel = rel;
+   link.href = `${href}?v=${Date.now()}`;
+   
+   // Insert into head
+   document.head.appendChild(link);
   
   return link;
 }
@@ -193,30 +192,37 @@ export function applyStyles() {
  * Ensures proper ordering: general → components → themes
  */
 function applyStylesDev() {
-  console.log('[Morph Client] applyStylesDev called');
-  const config = getConfig();
-  console.log('[Morph Client] Config:', { cssLength: config.css.length, themes: config.themes, defaultTheme: config.defaultTheme });
+   console.log('[Morph Client] applyStylesDev called');
+   const config = getConfig();
+   console.log('[Morph Client] Config:', { cssLength: config.css.length, themes: config.themes, defaultTheme: config.defaultTheme });
 
-  // Apply general/component styles as embedded style element
-  if (typeof document !== 'undefined' && config.css) {
-    console.log('[Morph Client] Injecting CSS, length:', config.css.length);
-    let existing = document.getElementById('morph-general-css');
-    if (!existing) {
-      const styleElement = document.createElement('style');
-      styleElement.id = 'morph-general-css';
-      styleElement.textContent = config.css;
-      document.head.appendChild(styleElement);
-      console.log('[Morph Client] CSS element created and added to head');
-    } else {
-      existing.textContent = config.css;
-      console.log('[Morph Client] CSS element updated');
-    }
-  } else {
-    console.log('[Morph Client] No CSS to inject or document not available');
-  }
+   // Apply general/component styles as embedded style element
+   if (typeof document !== 'undefined' && config.css) {
+     console.log('[Morph Client] Injecting CSS, length:', config.css.length);
+     let existing = document.getElementById('morph-general-css');
+     if (!existing) {
+       const styleElement = document.createElement('style');
+       styleElement.id = 'morph-general-css';
+       styleElement.textContent = config.css;
+       document.head.appendChild(styleElement);
+       console.log('[Morph Client] CSS element created and added to head');
+     } else {
+       // Remove and re-add to force CSS re-application
+       document.head.removeChild(existing);
+       const newStyle = document.createElement('style');
+       newStyle.id = 'morph-general-css';
+       newStyle.textContent = config.css;
+       document.head.appendChild(newStyle);
+       console.log('[Morph Client] CSS element replaced');
+     }
+   } else {
+     console.log('[Morph Client] No CSS to inject or document not available');
+   }
 
-  // Apply default theme via link tag
-  applyDefaultTheme(config);
+   // Apply default theme via link tag
+   applyDefaultTheme(config);
+
+
 }
 
 /**
@@ -263,13 +269,15 @@ function applyStylesBuild() {
   applyDefaultTheme(config);
 }
 
+
+
 /**
  * Apply default theme using link tag
  * @param {Object} config - Configuration object
  */
 function applyDefaultTheme(config) {
   const defaultTheme = config.defaultTheme;
-  if (defaultTheme && config.themes.includes(defaultTheme)) {
+  if (defaultTheme && config.themes.includes(defaultTheme) && defaultTheme !== 'light') {
     const themeUrl = config.themeUrls[defaultTheme];
     if (themeUrl) {
       console.log('[Morph Client] Applying theme:', defaultTheme, 'URL:', themeUrl);
@@ -278,7 +286,7 @@ function applyDefaultTheme(config) {
       console.warn('[Morph Client] No URL found for default theme:', defaultTheme);
     }
   } else {
-    console.log('[Morph Client] No default theme to apply');
+    console.log('[Morph Client] No default theme to apply or using light (inline)');
   }
 }
 
@@ -296,21 +304,21 @@ export const themesControl = {
     return config.themes || [];
   },
 
-  /**
-   * Get current active theme by inspecting DOM
-   * @returns {string} Current theme name
-   */
-  getCurrent() {
-    if (typeof document === 'undefined') return getConfig().defaultTheme || 'default';
+   /**
+    * Get current active theme by inspecting DOM
+    * @returns {string} Current theme name
+    */
+   getCurrent() {
+     if (typeof document === 'undefined') return getConfig().defaultTheme || 'default';
 
-    const themeLink = document.getElementById('morph-theme');
-    if (!themeLink) return getConfig().defaultTheme || 'default';
+     const themeLink = document.getElementById('morph-theme');
+     if (!themeLink) return 'light'; // No link means light theme
 
-    // Extract theme name from URL
-    const href = themeLink.href;
-    const match = href.match(/\/themes\/([^/?]+)\.css/);
-    return match ? match[1] : getConfig().defaultTheme || 'default';
-  },
+     // Extract theme name from URL
+     const href = themeLink.href;
+     const match = href.match(/\/themes\/([^/?]+)\.css/);
+     return match ? match[1] : getConfig().defaultTheme || 'default';
+   },
 
   /**
    * Get default theme name
@@ -321,39 +329,45 @@ export const themesControl = {
     return config.defaultTheme || 'default';
   },
 
-  /**
-   * Switch to specified theme via DOM link manipulation
-   * @param {string} themeName - Name of theme to switch to
-   * @returns {boolean} Success status
-   */
-  set(themeName) {
-    if (typeof document === 'undefined') {
-      console.warn('[Morph Client] Cannot switch themes in non-browser environment');
-      return false;
-    }
+   /**
+    * Switch to specified theme via DOM link manipulation
+    * @param {string} themeName - Name of theme to switch to
+    * @returns {boolean} Success status
+    */
+   set(themeName) {
+     if (typeof document === 'undefined') {
+       console.warn('[Morph Client] Cannot switch themes in non-browser environment');
+       return false;
+     }
 
-    const config = getConfig();
+     const config = getConfig();
 
-    // Check if theme is available
-    if (!config.themes.includes(themeName)) {
-      console.warn(`[Morph Client] Theme '${themeName}' not found. Available: ${config.themes.join(', ')}`);
-      return false;
-    }
+     // Check if theme is available
+     if (!config.themes.includes(themeName)) {
+       console.warn(`[Morph Client] Theme '${themeName}' not found. Available: ${config.themes.join(', ')}`);
+       return false;
+     }
 
-    try {
-      const themeUrl = config.themeUrls[themeName];
-      if (!themeUrl) {
-        console.warn(`[Morph Client] No URL found for theme '${themeName}'`);
-        return false;
-      }
+     try {
+       if (themeName === 'light') {
+         // For light theme, remove the theme link since inline styles handle it
+         removeStyleLink('morph-theme');
+         return true;
+       }
 
-      // Create or update theme link
-      createStyleLink(themeUrl, 'morph-theme');
+       const themeUrl = config.themeUrls[themeName];
+       if (!themeUrl) {
+         console.warn(`[Morph Client] No URL found for theme '${themeName}'`);
+         return false;
+       }
 
-      return true;
-    } catch (error) {
-      console.warn(`[Morph Client] Failed to switch to theme '${themeName}':`, error.message);
-      return false;
-    }
-  }
+       // Create or update theme link
+       createStyleLink(themeUrl, 'morph-theme');
+
+       return true;
+     } catch (error) {
+       console.warn(`[Morph Client] Failed to switch to theme '${themeName}':`, error.message);
+       return false;
+     }
+   }
 };

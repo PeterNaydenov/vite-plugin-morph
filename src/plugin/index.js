@@ -6,6 +6,8 @@
  */
 
 import path, { join } from 'path';
+import { readFileSync } from 'fs';
+import { createHash } from 'crypto';
 import configModule, { resolveThemeDirectories } from './config.js';
 import {
   startCssCollection,
@@ -233,12 +235,31 @@ export default ${JSON.stringify(themesObject, null, 2)};`;
           const isInGlobalDir = context.file.startsWith(globalCssDir);
 
           if (isInGlobalDir) {
+            console.log('[Vite Plugin Morph] Global CSS changed:', context.file);
             // Read the updated CSS content
             const cssContent = await context.read();
 
             // Update the global CSS in the collector
             const collector = getCssCollector();
             collector.updateGlobalCss(context.file, cssContent);
+
+            // Invalidate importers of the virtual module (e.g., main.js) to trigger reload
+            const virtualModule = context.server.moduleGraph.getModuleById('\0virtual:morph-client');
+            if (virtualModule) {
+              for (const importer of virtualModule.importers) {
+                context.server.moduleGraph.invalidateModule(importer);
+              }
+            }
+
+            // Send HMR update for the virtual module
+            context.server.hot.send({
+              type: 'update',
+              updates: [{
+                type: 'js-update',
+                id: '\0virtual:morph-client',
+                timestamp: Date.now()
+              }]
+            });
 
             // Trigger HMR by returning modules that depend on CSS
             return context.modules;
@@ -419,18 +440,21 @@ async function generateClientModule(options, rootDir) {
     const defaultTheme = options.themes?.defaultTheme || 'default';
 
     // Generate theme URL mapping for dev mode
-    const themeUrls = {};
-    themeNames.forEach(name => {
-      themeUrls[name] = `/themes/${name}.css`;
-    });
+     const themeUrls = {};
+     themeNames.forEach(name => {
+       themeUrls[name] = `/themes/${name}.css`;
+     });
 
-    console.log('[Vite Plugin Morph] Generated CSS for client:', {
-      cssLength: collectedCss.length,
-      containsVariables: collectedCss.includes('--color-main-background'),
-      containsRoot: collectedCss.includes(':root')
-    });
+     const cssHash = createHash('md5').update(collectedCss).digest('hex');
+     console.log('[Vite Plugin Morph] Generated CSS for client:', {
+       cssLength: collectedCss.length,
+       cssHash,
+       containsVariables: collectedCss.includes('--color-main-background'),
+       containsRoot: collectedCss.includes(':root')
+     });
 
-    return `
+     return `
+// CSS hash: ${cssHash}
 import { setMorphConfig } from '@peter.naydenov/vite-plugin-morph/client';
 
 // Development mode configuration for unified runtime
