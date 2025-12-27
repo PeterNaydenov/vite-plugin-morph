@@ -172,8 +172,10 @@ describe('HTML Parser', () => {
                     <style>.container { color: red; }</style>
                   `;
       const document = parseMorphFile(content);
+      const { extractPlaceholdersFromHTML } = require('../../src/core/template.js');
+      const rawPlaceholders = extractPlaceholdersFromHTML(content);
 
-      const templateContent = extractTemplateContent(document);
+      const templateContent = extractTemplateContent(document, content, rawPlaceholders);
       expect(templateContent.html).not.toContain('.test');
       // Should contain the template content without HTML wrapper
       expect(templateContent.html).toContain('<div class="container">');
@@ -190,8 +192,10 @@ describe('HTML Parser', () => {
                     <!-- Another comment -->
                   `;
       const document = parseMorphFile(content);
+      const { extractPlaceholdersFromHTML } = require('../../src/core/template.js');
+      const rawPlaceholders = extractPlaceholdersFromHTML(content);
 
-      const templateContent = extractTemplateContent(document);
+      const templateContent = extractTemplateContent(document, content, rawPlaceholders);
       expect(templateContent.html).toContain('<!-- This is a comment -->');
       expect(templateContent.html).toContain('<div>Content</div>');
       expect(templateContent.html).toContain('<!-- Another comment -->');
@@ -204,8 +208,10 @@ describe('HTML Parser', () => {
                     More text
                   `;
       const document = parseMorphFile(content);
+      const { extractPlaceholdersFromHTML } = require('../../src/core/template.js');
+      const rawPlaceholders = extractPlaceholdersFromHTML(content);
 
-      const templateContent = extractTemplateContent(document);
+      const templateContent = extractTemplateContent(document, content, rawPlaceholders);
       expect(templateContent.html).toContain('Plain text content');
       expect(templateContent.html).toContain('<div>HTML content</div>');
       expect(templateContent.html).toContain('More text');
@@ -289,9 +295,11 @@ describe('HTML Parser', () => {
               `;
 
       const document = parseMorphFile(morphContent);
+      const { extractPlaceholdersFromHTML } = require('../../src/core/template.js');
+      const rawPlaceholders = extractPlaceholdersFromHTML(morphContent);
 
       // Test template extraction
-      const template = extractTemplateContent(document);
+      const template = extractTemplateContent(document, morphContent, rawPlaceholders);
       expect(template.html).toContain('<!-- Basic morph file for testing -->');
       expect(template.html).toContain('<div class="container">');
       expect(template.html).toContain('{{title}}');
