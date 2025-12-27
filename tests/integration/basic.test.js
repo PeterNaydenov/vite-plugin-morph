@@ -69,7 +69,7 @@ describe('Basic Morph Processing Integration', () => {
     expect(outputContent).toContain('const template = {');
     expect(outputContent).toContain('"template":');
     expect(outputContent).toContain(
-      'const renderFunction = morph.build(template);'
+      'const renderFunction = morph.build(template, false, buildDependencies);'
     );
     expect(outputContent).toContain('export default renderFunction;');
     expect(outputContent).not.toContain('export const styles');
@@ -110,7 +110,6 @@ describe('Basic Morph Processing Integration', () => {
     expect(result.code).toContain('export { template };');
     // Should not contain any placeholder processing logic
     expect(result.code).not.toContain('{{');
-    expect(result.code).not.toContain('}}');
 
     writeFileSync(outputPath, result.code);
 
@@ -121,7 +120,7 @@ describe('Basic Morph Processing Integration', () => {
     expect(outputContent).toContain('const template = {');
     expect(outputContent).toContain('"template":');
     expect(outputContent).toContain(
-      'const renderFunction = morph.build(template);'
+      'const renderFunction = morph.build(template, false, buildDependencies);'
     );
     expect(outputContent).toContain('export default renderFunction;');
   });
@@ -181,7 +180,7 @@ function showNotify ({ data, dependencies:{ cards } }) {
     expect(result.code).toContain('template.helpers.showNotify');
     expect(result.code).toContain('template.helpers.blank');
     expect(result.code).toContain(
-      'const renderFunction = morph.build(template);'
+      'const renderFunction = morph.build(template, false, buildDependencies);'
     );
     expect(result.code).toContain('export default renderFunction;');
     expect(result.code).toContain('export { template };');

@@ -73,18 +73,21 @@ This extension provides a **professional editing experience** with syntax highli
 
 ```html
 <!-- src/components/Button.morph -->
-<button class="btn {{ variant : getVariantClass }}" data-click="{{action}}">
+<button class="{{ : getButtonClasses }}" data-click="{{action}}">
   {{text}}
 </button>
 
 <script>
-  function getVariantClass({ data }) {
+  function getButtonClasses({data, dependencies}) {
+    // Access scoped CSS class names
+    const btnClass = dependencies.styles.btn || 'btn';
     const variants = {
-      primary: 'btn-primary',
-      secondary: 'btn-secondary',
-      danger: 'btn-danger',
+      primary: dependencies.styles['btn-primary'] || 'btn-primary',
+      secondary: dependencies.styles['btn-secondary'] || 'btn-secondary',
+      danger: dependencies.styles['btn-danger'] || 'btn-danger',
     };
-    return variants[data] || variants.primary;
+    const variantClass = variants[data.variant] || variants.primary;
+    return `${btnClass} ${variantClass}`;
   }
 </script>
 
@@ -143,7 +146,15 @@ Component styles are automatically scoped with unique class names to prevent con
 
 ```html
 <!-- Button.morph -->
-<button class="btn">Click me</button>
+<button class="{{ : getButtonClass }}">Click me</button>
+
+<script>
+function getButtonClass({data, dependencies}) {
+  // Access scoped CSS class names
+  const btnClass = dependencies.styles.btn || 'btn';
+  return btnClass;
+}
+</script>
 
 <style>
   .btn {

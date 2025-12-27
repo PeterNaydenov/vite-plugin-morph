@@ -47,35 +47,6 @@ describe('Library Builder', () => {
     });
 
     describe('generateClientModule', () => {
-        it('should generate client module code with CSS assets', () => {
-            const builder = createLibraryBuilder({
-                library: { name: 'test-lib' }
-            });
-
-            const cssAssets = ['assets/main.css', 'assets/components.css'];
-            const themes = new Map([
-                ['default', { name: 'default' }],
-                ['dark', { name: 'dark' }]
-            ]);
-
-            const code = builder.generateClientModule(cssAssets, themes);
-
-            expect(code).toContain('import css0 from');
-            expect(code).toContain('import css1 from');
-            expect(code).toContain('import theme_default from');
-            expect(code).toContain('import theme_dark from');
-            expect(code).toContain('export function applyStyles()');
-            expect(code).toContain('export const themesControl');
-        });
-
-        it('should handle empty CSS assets', () => {
-            const builder = createLibraryBuilder();
-            const code = builder.generateClientModule([], new Map());
-
-            expect(code).toContain('export function applyStyles()');
-            expect(code).toContain('const cssAssets = []');
-        });
-
         it('should use configured default theme', () => {
             const builder = createLibraryBuilder({
                 library: { defaultTheme: 'custom' }

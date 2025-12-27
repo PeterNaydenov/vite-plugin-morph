@@ -1,0 +1,157 @@
+# API Contracts: Unified Client Interface
+
+**Date**: 2025-12-25
+**Feature**: specs/001-unified-client-interface/spec.md
+**Phase**: 1 - Design & Contracts
+
+## Client Runtime API
+
+### applyStyles()
+
+Applies all CSS layers (general, components, themes) in the correct order.
+
+**Endpoint**: `applyStyles()`
+**Method**: Function call
+**Authentication**: None required
+**Rate Limiting**: None (idempotent)
+
+**Request**:
+```typescript
+applyStyles(): void
+```
+
+**Response**: void (DOM manipulation side effects)
+
+**Behavior by Environment**:
+- **Development**: Embeds CSS in `<style>` tags for hot reloading
+- **Build**: Creates `<link>` tags to CSS URLs
+- **Library**: Creates `<link>` tags to bundled CSS assets
+
+**Error Handling**:
+- Logs CSS loading failures but continues execution
+- Multiple calls add new elements (not idempotent per clarification)
+
+---
+
+### themesControl.list()
+
+Returns list of available themes.
+
+**Endpoint**: `themesControl.list()`
+**Method**: Function call
+**Authentication**: None required
+**Rate Limiting**: None
+
+**Request**:
+```typescript
+themesControl.list(): string[]
+```
+
+**Response**:
+```typescript
+string[] // Array of theme names (e.g., ['default', 'dark', 'ocean'])
+```
+
+**Error Handling**: Returns empty array if configuration unavailable
+
+---
+
+### themesControl.getCurrent()
+
+Returns the currently active theme name.
+
+**Endpoint**: `themesControl.getCurrent()`
+**Method**: Function call
+**Authentication**: None required
+**Rate Limiting**: None
+
+**Request**:
+```typescript
+themesControl.getCurrent(): string
+```
+
+**Response**:
+```typescript
+string // Current theme name (e.g., 'dark')
+```
+
+**Implementation**: Inspects DOM `<link id="morph-theme">` href to determine current theme
+
+---
+
+### themesControl.getDefault()
+
+Returns the default theme name.
+
+**Endpoint**: `themesControl.getDefault()`
+**Method**: Function call
+**Authentication**: None required
+**Rate Limiting**: None
+
+**Request**:
+```typescript
+themesControl.getDefault(): string
+```
+
+**Response**:
+```typescript
+string // Default theme name (e.g., 'default')
+```
+
+---
+
+### themesControl.set(themeName)
+
+Switches to the specified theme.
+
+**Endpoint**: `themesControl.set(themeName)`
+**Method**: Function call
+**Authentication**: None required
+**Rate Limiting**: None
+
+**Request**:
+```typescript
+themesControl.set(themeName: string): boolean
+```
+
+**Parameters**:
+- `themeName`: string - Name of theme to switch to
+
+**Response**:
+```typescript
+boolean // true if successful, false if theme not found
+```
+
+**Behavior**:
+- Updates `<link id="morph-theme">` href to new theme CSS URL
+- Logs warning for invalid theme names (per clarification)
+- Keeps current theme unchanged on invalid input
+
+## Import Contract
+
+**Import Path**: `@peter.naydenov/vite-plugin-morph/client`
+
+**Exported Interface**:
+```typescript
+export function applyStyles(): void;
+export const themesControl: {
+  list(): string[];
+  getCurrent(): string;
+  getDefault(): string;
+  set(themeName: string): boolean;
+};
+```
+
+**Compatibility**: Must work identically in all environments (development, build, library consumption).
+
+## Environment Detection Contract
+
+**Internal Function**: `detectEnvironment(): 'development' | 'build' | 'library'`
+
+**Detection Logic**:
+1. `import.meta.hot !== undefined` → `'development'`
+2. `window.__MORPH_LIBRARY_MODE__` → `'library'`
+3. Default → `'build'`
+
+**Contract**: Environment detection must be automatic and reliable across all bundlers and deployment scenarios.</content>
+<parameter name="filePath">specs/001-unified-client-interface/contracts/client-api.yaml

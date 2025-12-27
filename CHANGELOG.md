@@ -7,6 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.3.0] - 2025-12-27
+
+### 🚀 Major Feature: Library Mode
+Build distributable component libraries with runtime CSS control.
+
+#### Library Builder
+- `buildLibrary()` function for creating npm packages
+- Automatic package.json generation
+- Dependency graph analysis
+- CSS asset organization
+
+#### Client Runtime Module
+- `@peter.naydenov/vite-plugin-morph/client` virtual module
+- `applyStyles()` - Injects CSS link tags
+- `themesControl` - Runtime theme switching API
+
+#### Documentation
+- Created LIBRARY_MODE.md guide
+- Updated README with library mode section
+- Updated quickstart guide with CSS module access in helpers
+- Added comprehensive documentation for `dependencies.styles` API
+
+### 🎨 **Enhanced CSS Module Access in Helpers**
+
+- **Improved API Structure**: CSS module class names are now organized under `dependencies.styles` for better API organization
+- **Helper Function Access**: Helper functions can access scoped CSS classes via `dependencies.styles.className`
+- **Cleaner Dependencies**: Wrapped styles in dedicated object instead of flattening into dependencies root
+- **Documentation Updates**: Added examples showing helper functions accessing CSS modules
+
+### 🔧 **Technical Improvements**
+
+- **Dependencies API**: Restructured build dependencies to use `{ styles: stylesMap }` instead of direct stylesMap for better organization
+- **Morph Integration**: Streamlined morph template processing with improved dependency passing to helpers
+- **Documentation Sync**: Updated all documentation to reflect current API patterns and examples
+
+
+
+
+
+### 📈 **Quality Improvements**
+
+- **Test Coverage**: All tests passing with improved error handling
+- **Documentation Accuracy**: Synchronized all docs with current implementation
+- **API Consistency**: Unified component calling patterns across the system
+
+
+
+
+### 📚 **Documentation Updates**
+
+- **Quickstart Guide**: Added section on accessing CSS modules in helper functions
+- **README Examples**: Updated component examples to show proper CSS module access
+- **Spec Updates**: Added acceptance criteria for helper access to scoped CSS classes
+- **API Consistency**: Synchronized all documentation with current implementation
+
+
+
+
+
+
+
+
+
+
 ## [0.2.0] - 2025-12-18
 - [x] Enable helper functions in .morph files to access CSS module class mappings via a styles argument. This allows helpers to output correct scoped class names;
 

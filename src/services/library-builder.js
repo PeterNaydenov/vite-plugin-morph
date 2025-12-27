@@ -221,7 +221,7 @@ export class LibraryBuilder {
     }
 
     /**
-     * Generate client module for library
+     * Generate unified client module for library
      * @param {Array} cssAssets - CSS asset paths
      * @param {Map} themes - Available themes
      * @returns {string} Client module code
@@ -238,30 +238,43 @@ export class LibraryBuilder {
             `import theme_${name} from './themes/${name}.css?url';`
         ).join('\n');
 
+        // Generate theme URL mapping
+        const themeUrls = {};
+        themeNames.forEach((name, index) => {
+            themeUrls[name] = `theme_${name}`;
+        });
+
+        // Determine which CSS asset is general vs component
+        const generalCssUrl = cssAssets.find(asset => asset.includes('main')) ? 
+            cssAssets.find(asset => asset.includes('main')).replace('./', '') : '';
+        const componentCssUrl = cssAssets.find(asset => !asset.includes('main')) ? 
+            cssAssets.find(asset => !asset.includes('main')).replace('./', '') : '';
+
         return `
 ${cssImports}
 ${themeImports}
-import { applyStyles as applyStylesRuntime, createThemeController } from './runtime.js';
+import { setMorphConfig, applyStyles, themesControl } from './runtime.js';
 
-const cssAssets = [${cssAssets.map((_, i) => `css${i}`).join(', ')}];
-
-const themeUrls = {
-${themeNames.map(name => `  '${name}': theme_${name}`).join(',\n')}
-};
-
-export function applyStyles() {
-  applyStylesRuntime({
-    main: cssAssets[0],
-    components: cssAssets.slice(1),
-    defaultTheme: themeUrls['${defaultTheme}']
-  });
-}
-
-export const themesControl = createThemeController({
+// Library mode configuration for unified runtime
+const config = {
+  environment: 'library',
+  css: '', // CSS is loaded via URLs in library mode
   themes: ${JSON.stringify(themeNames)},
   defaultTheme: '${defaultTheme}',
-  getThemeUrl: (themeName) => themeUrls[themeName]
-});
+  themeUrls: ${JSON.stringify(themeUrls)},
+  generalCssUrl: ${generalCssUrl ? `'${generalCssUrl}'` : 'undefined'},
+  componentCssUrl: ${componentCssUrl ? `'${componentCssUrl}'` : 'undefined'}
+};
+
+// Initialize the unified runtime
+setMorphConfig(config);
+
+// Auto-apply styles on module load
+applyStyles();
+
+// Export unified runtime API
+export { applyStyles, themesControl };
+export const __morphConfig__ = config;
 `;
     }
 }

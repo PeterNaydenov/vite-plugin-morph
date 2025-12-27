@@ -28,6 +28,7 @@ export class CSSCollectionService {
   constructor(options = {}) {
     this.outputDir = options.outputDir || 'dist/components';
     this.components = new Map();
+    this.globalCss = new Map(); // Global CSS files (not from morph components)
     this.isCollecting = false;
     this.chunkingEnabled = options.chunkingEnabled !== false;
     this.maxChunkSize = options.maxChunkSize || 50 * 1024; // 50KB default
@@ -64,6 +65,55 @@ export class CSSCollectionService {
 
     debug(`Adding CSS for component: ${componentName}`);
     this.components.set(componentName, css);
+  }
+
+  /**
+   * Add global CSS file to collection
+   * @param {string} filePath - File path
+   * @param {string} css - CSS content
+   */
+  addGlobalCssFile(filePath, css) {
+    debug(`Adding global CSS file: ${filePath}`);
+    this.globalCss.set(filePath, css);
+  }
+
+  /**
+   * Add multiple global CSS files
+   * @param {Map<string, string>} cssFiles - Map of file paths to CSS content
+   */
+  addGlobalCss(cssFiles) {
+    for (const [filePath, css] of cssFiles) {
+      this.addGlobalCssFile(filePath, css);
+    }
+  }
+
+  /**
+   * Get all global CSS as concatenated string
+   * @returns {string} Combined global CSS
+   */
+  getGlobalCss() {
+    if (this.globalCss.size === 0) return '';
+
+    const cssParts = [];
+    for (const [filePath, css] of this.globalCss) {
+      cssParts.push(`/* ${filePath} */`);
+      cssParts.push(css);
+      cssParts.push('');
+    }
+
+    return cssParts.join('\n');
+  }
+
+  /**
+   * Update global CSS file content
+   * @param {string} filePath - File path
+   * @param {string} css - New CSS content
+   */
+  updateGlobalCss(filePath, css) {
+    if (this.globalCss.has(filePath)) {
+      this.globalCss.set(filePath, css);
+      debug(`Updated global CSS file: ${filePath}`);
+    }
   }
 
   /**

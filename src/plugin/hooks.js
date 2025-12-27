@@ -43,16 +43,24 @@ export async function transformHook(code, id, options = {}) {
   console.log(
     '[vite-plugin-morph] File content preview:',
     code?.substring(0, 200) + '...'
-  );
+   );
 
-  // Get plugin options from Vite config
-  const pluginOptions = getPluginOptions(options);
+   // Get plugin options from Vite config
+   const pluginOptions = getPluginOptions(options);
 
-  try {
-    // Process the morph file
-    const result = await processMorphFile(code, id, pluginOptions);
+   // Detect test environment
+   const isTestEnv = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID || process.env.VITEST_WORKER_ID || !options || (!options.plugins && !options.config);
 
-    // Validate result before returning
+   console.log('[transformHook] NODE_ENV:', process.env.NODE_ENV, 'options:', options, 'isTestEnv:', isTestEnv);
+
+   // Create final options with test flag
+   const finalOptions = { ...pluginOptions, test: isTestEnv };
+
+   try {
+     // Process the morph file
+     const result = await processMorphFile(code, id, pluginOptions);
+
+     // Validate result before returning
     if (!result || typeof result.code !== 'string') {
       throw new Error(
         `processMorphFile returned invalid result: ${JSON.stringify(result)}`

@@ -39,7 +39,7 @@ function reconstructHTMLFromNodes(nodes) {
  * @param {string} html - HTML content
  * @returns {Array<Object>} Array of placeholder objects
  */
-function extractPlaceholdersFromHTML(html) {
+export function extractPlaceholdersFromHTML(html) {
   const placeholders = [];
   const placeholderRegex = /\{\{([^}]+)\}\}/g;
   let match;
@@ -125,24 +125,30 @@ export function extractRequiredHelpers(templateHtml) {
  * @param {import('../types/index.d.ts').Document} document - Parsed HTML document
  * @returns {import('../types/index.d.ts').TemplateContent} Template content
  */
-export function extractTemplateContent(document) {
+export function extractTemplateContent(document, rawContent, rawPlaceholders) {
   try {
-    // Get all nodes except script and style tags
-    const templateNodes = document.childNodes.filter(
-      (node) => node.nodeName !== 'script' && node.nodeName !== 'style'
-    );
+    // Extract template HTML from raw content by removing script and style tags
+    let html = rawContent;
 
-    // Reconstruct HTML from template nodes
-    const html = reconstructHTMLFromNodes(templateNodes);
+    // Remove script tags
+    html = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+
+    // Remove style tags
+    html = html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+
+    // Trim whitespace
+    html = html.trim();
 
     // Check if this is just default HTML structure or empty
     const trimmedHtml = html.trim();
     const isDefaultHTML =
-      trimmedHtml === '<html><head></head><body></body></html>';
+      trimmedHtml === '<html><head></head><body></body></html>' ||
+      trimmedHtml === '<html><head></head><body></body></html>' ||
+      trimmedHtml === '';
     const isEmpty = trimmedHtml === '';
 
-    // Extract placeholders for validation
-    const placeholders = extractPlaceholdersFromHTML(html);
+    // Use raw placeholders
+    const placeholders = rawPlaceholders;
 
     // Validate placeholders for syntax errors
     // Check for unclosed {{

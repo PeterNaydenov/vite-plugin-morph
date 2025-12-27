@@ -36,7 +36,7 @@ describe('Morph Library Integration', () => {
     expect(result.code).toContain('const template = {');
     expect(result.code).toContain('"template":');
     expect(result.code).toContain(
-      'const renderFunction = morph.build(template);'
+      'const renderFunction = morph.build(template, false, buildDependencies);'
     );
     expect(result.code).toContain('export default renderFunction;');
     expect(result.code).toContain('export { template };');
@@ -62,7 +62,7 @@ describe('Morph Library Integration', () => {
     expect(result.code).toContain('const template = {');
     expect(result.code).toContain('"template":');
     expect(result.code).toContain(
-      'const renderFunction = morph.build(template);'
+      'const renderFunction = morph.build(template, false, buildDependencies);'
     );
     expect(result.code).toContain('export default renderFunction;');
     expect(result.code).toContain('export { template };');
@@ -89,7 +89,7 @@ describe('Morph Library Integration', () => {
     expect(result.code).not.toContain('const template = {');
     expect(result.code).not.toContain('"template":');
     expect(result.code).not.toContain(
-      'const renderFunction = morph.build(template);'
+      'const renderFunction = morph.build(template, false, buildDependencies);'
     );
     expect(result.code).not.toContain('export default renderFunction;');
     expect(result.code).not.toContain('export { template };');

@@ -57,8 +57,7 @@ describe('Development Experience Integration', () => {
       const result = await plugin.handleHotUpdate(mockContext);
 
       expect(result).toBeDefined();
-      expect(result.type).toBe('css-update');
-      expect(result.path).toContain('components.css');
+      expect(result).toEqual(mockContext.modules);
     });
 
     it('should handle morph file changes without CSS', async () => {

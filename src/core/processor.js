@@ -5,6 +5,7 @@
  * @version 0.0.10
  */
 
+import path from 'path';
 import {
   parseMorphFile,
   extractScriptContent,
@@ -38,6 +39,10 @@ export async function processMorphFile(content, filePath, options) {
   const startTime = Date.now();
 
   try {
+    // Extract template placeholders from raw content BEFORE HTML parsing
+    const { extractPlaceholdersFromHTML } = await import('./template.js');
+    const rawPlaceholders = extractPlaceholdersFromHTML(content);
+
     // Check cache first (include options in cache key for production mode differences)
     const cacheKey = JSON.stringify({ content, options, version: 3 });
     const cached = getCachedResult(cacheKey);
@@ -53,109 +58,49 @@ export async function processMorphFile(content, filePath, options) {
       `Parsed morph file: ${filePath}, document nodes: ${document.childNodes?.length || 0}`
     );
 
-    // Extract content in order: CSS first, then JS, then check what's left for template
-    const styleRaw = extractStyleContent(document);
-    const style = styleRaw ? { css: styleRaw } : null;
-    let cssSourceMap = null; // Will be set during CSS processing
-    debug(`Extracted style: ${style ? 'yes' : 'no'}`);
+     // Extract content in order: CSS first, then JS, then check what's left for template
+     const styleRaw = extractStyleContent(document);
+     const style = styleRaw ? { css: styleRaw } : null;
+     let cssSourceMap = null; // Will be set during CSS processing
+     debug(`Extracted style: ${style ? 'yes' : 'no'}`);
 
-    // Process CSS immediately after extraction
-    if (style) {
-      try {
-        const componentName = filePath
-          .split(/[/\\]/)
-          .pop()
-          .replace('.morph', '');
-
-        // Simple scoping
-        const scopedClassesManual = {};
-        const classRegex = /\.([a-zA-Z_-][a-zA-Z0-9_-]*)/g;
-        const matches = [...style.css.matchAll(classRegex)];
-
-        for (const match of matches) {
-          const originalClass = match[1];
-          if (!scopedClassesManual[originalClass]) {
-            const hash = Math.random().toString(36).substr(2, 4);
-            scopedClassesManual[originalClass] =
-              `${componentName}_${originalClass}_${hash}`;
-          }
-        }
-
-        // Replace in CSS
-        let scopedCss = style.css;
-        for (const [original, scoped] of Object.entries(scopedClassesManual)) {
-          const regex = new RegExp(`\\.${original}\\b`, 'g');
-          scopedCss = scopedCss.replace(regex, `.${scoped}`);
-        }
-
-        // Apply PostCSS processing
-        let finalCss = scopedCss;
-        let cssSourceMap = null;
-        try {
-          const postCssResult = await processCss(scopedCss, {
-            minify: isProductionMode(),
-            autoprefixer: true,
-            from: filePath,
-          });
-          finalCss = postCssResult.css;
-          cssSourceMap = postCssResult.map;
-        } catch (err) {
-          const location = extractLocationFromPostCssError(err, filePath);
-          const cssError = createCssProcessingError(
-            `PostCSS processing failed for ${componentName}: ${err.message}`,
-            filePath,
-            location,
-            err
-          );
-          console.warn(cssError.message);
-          // Fall back to scoped CSS without PostCSS processing
-        }
-
-        // Wrap CSS in @layer for cascade control
-        const layeredCss = `@layer components {\n${finalCss}\n}`;
-
-        style.processedCss = layeredCss;
-        style.scopedClasses = scopedClassesManual;
-
-        // Add CSS to global collection for bundling (only in build environment)
-        if (
-          typeof globalThis !== 'undefined' &&
-          !process?.env?.NODE_ENV?.includes('test')
-        ) {
-          const collector = getCssCollector();
-          collector.addComponentCss(componentName, layeredCss);
-        }
-      } catch (err) {
-        const cssError = createCssScopingError(
-          `CSS scoping failed for ${componentName}: ${err.message}`,
-          filePath
-        );
-        console.warn(cssError.message);
-      }
-    }
-
-    const scriptRaw = extractScriptContent(document, 'text/javascript');
+     const scriptRaw = extractScriptContent(document, 'text/javascript');
 
     // Process script content to extract functions and templates
     const script = scriptRaw ? processScriptContent(scriptRaw) : null;
-    console.log(
-      '[vite-plugin-morph] Script processing result:',
-      script
-        ? `functions: ${Object.keys(script.functions || {}).length}, templates: ${Object.keys(script.templates || {}).length}`
-        : 'null'
-    );
-    if (scriptRaw) {
-      console.log('[vite-plugin-morph] Script content found:', scriptRaw);
-    } else {
-      console.log('[vite-plugin-morph] No script content found in morph file');
-    }
 
-    // Extract template content
-    const template = extractTemplateContent(document);
+    // Extract template content (everything that's not script or style)
+    const template = extractTemplateContent(document, content, rawPlaceholders);
 
     // Extract handshake data from script
     const handshakeRaw = extractHandshakeContent(document, 'application/json');
     const handshake = handshakeRaw ? { data: parseJsonLike(handshakeRaw) } : {};
+
+     // Check for CSS variable usage
+     const usesCssVariables = style && /var\(--[^)]+\)/.test(style.css);
+
+     // Determine if this is CSS-only
+     const isCSSOnly = !!style && !scriptRaw && !template.html;
+
+     // Extract component name for CSS scoping (skip for CSS-only files)
+     const componentName = isCSSOnly ? '' : filePath
+       .split(/[/\\]/)
+       .pop()
+       .replace('.morph', '');
+
+     // Process CSS for scoping if present and not CSS-only
+     let processedStyle = style;
+     if (style && !isCSSOnly) {
+       const scopedResult = scopeCss(style.css, componentName);
+       processedStyle = {
+         css: style.css,
+         processedCss: scopedResult.scopedCss,
+         scopedClasses: scopedResult.scopedClasses,
+       };
+     }
+
+    // Get root directory for relative path calculations
+    const rootDir = options.rootDir || process.cwd();
 
     // Build helpers object
     const helpers = {};
@@ -207,21 +152,29 @@ export async function processMorphFile(content, filePath, options) {
       handshake: handshake?.data || {},
     };
 
+    // Debug: log template content
+    console.log('Template object:', {
+      template: templateObject.template.substring(0, 100) + '...',
+      helpers: Object.keys(templateObject.helpers),
+      handshake: templateObject.handshake
+    });
+
     // Store helpers separately for code generation
     const helperFunctions = helpers;
 
-    // Determine if this is CSS-only
-    const isCSSOnly = !!style && !scriptRaw && !template.html;
+
 
     // Generate ES module code
-    const moduleCode = generateESModule(
-      templateObject,
-      helperFunctions,
-      style,
-      handshake?.data,
-      options,
-      isCSSOnly
-    );
+     const moduleCode = generateESModule(
+       templateObject,
+       helperFunctions,
+       processedStyle,
+       handshake?.data,
+       options,
+       isCSSOnly,
+       componentName,
+       usesCssVariables
+     );
 
     const processingTime = Date.now() - startTime;
 
@@ -234,7 +187,7 @@ export async function processMorphFile(content, filePath, options) {
     // Create result object
     const result = {
       code: safeModuleCode,
-      cssExports: style?.css,
+      cssExports: processedStyle?.css,
       cssSourceMap: cssSourceMap,
       usedVariables: template.usedVariables,
       templateObject,
@@ -246,7 +199,7 @@ export async function processMorphFile(content, filePath, options) {
           template: !!template.html,
           helpers: Object.keys(helpers).length,
           handshake: !!handshake?.data,
-          css: !!style?.css,
+          css: !!processedStyle?.css,
         },
       },
     };
@@ -319,19 +272,69 @@ function generateESModule(
   templateObject,
   helperFunctions,
   style,
-  handshake,
+  handshakeData,
   options,
-  isCSSOnly
+  isCSSOnly,
+  componentName,
+  usesCssVariables
 ) {
   const parts = [];
 
   if (isCSSOnly) {
     // CSS-only files: export styles directly, no morph utilities
     parts.push('// Export CSS styles');
-    parts.push(`export const styles = ${JSON.stringify(style.css)};`);
+    parts.push(`const css = ${JSON.stringify(style.processedCss || style.css)};`);
+    parts.push(`export const styles = css;`);
+
+    // Inject CSS in development mode
+    parts.push('');
+    parts.push('// Inject CSS in development');
+    parts.push(`if (typeof document !== 'undefined' && css) {`);
+    parts.push(`  const styleId = 'morph-css-' + ${JSON.stringify(componentName)};`);
+    parts.push(`  let styleElement = document.getElementById(styleId);`);
+    parts.push(`  if (!styleElement) {`);
+    parts.push(`    styleElement = document.createElement('style');`);
+    parts.push(`    styleElement.id = styleId;`);
+    parts.push(`    document.head.appendChild(styleElement);`);
+    parts.push(`  }`);
+    parts.push(`  styleElement.textContent = css;`);
+    parts.push(`}`);
+
+    // Add HMR handling for CSS updates (only in non-test environments)
+    if (!options.test) {
+      parts.push('');
+      parts.push('// HMR handling for CSS updates');
+      parts.push(`if (import.meta.hot) {`);
+      parts.push(`  import.meta.hot.accept(() => {`);
+      parts.push(`    // Update CSS when module changes`);
+      parts.push(`    if (typeof document !== 'undefined' && css) {`);
+      parts.push(`      const styleId = 'morph-css-' + ${JSON.stringify(componentName)};`);
+      parts.push(`      let styleElement = document.getElementById(styleId);`);
+      parts.push(`      if (!styleElement) {`);
+      parts.push(`        styleElement = document.createElement('style');`);
+      parts.push(`        styleElement.id = styleId;`);
+      parts.push(`        document.head.appendChild(styleElement);`);
+      parts.push(`      }`);
+      parts.push(`      styleElement.textContent = css;`);
+      parts.push(`    }`);
+      parts.push(`  });`);
+      parts.push(`}`);
+    }
   } else {
     // Regular morph files: include morph utilities
     parts.push(`import morph from '@peter.naydenov/morph';`);
+
+    // Import CSS variables file if CSS variables are used (creates HMR dependency)
+    if (usesCssVariables && options.cssVarsFile) {
+      // Calculate relative path from morph file to CSS file
+      const morphDir = path.dirname(filePath);
+      const cssPath = path.resolve(rootDir, options.cssVarsFile);
+      const relativePath = path.relative(morphDir, cssPath);
+      // Ensure it starts with ./ or ../
+      const importPath = relativePath.startsWith('.') ? relativePath : `./${relativePath}`;
+      parts.push(`import '${importPath.replace(/\\/g, '/')}';`);
+    }
+
     parts.push('');
 
     // Create template object
@@ -344,6 +347,11 @@ function generateESModule(
     const stylesMap = style && style.scopedClasses ? style.scopedClasses : {};
     parts.push(`const styles = ${JSON.stringify(stylesMap)};`);
     parts.push('');
+
+    // Prepare build dependencies
+    const buildDependencies = Object.keys(stylesMap).length > 0 ? { styles: stylesMap } : {};
+
+
 
     // Add helpers if present
     if (helperFunctions && Object.keys(helperFunctions).length > 0) {
@@ -417,7 +425,9 @@ function generateESModule(
     // Build render function
     parts.push('');
     parts.push('// Build render function');
-    parts.push('const renderFunction = morph.build(template);');
+    const dependenciesJson = JSON.stringify(buildDependencies);
+    parts.push(`const buildDependencies = ${dependenciesJson};`);
+    parts.push('const renderFunction = morph.build(template, false, buildDependencies);');
     parts.push('');
 
     // Export render function as default
@@ -431,10 +441,10 @@ function generateESModule(
     parts.push('export { template };');
 
     // Export handshake data if present
-    if (handshake) {
+    if (handshakeData) {
       parts.push('');
       parts.push('// Handshake data (separate export)');
-      parts.push(`export const handshake = ${JSON.stringify(handshake)};`);
+      parts.push(`export const handshake = ${JSON.stringify(handshakeData)};`);
     }
 
     // Export processed CSS if present
@@ -444,6 +454,43 @@ function generateESModule(
 
       parts.push('');
       parts.push('// Export processed CSS');
+      parts.push(`const css = ${JSON.stringify(processedCss)};`);
+      parts.push(`export { css };`);
+      parts.push('');
+
+      // Inject CSS in development mode (similar to CSS modules)
+      parts.push('// Inject CSS in development');
+      parts.push(`if (typeof document !== 'undefined' && css) {`);
+      parts.push(`  const styleId = 'morph-css-' + ${JSON.stringify(componentName)};`);
+      parts.push(`  let styleElement = document.getElementById(styleId);`);
+      parts.push(`  if (!styleElement) {`);
+      parts.push(`    styleElement = document.createElement('style');`);
+      parts.push(`    styleElement.id = styleId;`);
+      parts.push(`    document.head.appendChild(styleElement);`);
+      parts.push(`  }`);
+      parts.push(`  styleElement.textContent = css;`);
+      parts.push(`}`);
+
+      // Add HMR handling for CSS updates (only in non-test environments)
+      if (!options.test) {
+        parts.push('');
+        parts.push('// HMR handling for CSS updates');
+        parts.push(`if (import.meta.hot) {`);
+        parts.push(`  import.meta.hot.accept(() => {`);
+        parts.push(`    // Update CSS when module changes`);
+        parts.push(`    if (typeof document !== 'undefined' && css) {`);
+        parts.push(`      const styleId = 'morph-css-' + ${JSON.stringify(componentName)};`);
+        parts.push(`      let styleElement = document.getElementById(styleId);`);
+        parts.push(`      if (!styleElement) {`);
+        parts.push(`        styleElement = document.createElement('style');`);
+        parts.push(`        styleElement.id = styleId;`);
+        parts.push(`        document.head.appendChild(styleElement);`);
+        parts.push(`      }`);
+        parts.push(`      styleElement.textContent = css;`);
+        parts.push(`    }`);
+        parts.push(`  });`);
+        parts.push(`}`);
+      }
     }
   } // else !isCSSOnly
   // Ensure all parts are strings and filter out any undefined values

@@ -36,7 +36,10 @@ describe ( 'Helpers with Styles Integration', () => {
             .replace("import morph from '@peter.naydenov/morph';", "const morph = mockMorph;")
             .replace("export default renderFunction;", "exports.default = renderFunction;")
             .replace("export { template };", "exports.template = template;")
-            .replace(/export const (\w+) =/g, "exports.$1 =");
+            .replace(/export \{ (\w+) \};/g, "exports.$1 = $1;")
+            .replace(/export const (\w+) =/g, "exports.$1 =")
+            // Remove HMR code for test compatibility
+            .replace(/\/\/ HMR handling[\s\S]*$/g, '');
 
         const executionFunction = new Function('mockMorph', 'exports', evalCode);
 
@@ -97,6 +100,7 @@ describe ( 'Helpers with Styles Integration', () => {
             .replace("import morph from '@peter.naydenov/morph';", "const morph = mockMorph;")
             .replace("export default renderFunction;", "exports.default = renderFunction;")
             .replace("export { template };", "exports.template = template;")
+            .replace(/export \{ (\w+) \};/g, "exports.$1 = $1;")
             .replace(/export const (\w+) =/g, "exports.$1 =");
 
         const executionFunction = new Function('mockMorph', 'exports', evalCode);

@@ -14,6 +14,10 @@
     "./browser": {
       "import": "./src/browser.js",
       "types": "./dist/types/index.d.ts"
+    },
+    "./client": {
+      "import": "./src/client/runtime.js",
+      "types": "./dist/types/index.d.ts"
     }
   },
   "files": [
@@ -57,7 +61,7 @@
     "vitest": "^4.0.16"
   },
   "peerDependencies": {
-    "vite": "^7.2.2"
+    "vite": "^7.3.0"
   },
   "directories": {
     "doc": "docs",
