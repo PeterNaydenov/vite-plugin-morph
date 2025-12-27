@@ -6,7 +6,6 @@
  */
 
 import path, { join } from 'path';
-import { readFileSync } from 'fs';
 import { createHash } from 'crypto';
 import configModule, { resolveThemeDirectories } from './config.js';
 import {
@@ -73,7 +72,7 @@ export function createMorphPlugin(options = {}) {
       // We'll handle them in load/transform hooks
     },
 
-    // Load .morph files
+    // Load .morph files and virtual module content
     async load(id) {
       if (id.endsWith('.morph')) {
         console.log('[vite-plugin-morph] Loading .morph file:', id);
@@ -83,10 +82,6 @@ export function createMorphPlugin(options = {}) {
         const code = fs.readFileSync(id.replace(/\?.*$/, ''), 'utf8');
         return code;
       }
-    },
-
-    // Load virtual module content
-    async load(id) {
       if (id === '\0virtual:morph-themes') {
         if (!discoveredThemes) {
           // Resolve theme directories relative to project root
