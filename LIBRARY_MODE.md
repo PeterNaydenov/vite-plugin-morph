@@ -2,7 +2,7 @@
 
 ## Overview
 
-Library Mode allows you to build distributable component libraries with `vite-plugin-morph`. Your library will be a standard npm package containing:
+Library Mode allows you to build distributable component libraries with `vite-plugin-morph`. Your library will extract your components, CSS layers, and runtime controls into a single, self-contained package. It will be a standard npm package containing:
 
 - **Components** - Compiled `.morph` files as ES modules
 - **CSS Layers** - General styles, component styles, and themes as separate files
@@ -59,6 +59,11 @@ export { applyStyles, themesControl } from '@peter.naydenov/vite-plugin-morph/cl
 ```bash
 npm run build:lib
 ```
+
+### 5. Publish Your Library
+Publish your library package to npm as usual.
+
+
 
 ## API Reference
 
