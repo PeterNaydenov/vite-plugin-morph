@@ -17,7 +17,7 @@
     },
     "./client": {
       "import": "./src/client/runtime.js",
-      "types": "./dist/types/index.d.ts"
+      "types": "./dist/types/client/runtime.d.ts"
     }
   },
   "files": [
