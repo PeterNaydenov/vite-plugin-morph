@@ -23,11 +23,11 @@ import { info } from './utils/logger.js';
  * @param {string} [config.rootDir=process.cwd()] - Project root directory
  * @param {Object} [config.morphPlugin] - Morph plugin options
  * @returns {Promise<void>}
- * 
+ *
  * @example
  * ```javascript
  * import { buildLibrary } from '@peter.naydenov/vite-plugin-morph';
- * 
+ *
  * await buildLibrary({
  *   entry: 'src/index.js',
  *   library: {
@@ -41,38 +41,38 @@ import { info } from './utils/logger.js';
  * ```
  */
 export async function buildLibrary(config = {}) {
-    const {
-        entry = 'src/main.js',
-        library = {},
-        outputDir = 'dist/library',
-        rootDir = process.cwd(),
-        morphPlugin = {}
-    } = config;
+  const {
+    entry = 'src/main.js',
+    library = {},
+    outputDir = 'dist/library',
+    rootDir = process.cwd(),
+    morphPlugin = {},
+  } = config;
 
-    // Validate required fields
-    if (!library.name) {
-        throw new Error('library.name is required for buildLibrary()');
-    }
+  // Validate required fields
+  if (!library.name) {
+    throw new Error('library.name is required for buildLibrary()');
+  }
 
-    info(`Building library: ${library.name}`);
-    info(`Entry: ${entry}`);
-    info(`Output: ${outputDir}`);
+  info(`Building library: ${library.name}`);
+  info(`Entry: ${entry}`);
+  info(`Output: ${outputDir}`);
 
-    // Create builder instance
-    const builder = createLibraryBuilder({
-        entry,
-        outputDir,
-        libraryConfig: library,
-        rootDir,
-        ...morphPlugin
-    });
+  // Create builder instance
+  const builder = createLibraryBuilder({
+    entry,
+    outputDir,
+    library,
+    rootDir,
+    ...morphPlugin,
+  });
 
-    // Execute build
-    await builder.build();
+  // Execute build
+  await builder.build();
 
-    info(`✓ Library build complete!`);
-    info(`  Package: ${outputDir}/package.json`);
-    info(`  To publish: cd ${outputDir} && npm publish`);
+  info(`✓ Library build complete!`);
+  info(`  Package: ${outputDir}/package.json`);
+  info(`  To publish: cd ${outputDir} && npm publish`);
 }
 
 export default buildLibrary;

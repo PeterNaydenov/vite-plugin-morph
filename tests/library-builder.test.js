@@ -11,17 +11,21 @@ import { join } from 'path';
 describe('Library Builder', () => {
     const testOutputDir = 'test-output/library';
 
-    afterEach(async () => {
-        // Cleanup test output
-        try {
-            await rm(testOutputDir, { recursive: true, force: true });
-        } catch (error) {
-            // Ignore cleanup errors
-        }
-    });
+    afterEach ( async () => {
+            // Cleanup test output
+            try {
+                    await rm(testOutputDir, { recursive: true, force: true });
+                } 
+            catch (error) {
+                    // Ignore cleanup errors
+                }
+        }) // after each
 
-    describe('LibraryBuilder Class', () => {
-        it('should create instance with default options', () => {
+
+
+    describe ( 'LibraryBuilder Class', () => {
+
+        it ( 'should create instance with default options', () => {
             const builder = createLibraryBuilder();
 
             expect(builder).toBeDefined();
