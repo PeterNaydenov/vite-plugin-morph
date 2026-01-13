@@ -78,7 +78,7 @@ This extension provides a **professional editing experience** with syntax highli
 </button>
 
 <script>
-  function getButtonClasses({data, dependencies}) {
+  function getButtonClasses({ data, dependencies }) {
     // Access scoped CSS class names
     const btnClass = dependencies.styles.btn || 'btn';
     const variants = {
@@ -149,11 +149,11 @@ Component styles are automatically scoped with unique class names to prevent con
 <button class="{{ : getButtonClass }}">Click me</button>
 
 <script>
-function getButtonClass({data, dependencies}) {
-  // Access scoped CSS class names
-  const btnClass = dependencies.styles.btn || 'btn';
-  return btnClass;
-}
+  function getButtonClass({ data, dependencies }) {
+    // Access scoped CSS class names
+    const btnClass = dependencies.styles.btn || 'btn';
+    return btnClass;
+  }
 </script>
 
 <style>
@@ -639,10 +639,15 @@ function validateEmail({data}) {
 </script>
 ```
 
-
 ## Library Mode
 
-Build distributable component libraries that work like Svelte - framework-free at runtime with full CSS control.
+Build distributable component libraries that work like Svelte - framework-free at runtime with full CSS control. CSS processing is delegated to host applications for maximum flexibility.
+
+### CSS Handling in Libraries
+
+- **Raw CSS Assets**: All CSS files from `src/styles/` are copied as raw assets without processing
+- **Host Processing**: CSS layers, scoping, and optimization are handled by the host application's plugin configuration
+- **Runtime Control**: Library consumers get full control over CSS architecture (themes, overrides, etc.)
 
 ### Quick Start
 
@@ -655,8 +660,8 @@ await buildLibrary({
   entry: 'src/main.js',
   library: {
     name: '@myorg/my-components',
-    version: '1.0.0'
-  }
+    version: '1.0.0',
+  },
 });
 ```
 
@@ -664,7 +669,10 @@ await buildLibrary({
 
 ```javascript
 export { default as Button } from './components/Button.morph';
-export { applyStyles, themesControl } from '@peter.naydenov/vite-plugin-morph/client';
+export {
+  applyStyles,
+  themesControl,
+} from '@peter.naydenov/vite-plugin-morph/client';
 ```
 
 **3. Build**: `npm run build:lib`
@@ -674,9 +682,26 @@ export { applyStyles, themesControl } from '@peter.naydenov/vite-plugin-morph/cl
 ```javascript
 import { Button, applyStyles, themesControl } from '@myorg/my-components';
 
-applyStyles();  // Apply all CSS layers
+// Host app processes CSS with its plugin configuration
+applyStyles(); // Apply all CSS layers
 document.body.innerHTML = Button('render', { text: 'Click me' });
-themesControl.set('dark');  // Switch theme
+themesControl.set('dark'); // Switch theme
+```
+
+**Host Configuration Example**:
+
+```javascript
+// Host vite.config.js
+export default defineConfig({
+  plugins: [
+    morphPlugin({
+      css: {
+        layers: { enabled: true },
+        postcss: { autoprefixer: true, minify: true },
+      },
+    }),
+  ],
+});
 ```
 
 **📖 Full documentation**: See [LIBRARY_MODE.md](./LIBRARY_MODE.md)

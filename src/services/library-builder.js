@@ -21,7 +21,7 @@ export class LibraryBuilder {
     this.outputDir = options.outputDir || 'dist/library';
     this.libraryConfig = options.libraryConfig || options.library || {};
     this.rootDir = options.rootDir || process.cwd();
-    this.themesDir = options.themesDir || 'themes';
+    this.themesDir = options.themesDir || 'src/themes';
     this.stylesDir = options.stylesDir || 'src/styles';
   }
 
@@ -246,19 +246,26 @@ ${exports}
               cssAssets.push('assets/components.css');
             }
 
-            // Copy main.css if exists
-            const mainCssPath = join(self.rootDir, self.stylesDir, 'main.css');
-            try {
-              const mainCssSource = await readFile(mainCssPath, 'utf-8');
-              bundle['assets/main.css'] = {
+            // Copy all CSS files from styles directory
+            const stylesDir = join(self.rootDir, self.stylesDir);
+            const cssFiles = await glob('**/*.css', {
+              cwd: stylesDir,
+              absolute: false,
+            });
+
+            for (const cssFile of cssFiles) {
+              const cssPath = join(stylesDir, cssFile);
+              const cssSource = await readFile(cssPath, 'utf-8');
+              const assetName = `assets/${cssFile}`;
+              bundle[assetName] = {
                 type: 'asset',
-                fileName: 'assets/main.css',
-                source: mainCssSource,
+                fileName: assetName,
+                source: cssSource,
               };
-              cssAssets.unshift('assets/main.css');
-            } catch (error) {
-              debug(`No main.css found`);
+              cssAssets.push(assetName);
             }
+
+            debug(`Copied ${cssFiles.length} CSS files from ${self.stylesDir}`);
 
             // Generate client module
             const clientCode = self.generateClientModule(cssAssets, themes);
@@ -349,6 +356,34 @@ ${exports}
         debug(`Skipped ${asset}`);
       }
     }
+
+    // Copy themes directory if it exists
+    const themesSrc = join(this.rootDir, this.themesDir);
+    const themesDest = join(this.outputDir, 'themes');
+
+    try {
+      const themeFiles = await glob('**/*', {
+        cwd: themesSrc,
+        absolute: false,
+      });
+
+      if (themeFiles.length > 0) {
+        await mkdir(themesDest, { recursive: true });
+
+        for (const themeFile of themeFiles) {
+          const srcPath = join(themesSrc, themeFile);
+          const destPath = join(themesDest, themeFile);
+          await mkdir(dirname(destPath), { recursive: true });
+          await copyFile(srcPath, destPath);
+        }
+
+        debug(`Copied ${themeFiles.length} theme files from ${this.themesDir}`);
+      } else {
+        debug(`No theme files found in ${this.themesDir}`);
+      }
+    } catch (error) {
+      debug(`No themes directory to copy`);
+    }
   }
 
   /**
@@ -376,13 +411,8 @@ ${exports}
       themeUrls[name] = `theme_${name}`;
     });
 
-    // Determine which CSS asset is general vs component
-    const generalCssUrl = cssAssets.find((asset) => asset.includes('main'))
-      ? cssAssets.find((asset) => asset.includes('main')).replace('./', '')
-      : '';
-    const componentCssUrl = cssAssets.find((asset) => !asset.includes('main'))
-      ? cssAssets.find((asset) => !asset.includes('main')).replace('./', '')
-      : '';
+    // All CSS assets are loaded as general CSS
+    const cssUrls = cssAssets.map((asset) => asset.replace('./', ''));
 
     return `
 ${cssImports}
@@ -396,8 +426,7 @@ const config = {
   themes: ${JSON.stringify(themeNames)},
   defaultTheme: '${defaultTheme}',
   themeUrls: ${JSON.stringify(themeUrls)},
-  generalCssUrl: ${generalCssUrl ? `'${generalCssUrl}'` : 'undefined'},
-  componentCssUrl: ${componentCssUrl ? `'${componentCssUrl}'` : 'undefined'}
+  cssUrls: ${JSON.stringify(cssUrls)}
 };
 
 // Initialize the unified runtime

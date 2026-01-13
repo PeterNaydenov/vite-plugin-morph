@@ -5,7 +5,6 @@
  */
 
 import { createLibraryBuilder } from './services/library-builder.js';
-import { createMorphPlugin } from './plugin/index.js';
 import { info } from './utils/logger.js';
 
 /**
