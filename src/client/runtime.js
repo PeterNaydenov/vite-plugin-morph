@@ -298,6 +298,14 @@ async function loadLocalCss() {
   }
 }
 
+// HMR handler for local CSS changes
+if (typeof window !== 'undefined' && import.meta.hot) {
+  import.meta.hot.on('morph-local-css-update', async (data) => {
+    console.log('[Morph Client] 🔄 HMR: Local CSS updated, reloading...');
+    await loadLocalCss();
+  });
+}
+
 /**
  * Try to load processed CSS from the dev server's morph-processed cache
  * @param {Object} config - Morph config

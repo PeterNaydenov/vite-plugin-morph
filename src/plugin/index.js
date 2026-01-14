@@ -221,6 +221,20 @@ export function createMorphPlugin(options = {}) {
                 fileName
               );
             }
+
+            // Send HMR update to browser
+            const globalCssConfig = resolvedOptions.globalCSS || {};
+            const entryFile = globalCssConfig.entry || 'main.css';
+            if (changedPath.endsWith(entryFile)) {
+              console.log(
+                '[vite-plugin-morph] 📡 Sending HMR update for local CSS'
+              );
+              server.hot.send({
+                type: 'custom',
+                event: 'morph-local-css-update',
+                data: { file: entryFile },
+              });
+            }
           }
         });
       }
