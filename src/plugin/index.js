@@ -7,6 +7,7 @@
 
 import path, { join } from 'path';
 import { createHash } from 'crypto';
+import fs from 'fs';
 import configModule, { resolveThemeDirectories } from './config.js';
 import {
   startCssCollection,
@@ -14,6 +15,15 @@ import {
   getCssCollector,
 } from '../services/css-collection.js';
 import { createThemeDiscovery } from '../services/theme-discovery.js';
+import {
+  detectMorphLibraries,
+  getImportedPackages,
+  loadPostCSSConfig,
+  isCacheValid,
+  findCachedFile,
+  processLocalCss,
+  getLocalCssCache,
+} from '../services/library-css-processor.js';
 
 /**
  * Process a morph file and return compiled result
@@ -34,10 +44,17 @@ async function processMorphFileForHmr(code, id, options) {
  * @returns {*} Vite plugin instance
  */
 export function createMorphPlugin(options = {}) {
+  console.log('[vite-plugin-morph] 🔧 createMorphPlugin called');
   const resolvedOptions = resolveOptions(options);
+  console.log('[vite-plugin-morph] ✅ Options resolved');
   let discoveredThemes = null;
   let rootDir = process.cwd();
+  console.log('[vite-plugin-morph] 📁 rootDir:', rootDir);
   let cssDependencies = new Map(); // Track CSS dependencies
+  let morphLibraries = []; // Store detected morph libraries
+  let libraryCssUrls = new Map(); // Library name → processed CSS URL
+
+  console.log('[vite-plugin-morph] 🎯 Plugin initialized');
 
   return {
     name: 'vite-plugin-morph',
@@ -45,14 +62,169 @@ export function createMorphPlugin(options = {}) {
 
     // Configure Vite to handle .morph files
     configureServer(server) {
-      server.middlewares.use('/src/**/*.morph', async (req, res, next) => {
-        // This shouldn't be needed, but let's see if it helps
-        console.log('[vite-plugin-morph] Middleware hit for:', req.url);
-        next();
+      console.log('[vite-plugin-morph] 🔧 configureServer called');
+
+      // Serve processed CSS from cache (dev mode)
+      console.log('[vite-plugin-morph] 🔧 Registering CSS middleware...');
+      server.middlewares.use('/@morph-processed', (req, res, next) => {
+        console.log(
+          '[vite-plugin-morph] 📥 CSS middleware called for:',
+          req.url
+        );
+        const urlPath = req.url.replace('/', '');
+
+        // Try exact match first
+        let cachePath = path.join(
+          rootDir,
+          '.vite',
+          'cache',
+          'morph-processed',
+          urlPath
+        );
+
+        // If not found, try prefix match (for URLs without hash)
+        if (!fs.existsSync(cachePath)) {
+          const files = fs.readdirSync(
+            path.join(rootDir, '.vite', 'cache', 'morph-processed')
+          );
+          const matchingFile = files.find((f) => f.startsWith(urlPath));
+          if (matchingFile) {
+            cachePath = path.join(
+              rootDir,
+              '.vite',
+              'cache',
+              'morph-processed',
+              matchingFile
+            );
+          }
+        }
+
+        console.log('[vite-plugin-morph] 📁 Looking for:', cachePath);
+
+        if (fs.existsSync(cachePath)) {
+          const css = fs.readFileSync(cachePath, 'utf-8');
+          console.log('[vite-plugin-morph] ✅ Serving CSS:', cachePath);
+          res.setHeader('Content-Type', 'text/css');
+          res.end(css);
+        } else {
+          console.log('[vite-plugin-morph] ❌ CSS not found, calling next()');
+          next();
+        }
       });
+      console.log('[vite-plugin-morph] ✅ CSS middleware registered');
+
+      // Serve local CSS from globalCSS.directory with HMR support
+      server.middlewares.use('/@morph-css/local', async (req, res, next) => {
+        const urlPath = req.url.replace('/', ''); // e.g., "main.css"
+        console.log(
+          '[vite-plugin-morph] 📥 Local CSS middleware called for:',
+          urlPath
+        );
+
+        const globalCssConfig = resolvedOptions.globalCSS || {};
+        const cssDir = path.join(
+          rootDir,
+          globalCssConfig.directory || 'src/styles'
+        );
+        const entryFile = globalCssConfig.entry || 'main.css';
+        const cacheDir = path.join(rootDir, '.vite', 'cache', 'morph-local');
+
+        // Only handle the entry file for now
+        const fileName =
+          urlPath === '' || urlPath === entryFile ? entryFile : urlPath;
+        const cssPath = path.join(cssDir, fileName);
+
+        if (!fs.existsSync(cssPath)) {
+          console.log('[vite-plugin-morph] ❌ Local CSS not found:', cssPath);
+          next();
+          return;
+        }
+
+        // Check cache validity
+        let cacheInfo = getLocalCssCache(cssPath, cacheDir);
+
+        // Re-process if cache invalid
+        if (!cacheInfo) {
+          console.log(
+            '[vite-plugin-morph] 🔄 Cache invalid, re-processing local CSS'
+          );
+          const postcssConfig = await loadPostCSSConfig(rootDir);
+          const result = await processLocalCss(
+            cssPath,
+            cssDir,
+            cacheDir,
+            postcssConfig
+          );
+          cacheInfo = {
+            cachePath: result.cachePath,
+            mtime: result.mtime,
+            fileName: result.fileName,
+          };
+        } else {
+          console.log(
+            '[vite-plugin-morph] ✅ Using cached local CSS:',
+            cacheInfo.cachePath
+          );
+        }
+
+        if (fs.existsSync(cacheInfo.cachePath)) {
+          const css = fs.readFileSync(cacheInfo.cachePath, 'utf-8');
+          res.setHeader('Content-Type', 'text/css');
+          res.setHeader('Cache-Control', 'no-cache');
+          res.end(css);
+        } else {
+          console.log('[vite-plugin-morph] ❌ Cached CSS not found');
+          next();
+        }
+      });
+
+      // Watch local CSS files
+      const globalCssConfig = resolvedOptions.globalCSS || {};
+      const cssDir = path.join(
+        rootDir,
+        globalCssConfig.directory || 'src/styles'
+      );
+      if (fs.existsSync(cssDir)) {
+        const cssFiles = fs
+          .readdirSync(cssDir)
+          .filter((f) => f.endsWith('.css'));
+        for (const cssFile of cssFiles) {
+          const cssPath = path.join(cssDir, cssFile);
+          server.watcher.add(cssPath);
+          console.log('[vite-plugin-morph] 📁 Watching local CSS:', cssPath);
+        }
+
+        server.watcher.on('change', async (changedPath) => {
+          if (changedPath.endsWith('.css') && changedPath.startsWith(cssDir)) {
+            console.log(
+              '[vite-plugin-morph] 🔄 Local CSS changed:',
+              changedPath
+            );
+            // Force cache invalidation by clearing cached file
+            const cacheDir = path.join(
+              rootDir,
+              '.vite',
+              'cache',
+              'morph-local'
+            );
+            if (fs.existsSync(cacheDir)) {
+              const fileName = changedPath.split('/').pop();
+              const baseName = fileName.replace('.css', '');
+              const files = fs
+                .readdirSync(cacheDir)
+                .filter((f) => f.startsWith(`local-${baseName}-`));
+              for (const f of files) {
+                fs.unlinkSync(path.join(cacheDir, f));
+              }
+              console.log(
+                '[vite-plugin-morph] 🗑️ Cleared cache for:',
+                fileName
+              );
+            }
+          }
+        });
+      }
     },
-
-
 
     // Handle virtual module resolution
     resolveId(id) {
@@ -65,28 +237,21 @@ export function createMorphPlugin(options = {}) {
       if (id === 'virtual:morph-client') {
         return '\0virtual:morph-client';
       }
-      if (id === '\0virtual:morph-client') {
-        return '\0virtual:morph-client';
+      if (id === 'virtual:morph-config') {
+        return '\0virtual:morph-config';
       }
-      // Handle .morph files - let Vite resolve them normally
-      // We'll handle them in load/transform hooks
     },
 
     // Load .morph files and virtual module content
     async load(id) {
       if (id.endsWith('.morph')) {
-        console.log('[vite-plugin-morph] Loading .morph file:', id);
-        // In dev mode, Vite handles file reading, but we need to return the content
-        // for the transform hook to work
         const fs = await import('fs');
         const code = fs.readFileSync(id.replace(/\?.*$/, ''), 'utf8');
         return code;
       }
       if (id === '\0virtual:morph-themes') {
         if (!discoveredThemes) {
-          // Resolve theme directories relative to project root
           const themeDirs = resolveThemeDirectories(resolvedOptions, rootDir);
-
           const themeDiscovery = createThemeDiscovery({
             directories: themeDirs,
             defaultTheme: resolvedOptions.themes?.defaultTheme || 'default',
@@ -94,82 +259,41 @@ export function createMorphPlugin(options = {}) {
           discoveredThemes = await themeDiscovery.discoverThemes();
         }
 
-        // Convert Map to object for export
         const themesObject = {};
         for (const [name, theme] of discoveredThemes) {
           themesObject[name] = theme;
         }
 
-        const defaultTheme = resolvedOptions.themes?.defaultTheme || 'default';
-
-        return `export const defaultTheme = "${defaultTheme}";
-export default ${JSON.stringify(themesObject, null, 2)};`;
+        return `export default ${JSON.stringify(themesObject)};`;
       }
-
       if (id === '\0virtual:morph-css') {
-        // Get collected CSS from the collector
         const collector = getCssCollector();
-
-        // Get all collected CSS as a single string
-        const allCss = Array.from(collector.components.values()).join('\n\n');
-
-        return `export const collectedCss = ${JSON.stringify(allCss)};`;
+        const morphCss = Array.from(collector.components.values()).join('\n\n');
+        return `export default ${JSON.stringify(morphCss)};`;
       }
-
-      if (id === '\0virtual:morph-client') {
-        // Generate client module code based on environment
-        return await generateClientModule(resolvedOptions, rootDir);
+      if (id === '\0virtual:morph-config') {
+        const globalCSS = resolvedOptions.globalCSS || {};
+        return `export default ${JSON.stringify({ globalCSS })};`;
       }
+      return null;
     },
 
-    // Handle client interface imports and generate config
+    // Transform .morph files to JavaScript
     async transform(code, id) {
-      // If this file imports the client interface and we have global CSS configured,
-      // inject the virtual client module import
-      if (code.includes('@peter.naydenov/vite-plugin-morph/client') &&
-          !id.endsWith('.morph') &&
-          resolvedOptions.globalCSS) {
-        // Inject import of virtual client module
-        const injectedCode = `import 'virtual:morph-client';\n${code}`;
-        return {
-          code: injectedCode,
-          map: null,
-        };
-      }
+      console.log('[vite-plugin-morph] Transform called for:', id);
 
       if (!id || !id.endsWith('.morph')) {
         return null;
       }
 
-      // Validate inputs
-      if (typeof code !== 'string') {
-        throw new Error(
-          `Invalid code parameter: expected string, got ${typeof code}`
-        );
-      }
-      if (typeof id !== 'string') {
-        throw new Error(
-          `Invalid id parameter: expected string, got ${typeof id}`
-        );
-      }
-
-      // Pass CSS variables file path to processor
-      const cssVarsFile = resolvedOptions.css?.variablesFile;
-
       try {
         const result = await processMorphFile(code, id, {
-        ...resolvedOptions,
-        cssVarsFile: resolvedOptions.css?.variablesFile,
-        rootDir,
-        test: process.env.NODE_ENV === 'test'
-      });
+          ...resolvedOptions,
+          cssVarsFile: resolvedOptions.css?.variablesFile,
+          rootDir,
+          test: process.env.NODE_ENV === 'test',
+        });
 
-        // Validate result
-        if (!result || typeof result.code !== 'string') {
-          throw new Error(
-            `processMorphFile returned invalid result: ${JSON.stringify(result)}`
-          );
-        }
         return {
           code: result.code,
           map: result.map,
@@ -182,13 +306,12 @@ export default ${JSON.stringify(themesObject, null, 2)};`;
           },
         };
       } catch (error) {
-        // Ensure error has a valid message
         const safeError =
           error && typeof error === 'object'
             ? error
             : new Error(
-              typeof error === 'string' ? error : 'Unknown transform error'
-            );
+                typeof error === 'string' ? error : 'Unknown transform error'
+              );
 
         if (!safeError.message) {
           safeError.message = 'Transform failed with no error message';
@@ -205,58 +328,52 @@ export default ${JSON.stringify(themesObject, null, 2)};`;
       }
 
       try {
-        // Handle morph files
         if (context.file.endsWith('.morph')) {
-          // Read the updated file content
           const updatedContent = await context.read();
-
-          // Check if the file contains CSS
           const hasCss = await checkFileHasCss(updatedContent);
 
           if (hasCss) {
-            // For CSS changes in dev mode, trigger module reload
-            // This will regenerate the client module with updated CSS
             return context.modules;
           }
-
-          // For non-CSS changes, return the module to be reloaded
           return context.modules;
         }
 
-        // Handle global CSS files
         if (context.file.endsWith('.css') && resolvedOptions.globalCSS) {
-          // Check if this CSS file is in the global CSS directory
-          const globalCssDir = path.join(rootDir, resolvedOptions.globalCSS.directory);
+          const globalCssDir = path.join(
+            rootDir,
+            resolvedOptions.globalCSS.directory
+          );
           const isInGlobalDir = context.file.startsWith(globalCssDir);
 
           if (isInGlobalDir) {
-            console.log('[Vite Plugin Morph] Global CSS changed:', context.file);
-            // Read the updated CSS content
+            console.log(
+              '[Vite Plugin Morph] Global CSS changed:',
+              context.file
+            );
             const cssContent = await context.read();
-
-            // Update the global CSS in the collector
             const collector = getCssCollector();
             collector.updateGlobalCss(context.file, cssContent);
 
-            // Invalidate importers of the virtual module (e.g., main.js) to trigger reload
-            const virtualModule = context.server.moduleGraph.getModuleById('\0virtual:morph-client');
+            const virtualModule = context.server.moduleGraph.getModuleById(
+              '\0virtual:morph-client'
+            );
             if (virtualModule) {
               for (const importer of virtualModule.importers) {
                 context.server.moduleGraph.invalidateModule(importer);
               }
             }
 
-            // Send HMR update for the virtual module
             context.server.hot.send({
               type: 'update',
-              updates: [{
-                type: 'js-update',
-                id: '\0virtual:morph-client',
-                timestamp: Date.now()
-              }]
+              updates: [
+                {
+                  type: 'js-update',
+                  id: '\0virtual:morph-client',
+                  timestamp: Date.now(),
+                },
+              ],
             });
 
-            // Trigger HMR by returning modules that depend on CSS
             return context.modules;
           }
         }
@@ -270,14 +387,14 @@ export default ${JSON.stringify(themesObject, null, 2)};`;
 
     // Configure plugin
     configResolved(config) {
-      // Store root directory
       rootDir = config.root || rootDir;
-      // Validate configuration
       validatePluginConfig(resolvedOptions, config);
     },
 
     // Build lifecycle hooks for CSS collection
     async buildStart() {
+      console.log('[vite-plugin-morph] 🚀 buildStart hook called');
+
       // Start collecting component CSS with chunking options
       const cssOptions = resolvedOptions.css || {};
       const chunkingOptions = cssOptions.chunking || {};
@@ -300,11 +417,169 @@ export default ${JSON.stringify(themesObject, null, 2)};`;
         });
         collector.addGlobalCss(globalCssFiles);
       }
+
+      // Detect morph libraries and process their CSS
+      console.log('[vite-plugin-morph] 🔍 Detecting morph libraries...');
+      console.log('[vite-plugin-morph] 📁 rootDir:', rootDir);
+
+      try {
+        const {
+          detectMorphLibraries,
+          processLibraryMainCSS,
+          loadPostCSSConfig,
+        } = await import('../services/library-css-processor.js');
+
+        const nodeModulesPath = path.join(rootDir, 'node_modules');
+        console.log('[vite-plugin-morph] 📂 Scanning:', nodeModulesPath);
+
+        const cacheDir = path.join(
+          rootDir,
+          '.vite',
+          'cache',
+          'morph-processed'
+        );
+        const postcssConfig = await loadPostCSSConfig(rootDir);
+
+        if (fs.existsSync(nodeModulesPath)) {
+          const packages = fs.readdirSync(nodeModulesPath);
+          console.log(
+            '[vite-plugin-morph] 📦 Found packages:',
+            packages.length
+          );
+
+          for (const pkg of packages) {
+            if (pkg.startsWith('@')) {
+              const scopedPath = path.join(nodeModulesPath, pkg);
+              if (fs.existsSync(scopedPath)) {
+                const scopedPackages = fs.readdirSync(scopedPath);
+                for (const scopedPkg of scopedPackages) {
+                  const pkgPath = path.join(
+                    scopedPath,
+                    scopedPkg,
+                    'package.json'
+                  );
+                  if (fs.existsSync(pkgPath)) {
+                    try {
+                      const pkgJson = JSON.parse(
+                        fs.readFileSync(pkgPath, 'utf-8')
+                      );
+                      if (pkgJson.isMorphLibrary) {
+                        const fullName = `${pkg}/${scopedPkg}`;
+                        console.log(
+                          '[vite-plugin-morph] ✅ Found morph library:',
+                          fullName
+                        );
+
+                        morphLibraries.push({
+                          name: fullName,
+                          path: path.join(scopedPath, scopedPkg),
+                          cssEntry: 'assets/main.css',
+                        });
+
+                        // Process CSS immediately for dev mode
+                        const library =
+                          morphLibraries[morphLibraries.length - 1];
+                        const result = await processLibraryMainCSS(
+                          library,
+                          cacheDir,
+                          postcssConfig
+                        );
+                        libraryCssUrls.add(library.name, result.cssUrl);
+                        console.log(
+                          `[vite-plugin-morph] Processed CSS for ${library.name}: ${result.cssUrl}`
+                        );
+                      }
+                    } catch (e) {
+                      // Skip invalid package.json
+                    }
+                  }
+                }
+              }
+            } else {
+              const pkgPath = path.join(nodeModulesPath, pkg, 'package.json');
+              if (fs.existsSync(pkgPath)) {
+                try {
+                  const pkgJson = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+                  if (pkgJson.isMorphLibrary) {
+                    console.log(
+                      '[vite-plugin-morph] ✅ Found morph library:',
+                      pkg
+                    );
+
+                    morphLibraries.push({
+                      name: pkg,
+                      path: path.join(nodeModulesPath, pkg),
+                      cssEntry: 'assets/main.css',
+                    });
+
+                    // Process CSS immediately for dev mode
+                    const library = morphLibraries[morphLibraries.length - 1];
+                    const result = await processLibraryMainCSS(
+                      library,
+                      cacheDir,
+                      postcssConfig
+                    );
+                    libraryCssUrls.set(library.name, result.cssUrl);
+                    console.log(
+                      `[vite-plugin-morph] Processed CSS for ${library.name}: ${result.cssUrl}`
+                    );
+                    libraryCssUrls.set(library.name, result.cssUrl);
+                    console.log(
+                      `[vite-plugin-morph] Processed CSS for ${library.name}: ${result.cssUrl}`
+                    );
+                  }
+                } catch (e) {
+                  // Skip invalid package.json
+                }
+              }
+            }
+          }
+        }
+
+        console.log(
+          '[vite-plugin-morph] 📊 Detected morph libraries:',
+          morphLibraries.length
+        );
+        for (const lib of morphLibraries) {
+          console.log('  -', lib.name, 'at', lib.path);
+        }
+      } catch (error) {
+        console.error(
+          '[vite-plugin-morph] ❌ Error detecting morph libraries:',
+          error.message,
+          error.stack
+        );
+      }
     },
 
     async buildEnd() {
       // Finalize CSS collection and generate bundle
       await finalizeCssCollection();
+    },
+
+    // Copy processed CSS to dist/assets for production builds
+    generateBundle(options, bundle) {
+      const cacheDir = path.join(rootDir, '.vite', 'cache', 'morph-processed');
+
+      for (const [libraryName, cssUrl] of libraryCssUrls.entries()) {
+        const fileName = cssUrl.split('/').pop();
+        const cachePath = path.join(cacheDir, fileName);
+
+        if (fs.existsSync(cachePath)) {
+          const css = fs.readFileSync(cachePath, 'utf-8');
+          const assetName = `morph-${libraryName.replace(/[^a-z0-9]/gi, '-')}.css`;
+
+          bundle[assetName] = {
+            type: 'asset',
+            fileName: `assets/${assetName}`,
+            source: css,
+          };
+
+          console.log(
+            `[vite-plugin-morph] Included processed CSS for ${libraryName}: assets/${assetName}`
+          );
+        }
+      }
     },
   };
 }
@@ -326,7 +601,6 @@ function resolveOptions(options) {
  * @returns {Promise<import('../types/index.d.ts').ProcessingResult>} Processing result
  */
 async function processMorphFile(code, id, options) {
-  // This will be implemented in core/processor.js
   const { processMorphFile } = await import('../core/processor.js');
   return processMorphFile(code, id, options);
 }
@@ -337,7 +611,6 @@ async function processMorphFile(code, id, options) {
  * @param {import('vite').ResolvedConfig} config - Vite config
  */
 function validatePluginConfig(options, config) {
-  // This will be implemented in config.js
   import('./config.js').then(({ validateConfig }) => {
     validateConfig(options, config);
   });
@@ -350,7 +623,6 @@ function validatePluginConfig(options, config) {
  * @returns {import('../types/index.d.ts').MorphPluginError} Enhanced error
  */
 async function createMorphError(error, filePath) {
-  // This will be implemented in core/errors.js
   const { createMorphError } = await import('../core/errors.js');
   return createMorphError(error, filePath);
 }
@@ -383,111 +655,19 @@ async function checkFileHasCss(content) {
  */
 async function generateCssUpdate(filePath, content, options) {
   try {
-    // Process the morph file to get the CSS
     const result = await processMorphFileForHmr(content, filePath, options);
 
     if (result.cssExports) {
-      // Invalidate CSS cache for this component
-      const { getCssCollector } = await import('../services/css-collection.js');
-      const collector = getCssCollector();
-      collector.clearCache();
-
-      // Return update info for the CSS bundle
       return {
-        bundlePath: 'dist/components/components.css', // Default bundle path
         css: result.cssExports,
+        filePath,
+        timestamp: Date.now(),
       };
     }
-
-    return null;
   } catch (error) {
-    console.warn(
-      `Failed to generate CSS update for ${filePath}:`,
-      error.message
-    );
-    return null;
+    console.warn('Failed to generate CSS update:', error.message);
   }
-}
-
-/**
- * Generate client module code for dev or build mode
- * @param {Object} options - Plugin options
- * @param {string} rootDir - Project root directory
- * @returns {Promise<string>} Generated module code
- */
-async function generateClientModule(options, rootDir) {
-  const isDev = process.env.NODE_ENV !== 'production';
-
-    if (isDev) {
-      // Dev mode: Provide configuration data for runtime consumption
-      const collector = getCssCollector();
-      const morphCss = Array.from(collector.components.values()).join('\n\n');
-      // In dev, global CSS is loaded via import in main.js, so only include component CSS here
-      const collectedCss = morphCss;
-
-    // Get theme information from theme discovery
-    const themeDiscovery = await createThemeDiscovery({
-      directories: [join(rootDir, 'src/themes')],
-      defaultTheme: options.themes?.defaultTheme || 'default',
-    });
-    const themes = await themeDiscovery.discoverThemes();
-    const themeNames = Array.from(themes.keys());
-    const defaultTheme = options.themes?.defaultTheme || 'default';
-
-    // Generate theme URL mapping for dev mode
-     const themeUrls = {};
-     themeNames.forEach(name => {
-       themeUrls[name] = `/themes/${name}.css`;
-     });
-
-     const cssHash = createHash('md5').update(collectedCss).digest('hex');
-     console.log('[Vite Plugin Morph] Generated CSS for client:', {
-       cssLength: collectedCss.length,
-       cssHash,
-       containsVariables: collectedCss.includes('--color-main-background'),
-       containsRoot: collectedCss.includes(':root')
-     });
-
-     return `
-import { setMorphConfig } from '@peter.naydenov/vite-plugin-morph/client';
-
-const collectedCss = ${JSON.stringify(collectedCss)};
-
-const config = {
-  environment: 'development',
-  css: collectedCss,
-  baseCss: ${JSON.stringify(collectedCss)},
-  themes: ${JSON.stringify(themeNames)},
-  defaultTheme: ${JSON.stringify(defaultTheme)},
-  themeUrls: ${JSON.stringify(themeUrls)}
-};
-
-setMorphConfig(config);
-
-// HMR support: Update CSS when morph files change
-if (import.meta.hot) {
-  import.meta.hot.on('morph-css-update', (newCss) => {
-    setMorphConfig({ css: newCss });
-  });
-}
-
-// Export config for debugging
-export const __morphConfig__ = config;
-`;
-  } else {
-    // Build mode: Provide placeholder configuration
-    // This will be replaced during bundle generation with actual asset URLs
-    return `
-// Build mode configuration placeholder - will be replaced with actual assets
-export const __morphConfig__ = {
-  environment: 'build',
-  css: '',
-  themes: [],
-  defaultTheme: 'default',
-  themeUrls: {}
-};
-`;
-  }
+  return null;
 }
 
 /**

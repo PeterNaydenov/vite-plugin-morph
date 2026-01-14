@@ -11,32 +11,41 @@ let morphConfig = {
   themes: [],
   defaultTheme: 'default',
   themeUrls: {},
+  globalCSS: {
+    directory: 'src/styles',
+    entry: 'main.css',
+  },
 };
+
+// Load config from plugin if available
+if (typeof import.meta !== 'undefined' && import.meta.env) {
+  try {
+    const pluginConfig = await import('virtual:morph-config');
+    if (pluginConfig && pluginConfig.default) {
+      morphConfig.globalCSS =
+        pluginConfig.default.globalCSS || morphConfig.globalCSS;
+    }
+  } catch (e) {
+    // Config not available, use defaults
+  }
+}
 
 /**
  * Set configuration (called by plugin-generated code)
  * @param {Object} config - Configuration object
  */
 export function setMorphConfig(config) {
-  console.log('[Morph Client] Setting config:', {
+  console.log('[Morph Client] 🔧 setMorphConfig called with:', {
     environment: config.environment,
-    cssLength: config.css ? config.css.length : 0,
     themes: config.themes,
-    defaultTheme: config.defaultTheme,
+    libraryName: config.libraryName,
+    cssLength: config.css ? config.css.length : 0,
   });
   morphConfig = { ...morphConfig, ...config };
-
-  // Auto-apply styles if we're in a browser environment and have CSS
-  if (typeof document !== 'undefined' && config.css) {
-    console.log('[Morph Client] Auto-applying styles on config set');
-
-    // If DOM is ready, apply immediately, otherwise wait
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', () => applyStyles());
-    } else {
-      applyStyles();
-    }
-  }
+  console.log(
+    '[Morph Client] ✅ morphConfig updated, current env:',
+    morphConfig.environment
+  );
 }
 
 export function getMorphConfig() {
@@ -182,17 +191,27 @@ export function createThemeController(config) {
  * Apply all CSS layers (general, components, themes) in correct order
  */
 export function applyStyles() {
-  const env = detectEnvironment();
+  const config = getConfig();
+
+  // Use environment from config if available
+  const env = config.environment || detectEnvironment();
+  console.log(
+    '[Morph Client] applyStyles called, env:',
+    env,
+    'config env:',
+    config.environment
+  );
 
   switch (env) {
-    case 'development':
-      return applyStylesDev();
     case 'library':
       return applyStylesLibrary();
+    case 'development':
+      return applyStylesDev();
     case 'build':
       return applyStylesBuild();
     default:
-      console.warn(`[Morph Client] Unknown environment: ${env}`);
+      console.warn(`[Morph Client] Unknown environment: ${env}, using build`);
+      return applyStylesBuild();
   }
 }
 
@@ -200,64 +219,190 @@ export function applyStyles() {
  * Apply CSS in development mode (embedded styles + theme links)
  * Ensures proper ordering: general → components → themes
  */
-function applyStylesDev() {
+async function applyStylesDev() {
   console.log('[Morph Client] applyStylesDev called');
   const config = getConfig();
   console.log('[Morph Client] Config:', {
-    cssLength: config.css.length,
+    cssLength: config.css ? config.css.length : 0,
     themes: config.themes,
     defaultTheme: config.defaultTheme,
   });
 
-  // Apply general/component styles as embedded style element
+  // Apply morph component styles as embedded style element
   if (typeof document !== 'undefined' && config.css) {
-    console.log('[Morph Client] Injecting CSS, length:', config.css.length);
-    let existing = document.getElementById('morph-general-css');
+    console.log(
+      '[Morph Client] Injecting morph CSS, length:',
+      config.css.length
+    );
+    let existing = document.getElementById('morph-css');
     if (!existing) {
       const styleElement = document.createElement('style');
-      styleElement.id = 'morph-general-css';
+      styleElement.id = 'morph-css';
       styleElement.textContent = config.css;
       document.head.appendChild(styleElement);
-      console.log('[Morph Client] CSS element created and added to head');
+      console.log('[Morph Client] Morph CSS element created and added to head');
     } else {
       // Remove and re-add to force CSS re-application
       document.head.removeChild(existing);
       const newStyle = document.createElement('style');
-      newStyle.id = 'morph-general-css';
+      newStyle.id = 'morph-css';
       newStyle.textContent = config.css;
       document.head.appendChild(newStyle);
-      console.log('[Morph Client] CSS element replaced');
+      console.log('[Morph Client] Morph CSS element replaced');
     }
   } else {
-    console.log('[Morph Client] No CSS to inject or document not available');
+    console.log('[Morph Client] No morph CSS to inject');
   }
+
+  // Try to load local CSS from dev server
+  await loadLocalCss();
 
   // Apply default theme via link tag
   applyDefaultTheme(config);
 }
 
 /**
+ * Load local CSS from /@morph-css/local/ endpoint (HMR enabled)
+ */
+async function loadLocalCss() {
+  if (typeof window === 'undefined') return;
+
+  const config = getConfig();
+  const globalCssConfig = config.globalCSS || {};
+  const entryFile = globalCssConfig.entry || 'main.css';
+  const localCssUrl = `/@morph-css/local/${entryFile}`;
+
+  console.log('[Morph Client] Loading local CSS from:', localCssUrl);
+
+  try {
+    const response = await fetch(localCssUrl);
+    if (response.ok) {
+      const css = await response.text();
+      console.log('[Morph Client] Loaded local CSS, length:', css.length);
+
+      let existing = document.getElementById('morph-local-css');
+      if (existing) {
+        document.head.removeChild(existing);
+      }
+
+      const style = document.createElement('style');
+      style.id = 'morph-local-css';
+      style.textContent = css;
+      document.head.appendChild(style);
+      console.log('[Morph Client] Local CSS injected');
+    } else {
+      console.log('[Morph Client] Local CSS not found (404), skipping');
+    }
+  } catch (e) {
+    console.log('[Morph Client] Could not load local CSS:', e.message);
+  }
+}
+
+/**
+ * Try to load processed CSS from the dev server's morph-processed cache
+ * @param {Object} config - Morph config
+ * @returns {Promise<void>}
+ */
+async function tryLoadProcessedCss(config) {
+  if (typeof window === 'undefined') return;
+
+  const libraryName = config.libraryName;
+  if (!libraryName) {
+    console.log('[Morph Client] No libraryName in config');
+    return;
+  }
+
+  // Construct the cache-busted URL pattern
+  const safeName = libraryName.replace('@', '').replace(/\//g, '-');
+  const testUrl = `/@morph-processed/${safeName}`;
+
+  console.log('[Morph Client] Trying to load processed CSS from:', testUrl);
+
+  try {
+    const response = await fetch(testUrl);
+    console.log(
+      '[Morph Client] Fetch response:',
+      response.status,
+      response.statusText
+    );
+    if (response.ok) {
+      const css = await response.text();
+      console.log('[Morph Client] Loaded processed CSS, length:', css.length);
+      // Inject CSS directly instead of using link tag
+      const style = document.createElement('style');
+      style.id = 'morph-processed';
+      style.textContent = css;
+      document.head.appendChild(style);
+      console.log('[Morph Client] Injected processed CSS directly');
+    } else {
+      console.log('[Morph Client] Fetch failed, status:', response.status);
+    }
+  } catch (e) {
+    console.log('[Morph Client] Could not load processed CSS:', e.message);
+  }
+}
+
+/**
+ * Load CSS asynchronously and wait for it to be parsed
+ * @param {string} url - CSS URL
+ * @returns {Promise<void>}
+ */
+async function loadCssAsync(url) {
+  return new Promise((resolve, reject) => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = url;
+    link.onload = () => resolve();
+    link.onerror = () => reject(new Error(`Failed to load CSS: ${url}`));
+    document.head.appendChild(link);
+  });
+}
+
+/**
  * Apply CSS in library mode (URL-based loading for all layers)
  */
-function applyStylesLibrary() {
+async function applyStylesLibrary() {
   const config = getConfig();
   console.log('[Morph Client] Library mode: Applying CSS via URL links');
 
-  // Library mode should have CSS URLs configured
-  // Apply all CSS URLs
-  if (config.cssUrls && Array.isArray(config.cssUrls)) {
-    config.cssUrls.forEach((url, index) => {
-      createStyleLink(url, `morph-css-${index}`);
-    });
-  } else {
-    // Fallback for single URLs
-    if (config.generalCssUrl) {
-      createStyleLink(config.generalCssUrl, 'morph-general-css');
-    }
+  // Check for injected processed CSS URLs from host project
+  const injectedProcessedCssUrls =
+    typeof window !== 'undefined' ? window.__MORPH_PROCESSED_CSS__ : null;
 
-    if (config.componentCssUrl) {
-      createStyleLink(config.componentCssUrl, 'morph-component-css');
+  // Prefer processed CSS URLs (from host project)
+  if (injectedProcessedCssUrls && injectedProcessedCssUrls.length > 0) {
+    for (const url of injectedProcessedCssUrls) {
+      await loadCssAsync(url);
     }
+    console.log(
+      '[Morph Client] Using injected processed CSS URLs:',
+      injectedProcessedCssUrls
+    );
+  }
+  // Fallback to processed CSS URLs from config
+  else if (config.processedCssUrls && config.processedCssUrls.length > 0) {
+    for (const url of config.processedCssUrls) {
+      await loadCssAsync(url);
+    }
+    console.log(
+      '[Morph Client] Using config processed CSS URLs:',
+      config.processedCssUrls
+    );
+  }
+  // Try to load processed CSS from dev server
+  else {
+    await tryLoadProcessedCss(config);
+  }
+
+  // Only load raw CSS as final fallback (if processed CSS wasn't available)
+  const processedLoaded = document.getElementById('morph-processed');
+  if (!processedLoaded && config.cssUrls && Array.isArray(config.cssUrls)) {
+    for (const url of config.cssUrls) {
+      createStyleLink(url, `morph-css-${Date.now()}`);
+    }
+    console.log('[Morph Client] Using fallback raw CSS URLs:', config.cssUrls);
+  } else if (processedLoaded) {
+    console.log('[Morph Client] Processed CSS loaded, skipping raw CSS');
   }
 
   // Apply default theme

@@ -54,6 +54,7 @@ const defaultConfig = {
   // Legacy configuration validation
   globalCSS: {
     directory: 'src/styles',
+    entry: 'main.css', // Entry file for local CSS
     include: ['**/*.css'],
     exclude: [],
   },

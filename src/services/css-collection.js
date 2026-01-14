@@ -9,7 +9,7 @@
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { debug, info, warn } from '../utils/logger.js';
-import { getCSSTreeShaker } from './css-tree-shaker.js';
+import { createThemeDiscovery } from '../services/theme-discovery.js';
 
 /**
  * CSS Collection Service for bundling and chunking

@@ -7,6 +7,7 @@
 import { build } from 'vite';
 import { writeFile, mkdir, readFile, copyFile } from 'fs/promises';
 import { join, dirname, relative } from 'path';
+import { fileURLToPath } from 'url';
 import { glob } from 'glob';
 import { info, warn, debug } from '../utils/logger.js';
 import { createThemeDiscovery } from './theme-discovery.js';
@@ -267,6 +268,21 @@ ${exports}
 
             debug(`Copied ${cssFiles.length} CSS files from ${self.stylesDir}`);
 
+            // Copy runtime.js from plugin directory
+            const pluginDir = dirname(fileURLToPath(import.meta.url));
+            const runtimePath = join(pluginDir, '../client/runtime.js');
+            try {
+              const runtimeSource = await readFile(runtimePath, 'utf-8');
+              bundle['runtime.js'] = {
+                type: 'asset',
+                fileName: 'runtime.js',
+                source: runtimeSource,
+              };
+              debug(`Copied runtime.js from plugin`);
+            } catch (error) {
+              warn(`Failed to copy runtime.js: ${error.message}`);
+            }
+
             // Generate client module
             const clientCode = self.generateClientModule(cssAssets, themes);
 
@@ -276,17 +292,19 @@ ${exports}
               source: clientCode,
             };
 
-            // Copy runtime.js
-            const runtimePath = join(self.rootDir, 'src/client/runtime.js');
-            try {
-              const runtimeSource = await readFile(runtimePath, 'utf-8');
-              bundle['runtime.js'] = {
-                type: 'asset',
-                fileName: 'runtime.js',
-                source: runtimeSource,
-              };
-            } catch (error) {
-              warn(`Failed to copy runtime.js`);
+            // Add re-exports to main index.mjs
+            const mainIndex = bundle['index.mjs'];
+            if (mainIndex && mainIndex.type === 'chunk') {
+              mainIndex.code += `
+// Import client runtime for CSS initialization
+import './client.mjs';
+
+// Re-export runtime functions for convenience
+export { applyStyles, themesControl } from './runtime.js';
+`;
+              debug(
+                `Added client.mjs import and runtime re-exports to index.mjs`
+              );
             }
           },
         },
@@ -304,6 +322,7 @@ ${exports}
     const packageJson = {
       name: this.libraryConfig.name || 'morph-library',
       version: this.libraryConfig.version || '1.0.0',
+      isMorphLibrary: true, // NEW: Marker for morph library detection
       description:
         this.libraryConfig.description ||
         'Component library built with vite-plugin-morph',
@@ -426,7 +445,9 @@ const config = {
   themes: ${JSON.stringify(themeNames)},
   defaultTheme: '${defaultTheme}',
   themeUrls: ${JSON.stringify(themeUrls)},
-  cssUrls: ${JSON.stringify(cssUrls)}
+  cssUrls: ${JSON.stringify(cssUrls)},  // Fallback raw CSS URLs
+  processedCssUrls: [],  // Will be populated by host project plugin
+  libraryName: '${this.libraryConfig.name || 'morph-library'}'  // Library name for CSS URL construction
 };
 
 // Initialize the unified runtime
