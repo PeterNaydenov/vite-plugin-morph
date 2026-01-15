@@ -59,6 +59,13 @@ const defaultConfig = {
     exclude: [],
   },
 
+  // Local themes configuration
+  localThemes: {
+    directory: 'src/themes', // Where local theme files are located
+    include: ['**/*.css'], // Pattern for theme files
+    exclude: [], // Files to exclude
+  },
+
   production: {
     removeHandshake: true,
     minifyCSS: true,

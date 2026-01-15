@@ -12,6 +12,10 @@ import { glob } from 'glob';
 import { info, warn, debug } from '../utils/logger.js';
 import { createThemeDiscovery } from './theme-discovery.js';
 import { getCssCollector } from './css-collection.js';
+import {
+  extractThemesFromDir,
+  extractThemeVariables,
+} from './theme-variables.js';
 
 /**
  * Library Builder Service
@@ -24,6 +28,7 @@ export class LibraryBuilder {
     this.rootDir = options.rootDir || process.cwd();
     this.themesDir = options.themesDir || 'src/themes';
     this.stylesDir = options.stylesDir || 'src/styles';
+    this.discoveredThemes = new Map(); // Store themes for build process
   }
 
   /**
@@ -35,8 +40,8 @@ export class LibraryBuilder {
 
     try {
       // 1. Discover themes first
-      const themes = await this.discoverThemes();
-      debug(`Discovered ${themes.size} themes`);
+      this.discoveredThemes = await this.discoverThemes();
+      debug(`Discovered ${this.discoveredThemes.size} themes`);
 
       // 2. Scan and prepare morph components
       const morphFiles = await this.scanMorphFiles();
@@ -46,7 +51,7 @@ export class LibraryBuilder {
       await this.generateEntryFile(morphFiles);
 
       // 4. Build with Vite in library mode
-      await this.buildWithVite(themes);
+      await this.buildWithVite(this.discoveredThemes);
 
       // 5. Generate package.json
       await this.generatePackageJson();
@@ -283,14 +288,33 @@ ${exports}
               warn(`Failed to copy runtime.js: ${error.message}`);
             }
 
-            // Generate client module
-            const clientCode = self.generateClientModule(cssAssets, themes);
+            // Extract themes first (needed for both themes.json and client.mjs)
+            const themesDir = join(self.rootDir, self.themesDir);
+            const themes = await extractThemesFromDir(themesDir);
+
+            // Generate client module with theme content
+            const clientCode = self.generateClientModule(
+              cssAssets,
+              self.discoveredThemes,
+              themes
+            );
 
             bundle['client.mjs'] = {
               type: 'asset',
               fileName: 'client.mjs',
               source: clientCode,
             };
+
+            if (Object.keys(themes).length > 0) {
+              bundle['themes.json'] = {
+                type: 'asset',
+                fileName: 'themes.json',
+                source: JSON.stringify(themes, null, 2),
+              };
+              debug(
+                `Generated themes.json with ${Object.keys(themes).length} themes`
+              );
+            }
 
             // Add re-exports to main index.mjs
             const mainIndex = bundle['index.mjs'];
@@ -408,11 +432,12 @@ export { applyStyles, themesControl } from './runtime.js';
   /**
    * Generate unified client module for library
    * @param {Array} cssAssets - CSS asset paths
-   * @param {Map} themes - Available themes
+   * @param {Map} themeNamesMap - Available theme names (Map)
+   * @param {Object} extractedThemes - Extracted themes with variables { themeName: { variables, raw } }
    * @returns {string} Client module code
    */
-  generateClientModule(cssAssets, themes) {
-    const themeNames = Array.from(themes.keys());
+  generateClientModule(cssAssets, themeNamesMap, extractedThemes = {}) {
+    const themeNames = Array.from(themeNamesMap.keys());
     const defaultTheme =
       this.libraryConfig.defaultTheme || themeNames[0] || 'default';
 
@@ -433,10 +458,49 @@ export { applyStyles, themesControl } from './runtime.js';
     // All CSS assets are loaded as general CSS
     const cssUrls = cssAssets.map((asset) => asset.replace('./', ''));
 
+    // Theme registration code
+    const themeRegistration = `
+// Theme registration for runtime
+const libraryName = '${this.libraryConfig.name || 'morph-library'}';
+const libraryThemes = ${JSON.stringify(themeNames)};
+const libraryDefaultTheme = '${defaultTheme}';
+
+// Register themes with global registry
+if (typeof window !== 'undefined') {
+  // Initialize or get existing theme registry
+  window.__MORPH_THEME_REGISTRY__ = window.__MORPH_THEME_REGISTRY__ || [];
+  
+  // Check if already registered
+  const alreadyRegistered = window.__MORPH_THEME_REGISTRY__.some(
+    entry => entry.libraryName === libraryName
+  );
+  
+  if (!alreadyRegistered) {
+    window.__MORPH_THEME_REGISTRY__.push({
+      libraryName,
+      themes: libraryThemes,
+      defaultTheme: libraryDefaultTheme,
+    });
+  }
+
+  // Store theme content for runtime loading
+  window.__MORPH_THEMES__ = window.__MORPH_THEMES__ || {};
+  if (!window.__MORPH_THEMES__[libraryName]) {
+    window.__MORPH_THEMES__[libraryName] = {};
+  }
+  
+  // Load extracted theme content into runtime registry
+  window.__MORPH_THEMES__[libraryName] = ${JSON.stringify(extractedThemes)};
+  
+  console.log('[Morph Client] Registered themes for ' + libraryName + ':', libraryThemes);
+}
+`;
+
     return `
 ${cssImports}
 ${themeImports}
 import { setMorphConfig, applyStyles, themesControl } from './runtime.js';
+${themeRegistration}
 
 // Library mode configuration for unified runtime
 const config = {

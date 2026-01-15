@@ -10,6 +10,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { debug, info, warn } from '../utils/logger.js';
 import { createThemeDiscovery } from '../services/theme-discovery.js';
+import { getCSSTreeShaker } from '../services/css-tree-shaker.js';
 
 /**
  * CSS Collection Service for bundling and chunking

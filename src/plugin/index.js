@@ -53,6 +53,7 @@ export function createMorphPlugin(options = {}) {
   let cssDependencies = new Map(); // Track CSS dependencies
   let morphLibraries = []; // Store detected morph libraries
   let libraryCssUrls = new Map(); // Library name → processed CSS URL
+  let localThemesCode = ''; // Local themes registration code
 
   console.log('[vite-plugin-morph] 🎯 Plugin initialized');
 
@@ -121,6 +122,15 @@ export function createMorphPlugin(options = {}) {
           urlPath
         );
 
+        // Skip theme files - they're handled by the theme middleware
+        if (urlPath.startsWith('themes/')) {
+          console.log(
+            '[vite-plugin-morph] ⏭️ Skipping theme file, passing to next middleware'
+          );
+          next();
+          return;
+        }
+
         const globalCssConfig = resolvedOptions.globalCSS || {};
         const cssDir = path.join(
           rootDir,
@@ -176,6 +186,36 @@ export function createMorphPlugin(options = {}) {
           console.log('[vite-plugin-morph] ❌ Cached CSS not found');
           next();
         }
+      });
+
+      // Serve local theme CSS files for HMR
+      server.middlewares.use('/@morph-css/local/themes', (req, res, next) => {
+        const urlPath = req.url.replace('/', ''); // e.g., "light.css"
+        console.log(
+          '[vite-plugin-morph] 📥 Local theme CSS middleware called for:',
+          urlPath
+        );
+
+        const localThemesConfig = resolvedOptions.localThemes || {};
+        const themesDir = path.join(
+          rootDir,
+          localThemesConfig.directory || 'src/themes'
+        );
+        const cssPath = path.join(themesDir, urlPath);
+
+        if (!fs.existsSync(cssPath)) {
+          console.log(
+            '[vite-plugin-morph] ❌ Local theme CSS not found:',
+            cssPath
+          );
+          next();
+          return;
+        }
+
+        const css = fs.readFileSync(cssPath, 'utf-8');
+        res.setHeader('Content-Type', 'text/css');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.end(css);
       });
 
       // Watch local CSS files
@@ -238,6 +278,119 @@ export function createMorphPlugin(options = {}) {
           }
         });
       }
+
+      // Watch theme files in all morph library theme directories
+      for (const library of morphLibraries) {
+        const themeDir = path.join(library.path, 'themes');
+        if (fs.existsSync(themeDir)) {
+          const themeFiles = fs
+            .readdirSync(themeDir)
+            .filter((f) => f.endsWith('.css'));
+
+          for (const themeFile of themeFiles) {
+            const themePath = path.join(themeDir, themeFile);
+            server.watcher.add(themePath);
+            console.log(
+              '[vite-plugin-morph] 📁 Watching theme:',
+              `${library.name}/${themeFile}`
+            );
+          }
+
+          server.watcher.on('change', async (changedPath) => {
+            if (
+              changedPath.endsWith('.css') &&
+              changedPath.startsWith(themeDir)
+            ) {
+              console.log('[vite-plugin-morph] 🎨 Theme changed:', changedPath);
+
+              // Extract theme name and library
+              const themeFile = changedPath.split('/').pop();
+              const themeName = themeFile.replace('.css', '');
+              const libraryName = library.name;
+
+              console.log(
+                '[vite-plugin-morph] 📡 Sending HMR update for theme:',
+                `${libraryName}/${themeName}`
+              );
+
+              // Send HMR event to browser
+              server.hot.send({
+                type: 'custom',
+                event: 'morph-theme-change',
+                data: { libraryName, themeName },
+              });
+            }
+          });
+        }
+      }
+
+      // Watch local theme files
+      const localThemesConfig = resolvedOptions.localThemes || {};
+      const localThemesDir = path.join(
+        rootDir,
+        localThemesConfig.directory || 'src/themes'
+      );
+
+      console.log(
+        '[vite-plugin-morph] 🔍 Local themes config:',
+        localThemesConfig
+      );
+      console.log(
+        '[vite-plugin-morph] 🔍 Local themes dir path:',
+        localThemesDir
+      );
+      console.log(
+        '[vite-plugin-morph] 🔍 Dir exists:',
+        fs.existsSync(localThemesDir)
+      );
+
+      if (fs.existsSync(localThemesDir)) {
+        const localThemeFiles = fs
+          .readdirSync(localThemesDir)
+          .filter((f) => f.endsWith('.css'));
+
+        console.log(
+          '[vite-plugin-morph] 📁 Local theme files found:',
+          localThemeFiles
+        );
+
+        for (const themeFile of localThemeFiles) {
+          const themePath = path.join(localThemesDir, themeFile);
+          console.log('[vite-plugin-morph] 📁 Adding watcher for:', themePath);
+          server.watcher.add(themePath);
+        }
+
+        // Test that watcher is working
+        console.log(
+          '[vite-plugin-morph] 📁 Watcher files:',
+          server.watcher.getWatched()
+        );
+
+        server.watcher.on('all', (event, path) => {
+          if (
+            event === 'change' &&
+            path.startsWith(localThemesDir) &&
+            path.endsWith('.css')
+          ) {
+            console.log('[vite-plugin-morph] 🎨 FILE CHANGED:', path);
+
+            const themeFile = path.split('/').pop();
+            const themeName = themeFile.replace('.css', '');
+
+            console.log(
+              '[vite-plugin-morph] 📡 Sending HMR for theme:',
+              themeName
+            );
+
+            // Send HMR event to browser
+            server.hot.send({
+              type: 'custom',
+              event: 'morph-theme-change',
+              data: { libraryName: 'host', themeName },
+            });
+          }
+        });
+      }
     },
 
     // Handle virtual module resolution
@@ -253,6 +406,9 @@ export function createMorphPlugin(options = {}) {
       }
       if (id === 'virtual:morph-config') {
         return '\0virtual:morph-config';
+      }
+      if (id === 'virtual:morph-local-themes') {
+        return '\0virtual:morph-local-themes';
       }
     },
 
@@ -288,6 +444,13 @@ export function createMorphPlugin(options = {}) {
       if (id === '\0virtual:morph-config') {
         const globalCSS = resolvedOptions.globalCSS || {};
         return `export default ${JSON.stringify({ globalCSS })};`;
+      }
+      if (id === '\0virtual:morph-local-themes') {
+        const code = localThemesCode || '';
+        if (!code) {
+          return '// No local themes configured';
+        }
+        return code;
       }
       return null;
     },
@@ -556,6 +719,54 @@ export function createMorphPlugin(options = {}) {
         );
         for (const lib of morphLibraries) {
           console.log('  -', lib.name, 'at', lib.path);
+        }
+
+        // Scan local themes directory
+        const localThemesConfig = resolvedOptions.localThemes || {};
+        const localThemesDir = path.join(
+          rootDir,
+          localThemesConfig.directory || 'src/themes'
+        );
+
+        if (fs.existsSync(localThemesDir)) {
+          console.log('[vite-plugin-morph] 🔍 Scanning local themes...');
+
+          const { extractThemesFromDir } =
+            await import('../services/theme-variables.js');
+          const localThemes = await extractThemesFromDir(localThemesDir);
+
+          const localThemeNames = Object.keys(localThemes);
+          console.log(
+            '[vite-plugin-morph] ✅ Found local themes:',
+            localThemeNames
+          );
+
+          if (localThemeNames.length > 0) {
+            // Register local themes in global registry
+            const localThemesRegistration = `
+// Register local themes
+if (typeof window !== 'undefined') {
+  window.__MORPH_THEMES__ = window.__MORPH_THEMES__ || {};
+  window.__MORPH_THEMES__['host'] = ${JSON.stringify(localThemes)};
+  
+  window.__MORPH_THEME_REGISTRY__ = window.__MORPH_THEME_REGISTRY__ || [];
+  const alreadyHasHost = window.__MORPH_THEME_REGISTRY__.some(
+    entry => entry.libraryName === 'host'
+  );
+  if (!alreadyHasHost) {
+    window.__MORPH_THEME_REGISTRY__.push({
+      libraryName: 'host',
+      themes: ${JSON.stringify(localThemeNames)},
+      defaultTheme: '${resolvedOptions.themes?.defaultTheme || ''}',
+    });
+  }
+  
+  console.log('[Morph Client] Registered local themes:', ${JSON.stringify(localThemeNames)});
+}
+`;
+            // Store for virtual module
+            localThemesCode = localThemesRegistration;
+          }
         }
       } catch (error) {
         console.error(

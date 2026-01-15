@@ -306,13 +306,13 @@ export function getImportedPackages(moduleGraph) {
  */
 function extractPackageName(moduleId) {
   // Match: @myorg/my-components or @myorg/my-components/index.mjs
-  const scopedMatch = moduleId.match(/node_modules\/(@[^\/]+\/[^\/]+)/);
+  const scopedMatch = moduleId.match(/node_modules\/(@[^/]+\/[^/]+)/);
   if (scopedMatch) {
     return scopedMatch[1];
   }
 
   // Match: lodash or lodash/index.js
-  const unscopedMatch = moduleId.match(/node_modules\/([^\/]+)/);
+  const unscopedMatch = moduleId.match(/node_modules\/([^/]+)/);
   if (unscopedMatch) {
     return unscopedMatch[1];
   }
