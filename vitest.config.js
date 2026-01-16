@@ -6,6 +6,7 @@ export default defineConfig({
     globals: true,
     include: ['tests/**/*.test.js'],
     exclude: ['node_modules'],
+    testTimeout: 30000, // 30 seconds for slow integration tests
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
