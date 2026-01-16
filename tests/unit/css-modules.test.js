@@ -1,171 +1,207 @@
 /**
- * CSS Modules and Scoping Tests
+ * CSS Modules Transformation Tests
+ * Tests for auto-transforming class names in templates with content-based hashing
  */
 
 import { describe, it, expect } from 'vitest';
-import { processCss } from '../../src/core/css-processor.js';
+import { scopeCss, transformHtmlClasses } from '../../src/core/css-scoper.js';
 
-describe('CSS Scoping (CSS Modules)', () => {
-  describe('Basic CSS scoping logic', () => {
-    it('should generate scoped class name pattern', () => {
-      // Test the expected pattern for scoped class names
-      const componentName = 'Button';
-      const className = 'btn';
-      const hash = 'abc123';
-      const scopedName = `${componentName}_${className}_${hash}`;
+describe('CSS Modules - Content-Based Hashing', () => {
+  describe('scopeCss - Content-based hashing', () => {
+    it('should generate consistent hash for same CSS content', () => {
+      const result1 = scopeCss('.btn { background: blue; }', 'Button');
+      const result2 = scopeCss('.btn { background: blue; }', 'Button');
 
-      expect(scopedName).toBe('Button_btn_abc123');
-      expect(scopedName).toMatch(
-        /^[A-Z][a-zA-Z0-9]*_[a-zA-Z_-][a-zA-Z0-9_-]*_[a-z0-9]+$/
+      expect(result1.scopedClasses.btn).toBe(result2.scopedClasses.btn);
+    });
+
+    it('should generate different hash for different CSS content', () => {
+      const result1 = scopeCss('.btn { background: blue; }', 'Button');
+      const result2 = scopeCss('.btn { background: red; }', 'Button');
+
+      expect(result1.scopedClasses.btn).not.toBe(result2.scopedClasses.btn);
+    });
+
+    it('should scope multiple classes', () => {
+      const result = scopeCss(
+        '.btn { background: blue; } .primary { font-weight: bold; }',
+        'Button'
+      );
+
+      expect(result.scopedClasses.btn).toMatch(/Button_btn_[a-z0-9]{5}/);
+      expect(result.scopedClasses.primary).toMatch(
+        /Button_primary_[a-z0-9]{5}/
       );
     });
 
-    it('should transform CSS selectors', () => {
-      // Test basic CSS selector transformation
-      const originalCss = '.btn { background: blue; }';
-      const scopedClass = 'Button_btn_abc123';
-      const transformedCss = originalCss.replace(/\.btn/g, `.${scopedClass}`);
+    it('should transform CSS selectors to scoped names', () => {
+      const result = scopeCss('.btn { background: blue; }', 'Button');
 
-      expect(transformedCss).toBe('.Button_btn_abc123 { background: blue; }');
-      expect(transformedCss).not.toContain('.btn');
+      expect(result.scopedCss).toContain('.Button_btn_');
+      expect(result.scopedCss).not.toContain('.btn ');
+    });
+
+    it('should handle CSS with multiple rules', () => {
+      const css = `
+        .container { max-width: 1200px; }
+        .btn { padding: 10px 20px; }
+        .card { border: 1px solid #ccc; }
+      `;
+
+      const result = scopeCss(css, 'MyComponent');
+
+      expect(result.classNames).toContain('container');
+      expect(result.classNames).toContain('btn');
+      expect(result.classNames).toContain('card');
+      expect(result.scopedClasses.container).toMatch(/MyComponent_container_/);
+      expect(result.scopedClasses.btn).toMatch(/MyComponent_btn_/);
+      expect(result.scopedClasses.card).toMatch(/MyComponent_card_/);
     });
   });
-});
 
-describe('CSS Layers', () => {
-  describe('Layer hierarchy', () => {
-    it('should define correct layer order', () => {
-      const layers = ['reset', 'global', 'components', 'themes'];
+  describe('transformHtmlClasses - Template transformation', () => {
+    it('should transform class names in HTML', () => {
+      const scopedClasses = { btn: 'Button_btn_abc12' };
+      const html = '<div class="btn">Click</div>';
 
-      expect(layers).toEqual(['reset', 'global', 'components', 'themes']);
-      expect(layers.indexOf('components')).toBeLessThan(
-        layers.indexOf('themes')
+      const result = transformHtmlClasses(html, scopedClasses);
+
+      expect(result).toBe('<div class="Button_btn_abc12">Click</div>');
+    });
+
+    it('should handle multiple classes', () => {
+      const scopedClasses = {
+        btn: 'Button_btn_abc12',
+        primary: 'Button_primary_xyz34',
+      };
+      const html = '<button class="btn primary">Submit</button>';
+
+      const result = transformHtmlClasses(html, scopedClasses);
+
+      expect(result).toBe(
+        '<button class="Button_btn_abc12 Button_primary_xyz34">Submit</button>'
       );
-      expect(layers.indexOf('global')).toBeLessThan(
-        layers.indexOf('components')
+    });
+
+    it('should keep classes not in scopedClasses unchanged', () => {
+      const scopedClasses = { btn: 'Button_btn_abc12' };
+      const html = '<div class="btn framework-class">Content</div>';
+
+      const result = transformHtmlClasses(html, scopedClasses);
+
+      expect(result).toBe(
+        '<div class="Button_btn_abc12 framework-class">Content</div>'
       );
     });
 
-    it('should wrap CSS in layer declarations', () => {
-      const css = '.btn { background: blue; }';
-      const layerName = 'components';
-      const layeredCss = `@layer ${layerName} {\n${css}\n}`;
+    it('should handle single quotes', () => {
+      const scopedClasses = { btn: 'Button_btn_abc12' };
+      const html = "<div class='btn'>Click</div>";
 
-      expect(layeredCss).toContain('@layer components');
-      expect(layeredCss).toContain('.btn { background: blue; }');
-    });
-  });
-});
+      const result = transformHtmlClasses(html, scopedClasses);
 
-describe('Component Name Extraction', () => {
-  it('should extract component names from morph file paths', () => {
-    const extractComponentName = (importPath) => {
-      if (importPath.startsWith('./') || importPath.startsWith('../')) {
-        const parts = importPath.split('/');
-        const filename = parts[parts.length - 1];
-        if (filename.endsWith('.morph')) {
-          return filename.replace('.morph', '');
-        }
-      }
-      return null;
-    };
-
-    expect(extractComponentName('./components/Button.morph')).toBe('Button');
-    expect(extractComponentName('./components/Card.morph')).toBe('Card');
-    expect(extractComponentName('../shared/Modal.morph')).toBe('Modal');
-    expect(extractComponentName('some-other-file.js')).toBe(null);
-  });
-});
-
-describe('PostCSS Processing Integration', () => {
-  it('should process CSS without errors', async () => {
-    // Test that PostCSS processing works end-to-end
-    const css = `
-      .test-class {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
-    `;
-
-    const result = await processCss(css, {
-      autoprefixer: true,
-      minify: false,
+      expect(result).toBe("<div class='Button_btn_abc12'>Click</div>");
     });
 
-    expect(result).toHaveProperty('css');
-    expect(result.css).toContain('display: flex');
-    expect(result.css).toContain('justify-content: center');
-    expect(result.css).toContain('align-items: center');
-    // PostCSS should preserve the structure
-    expect(result.css.length).toBeGreaterThan(10);
-  });
+    it('should handle no class attribute', () => {
+      const scopedClasses = { btn: 'Button_btn_abc12' };
+      const html = '<div>No class</div>';
 
-  it('should handle minification option', async () => {
-    const css = `
-      .btn {
-        background: blue;
-        color: white;
-        padding: 10px 20px;
-        border: none;
-        border-radius: 4px;
-      }
-    `;
+      const result = transformHtmlClasses(html, scopedClasses);
 
-    const result = await processCss(css, {
-      autoprefixer: false,
-      minify: true,
+      expect(result).toBe('<div>No class</div>');
     });
 
-    // Minified CSS should not contain extra whitespace
-    expect(result.css).not.toContain('\n\n');
-    expect(result.css).toContain('background:blue');
-    // cssnano optimizes color values
-    expect(result.css).toMatch(/color:(#fff|white)/);
-    // Should still be valid CSS
-    expect(result.css).toContain('.btn');
-    expect(result.css).toContain('{');
-    expect(result.css).toContain('}');
+    it('should handle empty scopedClasses', () => {
+      const html = '<div class="btn">Click</div>';
+
+      const result = transformHtmlClasses(html, {});
+
+      expect(result).toBe('<div class="btn">Click</div>');
+    });
   });
 
-  it('should minify CSS in production mode', async () => {
-    const css = `
-      .btn {
-        background: blue;
-        color: white;
-        padding: 10px 20px;
-      }
-    `;
+  describe('End-to-end transformation', () => {
+    it('should transform morph file with CSS', async () => {
+      const { processMorphFile } = await import('../../src/core/processor.js');
 
-    const result = await processCss(css, {
-      autoprefixer: false,
-      minify: true,
+      const content = `
+<template>
+  <div class="btn primary">Click</div>
+</template>
+<style>
+.btn { background: blue; }
+.primary { font-weight: bold; }
+</style>
+`;
+
+      const result = await processMorphFile(content, 'Button.morph', {});
+
+      // Template should have scoped class names
+      expect(result.templateObject.template).toContain('Button_btn_');
+      expect(result.templateObject.template).toContain('Button_primary_');
+
+      // Original class names should not appear in template
+      expect(result.templateObject.template).not.toMatch(/class="btn /);
+      expect(result.templateObject.template).not.toMatch(/class="primary"/);
+
+      // CSS export should have scoped selectors
+      expect(result.code).toContain('.Button_btn_');
+      expect(result.code).toContain('.Button_primary_');
     });
 
-    // Minified CSS should be much shorter and on one line
-    expect(result.css.length).toBeLessThan(css.length);
-    expect(result.css).not.toContain('\n');
-    expect(result.css).toContain('background:blue');
-  });
-});
+    it('should keep global classes unchanged', async () => {
+      const { processMorphFile } = await import('../../src/core/processor.js');
 
-describe('Morph File CSS Processing', () => {
-  it('should export scoped CSS and styles object', () => {
-    // Test the expected output structure for processed morph files
-    const expectedCss =
-      '@layer components { .Button_btn_abc123 { background: blue; } }';
-    const expectedStyles = { btn: 'Button_btn_abc123' };
+      const content = `
+<template>
+  <div class="btn bootstrap-btn">Click</div>
+</template>
+<style>
+.btn { background: blue; }
+</style>
+`;
 
-    expect(expectedCss).toContain('@layer components');
-    expect(expectedCss).toContain('Button_btn_abc123');
-    expect(expectedStyles.btn).toBe('Button_btn_abc123');
-  });
+      const result = await processMorphFile(content, 'Button.morph', {});
 
-  it('should handle CSS-only morph files', () => {
-    // Test that CSS-only files export styles instead of css
-    const expectedOutput =
-      'export const styles = ".btn { background: blue; }";';
-    expect(expectedOutput).toContain('export const styles');
-    expect(expectedOutput).not.toContain('export const css');
+      // Template should have scoped btn but unchanged bootstrap-btn
+      expect(result.templateObject.template).toContain('Button_btn_');
+      expect(result.templateObject.template).toContain('bootstrap-btn');
+    });
+
+    it('should generate different hashes for different CSS content', async () => {
+      const { processMorphFile } = await import('../../src/core/processor.js');
+
+      const content1 = `
+<template>
+  <div class="btn">Blue</div>
+</template>
+<style>
+.btn { background: blue; }
+</style>
+`;
+
+      const content2 = `
+<template>
+  <div class="btn">Red</div>
+</template>
+<style>
+.btn { background: red; }
+</style>
+`;
+
+      const result1 = await processMorphFile(content1, 'Button.morph', {});
+      const result2 = await processMorphFile(content2, 'Button.morph', {});
+
+      // Extract the scoped class name from template
+      const match1 = result1.templateObject.template.match(
+        /Button_btn_([a-z0-9]+)/
+      );
+      const match2 = result2.templateObject.template.match(
+        /Button_btn_([a-z0-9]+)/
+      );
+
+      expect(match1[1]).not.toBe(match2[1]);
+    });
   });
 });

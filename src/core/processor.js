@@ -24,7 +24,7 @@ import {
 import { getCachedResult, setCachedResult } from '../utils/cache.js';
 import { debug, info, error, warn } from '../utils/logger.js';
 import { isProductionMode } from '../utils/shared.js';
-import { scopeCss } from '../core/css-scoper.js';
+import { scopeCss, transformHtmlClasses } from '../core/css-scoper.js';
 import { processCss } from '../core/css-processor.js';
 import { getCssCollector } from '../services/css-collection.js';
 
@@ -89,6 +89,7 @@ export async function processMorphFile(content, filePath, options) {
 
     // Process CSS for scoping if present and not CSS-only
     let processedStyle = style;
+    let scopedClasses = {};
     if (style && !isCSSOnly) {
       const scopedResult = scopeCss(style.css, componentName);
       processedStyle = {
@@ -96,6 +97,16 @@ export async function processMorphFile(content, filePath, options) {
         processedCss: scopedResult.scopedCss,
         scopedClasses: scopedResult.scopedClasses,
       };
+      scopedClasses = scopedResult.scopedClasses;
+    }
+
+    // Transform template HTML to use scoped class names
+    let transformedTemplateHtml = template.html;
+    if (template.html && Object.keys(scopedClasses).length > 0) {
+      transformedTemplateHtml = transformHtmlClasses(
+        template.html,
+        scopedClasses
+      );
     }
 
     // Get root directory for relative path calculations
@@ -146,7 +157,7 @@ export async function processMorphFile(content, filePath, options) {
     }
 
     const templateObject = {
-      template: template.html,
+      template: transformedTemplateHtml,
       helpers: Object.keys(helpers).length > 0 ? helpers : {},
       handshake: handshake?.data || {},
     };
@@ -355,9 +366,11 @@ function generateESModule(
     parts.push(`const template = ${JSON.stringify(templateObject, null, 2)};`);
     parts.push('');
 
-    // Define styles map (scoped classes or empty)
-    parts.push('// Styles map');
+    // Define styles map for runtime JS access (templates use scoped class names directly)
     const stylesMap = style && style.scopedClasses ? style.scopedClasses : {};
+    parts.push(
+      '// Styles map (for runtime JS access, templates use scoped class names directly)'
+    );
     parts.push(`const styles = ${JSON.stringify(stylesMap)};`);
     parts.push('');
 
