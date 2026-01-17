@@ -90,23 +90,43 @@ export async function processMorphFile(content, filePath, options) {
     // Process CSS for scoping if present and not CSS-only
     let processedStyle = style;
     let scopedClasses = {};
+    let componentsCSS = {}; // Exportable components CSS mapping
     if (style && !isCSSOnly) {
-      const scopedResult = scopeCss(style.css, componentName);
+      // Determine hash mode based on environment or explicit option
+      const isProd =
+        isProductionMode(options) || options?.hashMode === 'production';
+      const hashMode =
+        options?.hashMode || (isProd ? 'production' : 'development');
+
+      const scopedResult = scopeCss(style.css, componentName, { hashMode });
       processedStyle = {
         css: style.css,
         processedCss: scopedResult.scopedCss,
         scopedClasses: scopedResult.scopedClasses,
       };
       scopedClasses = scopedResult.scopedClasses;
+
+      // Build componentsCSS mapping from classContents
+      if (scopedResult.classContents) {
+        for (const [className, info] of Object.entries(
+          scopedResult.classContents
+        )) {
+          componentsCSS[className] =
+            `.${info.scoped} { ${info.content.replace(/^\.[a-zA-Z_-]+/, '').trim()} }`;
+        }
+      }
     }
 
     // Transform template HTML to use scoped class names
     let transformedTemplateHtml = template.html;
     if (template.html && Object.keys(scopedClasses).length > 0) {
-      transformedTemplateHtml = transformHtmlClasses(
+      const transformResult = transformHtmlClasses(
         template.html,
         scopedClasses
       );
+      transformedTemplateHtml = transformResult.html;
+      // Merge any additional componentsCSS from template transformation
+      componentsCSS = { ...componentsCSS, ...transformResult.componentsCSS };
     }
 
     // Get root directory for relative path calculations
@@ -183,7 +203,8 @@ export async function processMorphFile(content, filePath, options) {
       componentName,
       usesCssVariables,
       filePath,
-      rootDir
+      rootDir,
+      componentsCSS
     );
 
     const processingTime = Date.now() - startTime;
@@ -201,6 +222,7 @@ export async function processMorphFile(content, filePath, options) {
       cssSourceMap: cssSourceMap,
       usedVariables: template.usedVariables,
       templateObject,
+      componentsCSS, // Export componentsCSS mapping
       isCSSOnly,
       processingTime,
       metadata: {
@@ -280,6 +302,7 @@ function isValidFunctionCode(funcCode) {
  * @param {boolean} usesCssVariables - Whether CSS variables are used
  * @param {string} filePath - File path for relative imports
  * @param {string} rootDir - Root directory
+ * @param {Object} componentsCSS - Components CSS mapping for export
  * @returns {string} Generated ES module code
  */
 function generateESModule(
@@ -292,7 +315,8 @@ function generateESModule(
   componentName,
   usesCssVariables,
   filePath,
-  rootDir
+  rootDir,
+  componentsCSS = {}
 ) {
   const parts = [];
 
@@ -483,6 +507,12 @@ function generateESModule(
       parts.push('// Export processed CSS');
       parts.push(`const css = ${JSON.stringify(processedCss)};`);
       parts.push(`export { css };`);
+
+      // Export componentsCSS mapping
+      parts.push('');
+      parts.push('// Components CSS mapping for library builds');
+      parts.push(`const componentsCSS = ${JSON.stringify(componentsCSS)};`);
+      parts.push(`export { componentsCSS };`);
       parts.push('');
 
       // Inject CSS in development mode (similar to CSS modules)
@@ -505,23 +535,8 @@ function generateESModule(
         parts.push('');
         parts.push('// HMR handling for CSS updates');
         parts.push(`if (import.meta.hot) {`);
-        parts.push(`  import.meta.hot.accept(() => {`);
-        parts.push(`    // Update CSS when module changes`);
-        parts.push(`    if (typeof document !== 'undefined' && css) {`);
-        parts.push(
-          `      const styleId = 'morph-css-' + ${JSON.stringify(componentName)};`
-        );
-        parts.push(
-          `      let styleElement = document.getElementById(styleId);`
-        );
-        parts.push(`      if (!styleElement) {`);
-        parts.push(`        styleElement = document.createElement('style');`);
-        parts.push(`        styleElement.id = styleId;`);
-        parts.push(`        document.head.appendChild(styleElement);`);
-        parts.push(`      }`);
-        parts.push(`      styleElement.textContent = css;`);
-        parts.push(`    }`);
-        parts.push(`  });`);
+        parts.push(`  // Self-accept to re-execute module on changes`);
+        parts.push(`  import.meta.hot.accept();`);
         parts.push(`}`);
       }
     }

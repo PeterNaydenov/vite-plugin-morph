@@ -18,6 +18,8 @@ export interface MorphPluginOptions {
     /** File patterns to exclude */
     exclude?: string[];
   };
+  /** Hash mode for CSS scoping */
+  hashMode?: 'development' | 'production';
   /** Production optimization settings */
   production?: {
     /** Remove handshake data in production builds */
@@ -166,6 +168,7 @@ export interface MorphPluginOptions {
  * @property {Object} [cssSourceMap] - CSS source map
  * @property {string[]} [usedVariables] - CSS variables used in template
  * @property {Object} templateObject - Template object for morph library
+ * @property {Object} [componentsCSS] - Components CSS mapping { className: '.scoped { ... }' }
  * @property {boolean} isCSSOnly - True if this is CSS-only .morph file
  * @property {number} processingTime - Processing time in milliseconds
  * @property {ProcessingMetadata} metadata - Processing metadata
@@ -324,4 +327,69 @@ export interface MorphPluginOptions {
  */
 
 // Types are available through JSDoc typedefs above
-// No runtime exports needed for type definitions
+
+/**
+ * Runtime configuration for morph client
+ * @typedef {Object} MorphConfig
+ * @property {string} environment - Execution environment ('development' | 'build' | 'library')
+ * @property {string} css - CSS content or URL
+ * @property {string[]} themes - Available theme names
+ * @property {string} defaultTheme - Default theme name
+ * @property {Object} themeUrls - Mapping of theme names to CSS URLs
+ * @property {string[]} cssUrls - CSS file URLs
+ * @property {string} [libraryName] - Library name (for library mode)
+ * @property {Object} [componentsCSS] - Components CSS mapping { componentName: '.scoped { ... }' }
+ */
+
+/**
+ * Set morph configuration
+ * @param {MorphConfig} config - Configuration object
+ */
+
+/**
+ * Get morph configuration
+ * @returns {MorphConfig} Current configuration
+ */
+
+/**
+ * Detect current execution environment
+ * @returns {'development' | 'build' | 'library'} Environment type
+ */
+
+/**
+ * Register component CSS for host project component
+ * @param {string} componentName - Component name
+ * @param {string} cssRule - Full CSS rule with scoped selector
+ */
+
+/**
+ * Get all registered component CSS
+ * @returns {Object} All registered CSS rules keyed by 'component/source'
+ */
+
+/**
+ * Generate combined CSS file content for production
+ * @returns {string} Combined CSS content
+ */
+
+/**
+ * Update component CSS for HMR
+ * @param {string} componentName - Component name
+ * @param {string} cssRule - New CSS rule
+ * @param {string} [source='host'] - Source (host or library name)
+ */
+
+/**
+ * Apply CSS styles based on current environment
+ */
+
+/**
+ * Unified theme controller for runtime theme switching
+ * @typedef {Object} ThemeController
+ * @property {Function} list - Get list of all available theme names
+ * @property {Function} set - Apply theme to all libraries
+ * @property {Function} getCurrent - Get current theme name
+ * @property {Function} setDefault - Set and apply default theme
+ * @property {Function} listForLibrary - Get themes for a specific library
+ * @property {Function} has - Check if a theme exists
+ */

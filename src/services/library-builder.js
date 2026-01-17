@@ -226,7 +226,10 @@ ${exports}
             const cssAssets = [];
             let componentCss = '';
 
-            // Extract CSS from generated JS chunks that contain morph components
+            // Collect componentsCSS from all morph components
+            const allComponentsCSS = {};
+
+            // Extract CSS and componentsCSS from generated JS chunks
             for (const [fileName, chunk] of Object.entries(bundle)) {
               if (chunk.type === 'chunk' && chunk.code) {
                 // Look for CSS export from morph processing
@@ -237,6 +240,20 @@ ${exports}
                     componentCss += css + '\n';
                   } catch (e) {
                     debug(`Failed to parse css from ${fileName}`);
+                  }
+                }
+
+                // Look for componentsCSS export
+                const componentsCSSMatch = chunk.code.match(
+                  /const componentsCSS = ({[^;]+});/
+                );
+                if (componentsCSSMatch) {
+                  try {
+                    const componentsCSS = JSON.parse(componentsCSSMatch[1]);
+                    // Merge into allComponentsCSS (component name -> css rule)
+                    Object.assign(allComponentsCSS, componentsCSS);
+                  } catch (e) {
+                    debug(`Failed to parse componentsCSS from ${fileName}`);
                   }
                 }
               }
@@ -292,11 +309,12 @@ ${exports}
             const themesDir = join(self.rootDir, self.themesDir);
             const themes = await extractThemesFromDir(themesDir);
 
-            // Generate client module with theme content
+            // Generate client module with theme content and componentsCSS
             const clientCode = self.generateClientModule(
               cssAssets,
               self.discoveredThemes,
-              themes
+              themes,
+              allComponentsCSS
             );
 
             bundle['client.mjs'] = {
@@ -434,12 +452,19 @@ export { applyStyles, themesControl } from './runtime.js';
    * @param {Array} cssAssets - CSS asset paths
    * @param {Map} themeNamesMap - Available theme names (Map)
    * @param {Object} extractedThemes - Extracted themes with variables { themeName: { variables, raw } }
+   * @param {Object} componentsCSS - Components CSS mapping { componentName: '.scoped { ... }' }
    * @returns {string} Client module code
    */
-  generateClientModule(cssAssets, themeNamesMap, extractedThemes = {}) {
+  generateClientModule(
+    cssAssets,
+    themeNamesMap,
+    extractedThemes = {},
+    componentsCSS = {}
+  ) {
     const themeNames = Array.from(themeNamesMap.keys());
     const defaultTheme =
       this.libraryConfig.defaultTheme || themeNames[0] || 'default';
+    const libraryName = this.libraryConfig.name || 'morph-library';
 
     const cssImports = cssAssets
       .map((asset, i) => `import css${i} from './${asset}?url';`)
@@ -458,10 +483,16 @@ export { applyStyles, themesControl } from './runtime.js';
     // All CSS assets are loaded as general CSS
     const cssUrls = cssAssets.map((asset) => asset.replace('./', ''));
 
+    // Generate applyStyles function using componentsCSS
+    const applyStylesCode = this.generateApplyStylesFunction(
+      libraryName,
+      componentsCSS
+    );
+
     // Theme registration code
     const themeRegistration = `
 // Theme registration for runtime
-const libraryName = '${this.libraryConfig.name || 'morph-library'}';
+const libraryName = '${libraryName}';
 const libraryThemes = ${JSON.stringify(themeNames)};
 const libraryDefaultTheme = '${defaultTheme}';
 
@@ -499,7 +530,8 @@ if (typeof window !== 'undefined') {
     return `
 ${cssImports}
 ${themeImports}
-import { setMorphConfig, applyStyles, themesControl } from './runtime.js';
+import { setMorphConfig, themesControl } from './runtime.js';
+${applyStylesCode}
 ${themeRegistration}
 
 // Library mode configuration for unified runtime
@@ -510,8 +542,8 @@ const config = {
   defaultTheme: '${defaultTheme}',
   themeUrls: ${JSON.stringify(themeUrls)},
   cssUrls: ${JSON.stringify(cssUrls)},  // Fallback raw CSS URLs
-  processedCssUrls: [],  // Will be populated by host project plugin
-  libraryName: '${this.libraryConfig.name || 'morph-library'}'  // Library name for CSS URL construction
+  libraryName: '${libraryName}',  // Library name for CSS URL construction
+  componentsCSS: ${JSON.stringify(componentsCSS)},  // Components CSS mapping
 };
 
 // Initialize the unified runtime
@@ -523,6 +555,55 @@ applyStyles();
 // Export unified runtime API
 export { applyStyles, themesControl };
 export const __morphConfig__ = config;
+`;
+  }
+
+  /**
+   * Generate applyStyles function that uses componentsCSS
+   * @param {string} libraryName - Library name for source prefix
+   * @param {Object} componentsCSS - Components CSS mapping
+   * @returns {string} JavaScript code for applyStyles function
+   */
+  generateApplyStylesFunction(libraryName, componentsCSS) {
+    return `
+// Components CSS mapping for this library
+const libraryComponentsCSS = ${JSON.stringify(componentsCSS)};
+const librarySource = '${libraryName}';
+
+// applyStyles function for this library
+function applyStyles() {
+  // Register each component's CSS with source prefix in global storage
+  if (typeof window !== 'undefined') {
+    window.__MORPH_COMPONENTS_CSS__ = window.__MORPH_COMPONENTS_CSS__ || {};
+    
+    for (const [componentName, cssRule] of Object.entries(libraryComponentsCSS)) {
+      const key = componentName + '/' + librarySource;
+      window.__MORPH_COMPONENTS_CSS__[key] = cssRule;
+    }
+  }
+  
+  // Inject CSS into DOM via <style> tags for development
+  if (typeof document !== 'undefined') {
+    for (const [componentName, cssRule] of Object.entries(libraryComponentsCSS)) {
+      const styleId = 'morph-css-' + componentName.replace(/[^a-zA-Z0-9]/g, '-');
+      let style = document.getElementById(styleId);
+      if (!style) {
+        style = document.createElement('style');
+        style.id = styleId;
+        document.head.appendChild(style);
+      }
+      style.textContent = cssRule;
+    }
+  }
+}
+
+// HMR handling for CSS updates (only in non-test environments)
+if (typeof importMeta !== 'undefined' && importMeta.hot) {
+  importMeta.hot.accept(() => {
+    // Re-apply styles when module changes
+    applyStyles();
+  });
+}
 `;
   }
 }

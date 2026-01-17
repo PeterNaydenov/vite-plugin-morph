@@ -9,15 +9,23 @@ import { scopeCss, transformHtmlClasses } from '../../src/core/css-scoper.js';
 describe('CSS Modules - Content-Based Hashing', () => {
   describe('scopeCss - Content-based hashing', () => {
     it('should generate consistent hash for same CSS content', () => {
-      const result1 = scopeCss('.btn { background: blue; }', 'Button');
-      const result2 = scopeCss('.btn { background: blue; }', 'Button');
+      const result1 = scopeCss('.btn { background: blue; }', 'Button', {
+        hashMode: 'production',
+      });
+      const result2 = scopeCss('.btn { background: blue; }', 'Button', {
+        hashMode: 'production',
+      });
 
       expect(result1.scopedClasses.btn).toBe(result2.scopedClasses.btn);
     });
 
     it('should generate different hash for different CSS content', () => {
-      const result1 = scopeCss('.btn { background: blue; }', 'Button');
-      const result2 = scopeCss('.btn { background: red; }', 'Button');
+      const result1 = scopeCss('.btn { background: blue; }', 'Button', {
+        hashMode: 'production',
+      });
+      const result2 = scopeCss('.btn { background: red; }', 'Button', {
+        hashMode: 'production',
+      });
 
       expect(result1.scopedClasses.btn).not.toBe(result2.scopedClasses.btn);
     });
@@ -25,7 +33,8 @@ describe('CSS Modules - Content-Based Hashing', () => {
     it('should scope multiple classes', () => {
       const result = scopeCss(
         '.btn { background: blue; } .primary { font-weight: bold; }',
-        'Button'
+        'Button',
+        { hashMode: 'production' }
       );
 
       expect(result.scopedClasses.btn).toMatch(/Button_btn_[a-z0-9]{5}/);
@@ -35,7 +44,9 @@ describe('CSS Modules - Content-Based Hashing', () => {
     });
 
     it('should transform CSS selectors to scoped names', () => {
-      const result = scopeCss('.btn { background: blue; }', 'Button');
+      const result = scopeCss('.btn { background: blue; }', 'Button', {
+        hashMode: 'production',
+      });
 
       expect(result.scopedCss).toContain('.Button_btn_');
       expect(result.scopedCss).not.toContain('.btn ');
@@ -48,7 +59,7 @@ describe('CSS Modules - Content-Based Hashing', () => {
         .card { border: 1px solid #ccc; }
       `;
 
-      const result = scopeCss(css, 'MyComponent');
+      const result = scopeCss(css, 'MyComponent', { hashMode: 'production' });
 
       expect(result.classNames).toContain('container');
       expect(result.classNames).toContain('btn');
@@ -66,7 +77,7 @@ describe('CSS Modules - Content-Based Hashing', () => {
 
       const result = transformHtmlClasses(html, scopedClasses);
 
-      expect(result).toBe('<div class="Button_btn_abc12">Click</div>');
+      expect(result.html).toBe('<div class="Button_btn_abc12">Click</div>');
     });
 
     it('should handle multiple classes', () => {
@@ -78,7 +89,7 @@ describe('CSS Modules - Content-Based Hashing', () => {
 
       const result = transformHtmlClasses(html, scopedClasses);
 
-      expect(result).toBe(
+      expect(result.html).toBe(
         '<button class="Button_btn_abc12 Button_primary_xyz34">Submit</button>'
       );
     });
@@ -89,7 +100,7 @@ describe('CSS Modules - Content-Based Hashing', () => {
 
       const result = transformHtmlClasses(html, scopedClasses);
 
-      expect(result).toBe(
+      expect(result.html).toBe(
         '<div class="Button_btn_abc12 framework-class">Content</div>'
       );
     });
@@ -100,7 +111,7 @@ describe('CSS Modules - Content-Based Hashing', () => {
 
       const result = transformHtmlClasses(html, scopedClasses);
 
-      expect(result).toBe("<div class='Button_btn_abc12'>Click</div>");
+      expect(result.html).toBe("<div class='Button_btn_abc12'>Click</div>");
     });
 
     it('should handle no class attribute', () => {
@@ -109,7 +120,7 @@ describe('CSS Modules - Content-Based Hashing', () => {
 
       const result = transformHtmlClasses(html, scopedClasses);
 
-      expect(result).toBe('<div>No class</div>');
+      expect(result.html).toBe('<div>No class</div>');
     });
 
     it('should handle empty scopedClasses', () => {
@@ -117,7 +128,8 @@ describe('CSS Modules - Content-Based Hashing', () => {
 
       const result = transformHtmlClasses(html, {});
 
-      expect(result).toBe('<div class="btn">Click</div>');
+      expect(result.html).toBe('<div class="btn">Click</div>');
+      expect(result.componentsCSS).toEqual({});
     });
   });
 
@@ -190,9 +202,14 @@ describe('CSS Modules - Content-Based Hashing', () => {
 </style>
 `;
 
-      const result1 = await processMorphFile(content1, 'Button.morph', {});
-      const result2 = await processMorphFile(content2, 'Button.morph', {});
+      const result1 = await processMorphFile(content1, 'Button.morph', {
+        hashMode: 'production',
+      });
+      const result2 = await processMorphFile(content2, 'Button.morph', {
+        hashMode: 'production',
+      });
 
+      // In production mode, different CSS content should produce different hashes
       // Extract the scoped class name from template
       const match1 = result1.templateObject.template.match(
         /Button_btn_([a-z0-9]+)/

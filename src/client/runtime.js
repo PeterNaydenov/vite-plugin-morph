@@ -23,6 +23,9 @@ let morphConfig = {
 let themeRegistry = []; // [{libraryName, themes: [], defaultTheme}]
 let themeContent = {}; // {libraryName: {themeName: {variables, raw}}}
 
+// Components CSS registry - populated by libraries and host components
+let componentsCSS = {}; // { 'Component/source': '.scoped { ... }' }
+
 // Initialize theme registry from global (set by libraries)
 function initializeThemeRegistry() {
   if (typeof window === 'undefined') return;
@@ -37,8 +40,18 @@ function initializeThemeRegistry() {
   }
 }
 
+// Initialize componentsCSS from global storage
+function initializeComponentsCSS() {
+  if (typeof window === 'undefined') return;
+
+  if (window.__MORPH_COMPONENTS_CSS__) {
+    componentsCSS = window.__MORPH_COMPONENTS_CSS__;
+  }
+}
+
 // Initialize on module load
 initializeThemeRegistry();
+initializeComponentsCSS();
 
 // Load config from plugin if available
 if (typeof import.meta !== 'undefined' && import.meta.env) {
@@ -71,11 +84,36 @@ if (typeof import.meta !== 'undefined' && import.meta.env) {
  */
 export function setMorphConfig(config) {
   morphConfig = { ...morphConfig, ...config };
+
+  // Register componentsCSS if provided (from library or host)
+  if (config.componentsCSS && typeof window !== 'undefined') {
+    window.__MORPH_COMPONENTS_CSS__ = window.__MORPH_COMPONENTS_CSS__ || {};
+
+    const source = config.libraryName || 'host';
+    for (const [componentName, cssRule] of Object.entries(
+      config.componentsCSS
+    )) {
+      const key = componentName + '/' + source;
+      window.__MORPH_COMPONENTS_CSS__[key] = cssRule;
+    }
+
+    // Also update local cache
+    for (const [key, cssRule] of Object.entries(
+      window.__MORPH_COMPONENTS_CSS__
+    )) {
+      componentsCSS[key] = cssRule;
+    }
+  }
 }
 
 export function getMorphConfig() {
   return morphConfig;
 }
+
+/**
+ * Get current configuration
+ * @returns {Object} Configuration object
+ */
 
 /**
  * Get current configuration
@@ -217,21 +255,24 @@ export function applyStyles() {
 async function applyStylesDev() {
   const config = getConfig();
 
-  // Apply morph component styles as embedded style element
-  if (typeof document !== 'undefined' && config.css) {
-    let existing = document.getElementById('morph-css');
-    if (!existing) {
-      const styleElement = document.createElement('style');
-      styleElement.id = 'morph-css';
-      styleElement.textContent = config.css;
-      document.head.appendChild(styleElement);
-    } else {
-      // Remove and re-add to force CSS re-application
-      document.head.removeChild(existing);
-      const newStyle = document.createElement('style');
-      newStyle.id = 'morph-css';
-      newStyle.textContent = config.css;
-      document.head.appendChild(newStyle);
+  // Apply morph component styles from global componentsCSS storage
+  if (typeof document !== 'undefined') {
+    // Initialize from global storage
+    initializeComponentsCSS();
+
+    // Inject CSS for each registered component
+    for (const [key, cssRule] of Object.entries(componentsCSS)) {
+      const componentName = key.split('/')[0];
+      const styleId =
+        'morph-css-' + componentName.replace(/[^a-zA-Z0-9]/g, '-');
+
+      let existing = document.getElementById(styleId);
+      if (!existing) {
+        const styleElement = document.createElement('style');
+        styleElement.id = styleId;
+        styleElement.textContent = cssRule;
+        document.head.appendChild(styleElement);
+      }
     }
   }
 
@@ -340,38 +381,6 @@ if (typeof window !== 'undefined' && import.meta.hot) {
 }
 
 /**
- * Try to load processed CSS from the dev server's morph-processed cache
- * @param {Object} config - Morph config
- * @returns {Promise<void>}
- */
-async function tryLoadProcessedCss(config) {
-  if (typeof window === 'undefined') return;
-
-  const libraryName = config.libraryName;
-  if (!libraryName) {
-    return;
-  }
-
-  // Construct the cache-busted URL pattern
-  const safeName = libraryName.replace('@', '').replace(/\//g, '-');
-  const testUrl = `/@morph-processed/${safeName}`;
-
-  try {
-    const response = await fetch(testUrl);
-    if (response.ok) {
-      const css = await response.text();
-      // Inject CSS directly instead of using link tag
-      const style = document.createElement('style');
-      style.id = 'morph-processed';
-      style.textContent = css;
-      document.head.appendChild(style);
-    }
-  } catch (e) {
-    // Could not load processed CSS
-  }
-}
-
-/**
  * Load CSS asynchronously and wait for it to be parsed
  * @param {string} url - CSS URL
  * @returns {Promise<void>}
@@ -393,35 +402,29 @@ async function loadCssAsync(url) {
 async function applyStylesLibrary() {
   const config = getConfig();
 
-  // Check for injected processed CSS URLs from host project
-  const injectedProcessedCssUrls =
-    typeof window !== 'undefined' ? window.__MORPH_PROCESSED_CSS__ : null;
+  // Check for componentsCSS in config (from library build)
+  if (config.componentsCSS && typeof window !== 'undefined') {
+    // Initialize global storage
+    window.__MORPH_COMPONENTS_CSS__ = window.__MORPH_COMPONENTS_CSS__ || {};
 
-  // Prefer processed CSS URLs (from host project)
-  if (injectedProcessedCssUrls && injectedProcessedCssUrls.length > 0) {
-    for (const url of injectedProcessedCssUrls) {
-      await loadCssAsync(url);
-    }
-  }
-  // Fallback to processed CSS URLs from config
-  else if (config.processedCssUrls && config.processedCssUrls.length > 0) {
-    for (const url of config.processedCssUrls) {
-      await loadCssAsync(url);
-    }
-  }
-  // Try to load processed CSS from dev server
-  else {
-    await tryLoadProcessedCss(config);
-  }
+    const source = config.libraryName || 'library';
+    for (const [componentName, cssRule] of Object.entries(
+      config.componentsCSS
+    )) {
+      const key = componentName + '/' + source;
+      window.__MORPH_COMPONENTS_CSS__[key] = cssRule;
 
-  // Only load raw CSS as final fallback (if processed CSS wasn't available)
-  const processedLoaded = document.getElementById('morph-processed');
-  if (!processedLoaded && config.cssUrls && Array.isArray(config.cssUrls)) {
-    for (const url of config.cssUrls) {
-      createStyleLink(url, `morph-css-${Date.now()}`);
+      // Inject via <style> tag
+      const styleId =
+        'morph-css-' + componentName.replace(/[^a-zA-Z0-9]/g, '-');
+      let style = document.getElementById(styleId);
+      if (!style) {
+        style = document.createElement('style');
+        style.id = styleId;
+        document.head.appendChild(style);
+      }
+      style.textContent = cssRule;
     }
-  } else if (processedLoaded) {
-    // Processed CSS loaded, skipping raw CSS
   }
 
   // Apply default theme
@@ -630,3 +633,84 @@ export const themesControl = {
     return this.list().includes(themeName);
   },
 };
+
+/**
+ * Register component CSS for host project component
+ * @param {string} componentName - Component name
+ * @param {string} cssRule - Full CSS rule with scoped selector
+ */
+export function registerComponentCSS(componentName, cssRule) {
+  if (typeof window === 'undefined') return;
+
+  window.__MORPH_COMPONENTS_CSS__ = window.__MORPH_COMPONENTS_CSS__ || {};
+  window.__MORPH_COMPONENTS_CSS__[componentName + '/host'] = cssRule;
+
+  // Also update local cache
+  componentsCSS[componentName + '/host'] = cssRule;
+
+  // Inject via <style> tag for development
+  const styleId = 'morph-css-' + componentName.replace(/[^a-zA-Z0-9]/g, '-');
+  let style = document.getElementById(styleId);
+  if (!style) {
+    style = document.createElement('style');
+    style.id = styleId;
+    document.head.appendChild(style);
+  }
+  style.textContent = cssRule;
+}
+
+/**
+ * Get all registered component CSS for production bundling
+ * @returns {Object} All registered CSS rules keyed by 'component/source'
+ */
+export function getAllComponentCSS() {
+  if (typeof window !== 'undefined') {
+    initializeComponentsCSS();
+  }
+  return { ...componentsCSS };
+}
+
+/**
+ * Generate combined CSS file content for production
+ * @returns {string} Combined CSS content
+ */
+export function generateCombinedCSS() {
+  const allCSS = Object.values(componentsCSS);
+  return allCSS.join('\n\n');
+}
+
+/**
+ * Update component CSS for HMR
+ * @param {string} componentName - Component name
+ * @param {string} cssRule - New CSS rule
+ * @param {string} source - Source (host or library name)
+ */
+export function updateComponentCSS(componentName, cssRule, source = 'host') {
+  const key = componentName + '/' + source;
+
+  // Update global storage
+  window.__MORPH_COMPONENTS_CSS__ = window.__MORPH_COMPONENTS_CSS__ || {};
+  window.__MORPH_COMPONENTS_CSS__[key] = cssRule;
+
+  // Update local cache
+  componentsCSS[key] = cssRule;
+
+  // Update <style> tag for this component
+  const styleId = 'morph-css-' + componentName.replace(/[^a-zA-Z0-9]/g, '-');
+  let style = document.getElementById(styleId);
+  if (!style) {
+    style = document.createElement('style');
+    style.id = styleId;
+    document.head.appendChild(style);
+  }
+  style.textContent = cssRule;
+}
+
+// HMR handler for CSS changes in morph files
+if (typeof window !== 'undefined' && import.meta && import.meta.hot) {
+  import.meta.hot.on('morph-css-update', (data) => {
+    const { componentName, cssRule, source = 'host' } = data;
+    updateComponentCSS(componentName, cssRule, source);
+    console.log('[Morph HMR] Updated CSS for component:', componentName);
+  });
+}

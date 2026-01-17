@@ -1,9 +1,9 @@
 /**
  * CSS Scoping Utilities
- * Generates scoped class names for CSS modules with content-based hashing
+ * Generates scoped class names for CSS modules with hash modes
  * @fileoverview CSS class name scoping and transformation utilities
  * @author Peter Naydenov
- * @version 0.0.11
+ * @version 0.0.12
  */
 
 import postcss from 'postcss';
@@ -16,21 +16,21 @@ export class CSSScoper {
   /**
    * Create CSS scoper instance
    * @param {Object} [options={}] - Scoping options
+   * @param {string} [options.hashMode='development'] - Hash mode: 'development' (stable) or 'production' (content-based)
    * @param {string} [options.generateScopedName='[name]_[local]_[hash:base64:5]'] - Scoped name pattern
-   * @param {Function} [options.hashFunction] - Hash function for class names
    */
   constructor(options = {}) {
     this.options = {
+      hashMode: options.hashMode || 'development',
       generateScopedName:
         options.generateScopedName || '[name]_[local]_[hash:base64:5]',
-      hashFunction: options.hashFunction || this.contentHash,
       ...options,
     };
   }
 
   /**
    * Generate a content-based hash for CSS rules
-   * Hash changes when CSS content changes
+   * Hash changes when CSS content changes (production mode)
    * @param {string} content - CSS content (selector + properties)
    * @returns {string} Hash string (5 chars, base36)
    */
@@ -42,6 +42,47 @@ export class CSSScoper {
       hash = hash & hash;
     }
     return Math.abs(hash).toString(36).substring(0, 5);
+  }
+
+  /**
+   * Generate a name-based hash for CSS rules
+   * Hash based on component name + class name only (development mode)
+   * Stable across CSS content changes - only generated once per component
+   * @param {string} name - Component name
+   * @param {string} className - Class name
+   * @returns {string} Hash string (5 chars, base36)
+   */
+  nameBasedHash(name, className) {
+    // Use component name + class name for stable hash
+    const str = `${name}_${className}`;
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash).toString(36).substring(0, 5);
+  }
+
+  /**
+   * Generate scoped class name
+   * @param {string} name - Component name
+   * @param {string} className - Local class name
+   * @param {string} cssContent - Full CSS rule content (for production mode)
+   * @returns {string} Scoped class name
+   */
+  generateScopedName(name, className, cssContent = '') {
+    let hash;
+    if (this.options.hashMode === 'production') {
+      hash = this.contentHash(cssContent);
+    } else {
+      // Development mode: stable hash based on names only
+      hash = this.nameBasedHash(name, className);
+    }
+    return this.options.generateScopedName
+      .replace('[name]', name)
+      .replace('[local]', className)
+      .replace('[hash:base64:5]', hash);
   }
 
   /**
@@ -67,7 +108,6 @@ export class CSSScoper {
           for (const className of classNames) {
             rules.push({
               className,
-              // Hash based on the full rule content for determinism
               content: ruleContent,
               scoped: false,
             });
@@ -149,20 +189,23 @@ export class CSSScoper {
    * Process CSS for scoping
    * @param {string} css - Original CSS
    * @param {string} componentName - Component name for scoping
-   * @returns {Object} Processing result
+   * @returns {Object} Processing result with scoped classes and CSS
    */
   processCss(css, componentName) {
-    // Parse CSS rules and generate content-based hashes
+    // Parse CSS rules and generate hashes based on mode
     const classRules = this.parseClassRules(css);
 
-    // Generate scoped class mappings with content-based hashes
+    // Generate scoped class mappings
     const scopedClasses = {};
     const classContents = {};
 
     for (const rule of classRules) {
-      // Generate hash based on the full CSS rule content
-      const hash = this.options.hashFunction(rule.content);
-      const scopedName = `${componentName}_${rule.className}_${hash}`;
+      // Generate hash based on mode
+      const scopedName = this.generateScopedName(
+        componentName,
+        rule.className,
+        rule.content
+      );
 
       scopedClasses[rule.className] = scopedName;
       classContents[rule.className] = {
@@ -188,7 +231,9 @@ export class CSSScoper {
 let defaultScoper = null;
 
 /**
- * Get default CSS scoper instance
+ * Get CSS scoper instance with options
+ * @param {Object} [options={}] - Scoper options
+ * @returns {CSSScoper} CSS scoper instance
  */
 export function getCssScoper(options = {}) {
   if (!defaultScoper || Object.keys(options).length > 0) {
@@ -201,10 +246,11 @@ export function getCssScoper(options = {}) {
  * Scope CSS content for a component
  * @param {string} css - CSS content to scope
  * @param {string} componentName - Component name for scoping
+ * @param {Object} [options={}] - Options (hashMode)
  * @returns {Object} Scoped CSS result with classes and content
  */
-export function scopeCss(css, componentName) {
-  const scoper = getCssScoper();
+export function scopeCss(css, componentName, options = {}) {
+  const scoper = getCssScoper(options);
   return scoper.processCss(css, componentName);
 }
 
@@ -212,10 +258,15 @@ export function scopeCss(css, componentName) {
  * Generate scoped class name
  * @param {string} componentName - Component name
  * @param {string} className - Original class name
+ * @param {Object} [options={}] - Options (hashMode)
  * @returns {string} Scoped class name
  */
-export function generateScopedClassName(componentName, className) {
-  const scoper = getCssScoper();
+export function generateScopedClassName(
+  componentName,
+  className,
+  options = {}
+) {
+  const scoper = getCssScoper(options);
   return scoper.generateScopedName(componentName, className);
 }
 
@@ -223,23 +274,47 @@ export function generateScopedClassName(componentName, className) {
  * Transform HTML class attributes to use scoped class names
  * @param {string} html - HTML template content
  * @param {Object} scopedClasses - Mapping of original to scoped class names
- * @returns {string} Transformed HTML
+ * @returns {{html: string, componentsCSS: Object}} Transformed HTML and componentsCSS mapping
  */
 export function transformHtmlClasses(html, scopedClasses) {
   // Match class="className" or class='className' with optional spaces
   // Handles multiple classes separated by whitespace
   const classAttrRegex = /class\s*=\s*(["'])(.*?)\1/g;
 
-  return html.replace(classAttrRegex, (match, quote, classValue) => {
-    // Split classes by whitespace
-    const classes = classValue.trim().split(/\s+/);
+  const transformedHtml = html.replace(
+    classAttrRegex,
+    (match, quote, classValue) => {
+      // Split classes by whitespace
+      const classes = classValue.trim().split(/\s+/);
 
-    // Map each class to its scoped version if it exists locally
-    const scopedClassesList = classes.map((cls) => {
-      return scopedClasses[cls] || cls; // Keep original if not locally defined
-    });
+      // Map each class to its scoped version if it exists locally
+      const scopedClassesList = classes.map((cls) => {
+        return scopedClasses[cls] || cls; // Keep original if not locally defined
+      });
 
-    // Rebuild class attribute with original quote style
-    return `class=${quote}${scopedClassesList.join(' ')}${quote}`;
-  });
+      // Rebuild class attribute with original quote style
+      return `class=${quote}${scopedClassesList.join(' ')}${quote}`;
+    }
+  );
+
+  // Build componentsCSS mapping for export
+  const componentsCSS = {};
+  for (const [original, scoped] of Object.entries(scopedClasses)) {
+    componentsCSS[original] = `.${scoped}`;
+  }
+
+  return { html: transformedHtml, componentsCSS };
+}
+
+/**
+ * Create CSS rule string from class name and content
+ * @param {string} className - Original class name
+ * @param {string} scopedClass - Scoped class name
+ * @param {string} ruleContent - Full CSS rule content
+ * @returns {string} Full CSS rule with scoped selector
+ */
+export function createScopedRule(className, scopedClass, ruleContent) {
+  // Replace original selector with scoped selector
+  const regex = new RegExp(`\\.${className}\\b`, 'g');
+  return ruleContent.replace(regex, `.${scopedClass}`);
 }

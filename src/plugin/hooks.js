@@ -43,24 +43,36 @@ export async function transformHook(code, id, options = {}) {
   console.log(
     '[vite-plugin-morph] File content preview:',
     code?.substring(0, 200) + '...'
-   );
+  );
 
-   // Get plugin options from Vite config
-   const pluginOptions = getPluginOptions(options);
+  // Get plugin options from Vite config
+  const pluginOptions = getPluginOptions(options);
 
-   // Detect test environment
-   const isTestEnv = process.env.NODE_ENV === 'test' || process.env.JEST_WORKER_ID || process.env.VITEST_WORKER_ID || !options || (!options.plugins && !options.config);
+  // Detect test environment
+  const isTestEnv =
+    process.env.NODE_ENV === 'test' ||
+    process.env.JEST_WORKER_ID ||
+    process.env.VITEST_WORKER_ID ||
+    !options ||
+    (!options.plugins && !options.config);
 
-   console.log('[transformHook] NODE_ENV:', process.env.NODE_ENV, 'options:', options, 'isTestEnv:', isTestEnv);
+  console.log(
+    '[transformHook] NODE_ENV:',
+    process.env.NODE_ENV,
+    'options:',
+    options,
+    'isTestEnv:',
+    isTestEnv
+  );
 
-   // Create final options with test flag
-   const finalOptions = { ...pluginOptions, test: isTestEnv };
+  // Create final options with test flag
+  const finalOptions = { ...pluginOptions, test: isTestEnv };
 
-   try {
-     // Process the morph file
-     const result = await processMorphFile(code, id, pluginOptions);
+  try {
+    // Process the morph file
+    const result = await processMorphFile(code, id, pluginOptions);
 
-     // Validate result before returning
+    // Validate result before returning
     if (!result || typeof result.code !== 'string') {
       throw new Error(
         `processMorphFile returned invalid result: ${JSON.stringify(result)}`
@@ -173,8 +185,44 @@ export async function handleHotUpdate(context) {
       timestamp: context.timestamp,
     });
 
-    // If CSS is present, also update CSS
-    if (result.cssExports) {
+    // If CSS is present, also update CSS with new componentsCSS
+    if (result.cssExports || result.componentsCSS) {
+      // Extract component name from file path
+      const componentName = context.file
+        .split(/[/\\]/)
+        .pop()
+        .replace('.morph', '');
+
+      // Send CSS update event to client with new componentsCSS
+      if (context.server && context.server.ws) {
+        // Build CSS rule from componentsCSS
+        let cssRule = '';
+        if (result.componentsCSS) {
+          // Generate full CSS rule from componentsCSS mapping
+          const cssParts = [];
+          for (const [className, rule] of Object.entries(
+            result.componentsCSS
+          )) {
+            cssParts.push(rule);
+          }
+          cssRule = cssParts.join('\n');
+        } else if (result.cssExports) {
+          cssRule = result.cssExports;
+        }
+
+        if (cssRule) {
+          context.server.ws.send({
+            type: 'custom',
+            event: 'morph-css-update',
+            data: {
+              componentName,
+              cssRule,
+              source: 'host',
+            },
+          });
+        }
+      }
+
       updates.push({
         type: 'css-update',
         path: `${context.file}.css`,
