@@ -6,10 +6,8 @@
 ![npm license](https://img.shields.io/npm/l/@peter.naydenov/vite-plugin-morph.svg)
 ![bundle size](https://img.shields.io/bundlephobia/minzip/@peter.naydenov/vite-plugin-morph.svg)
 ![Morph compatibility](https://img.shields.io/badge/@peter.naydenov/morph-v3.3.0-blue)
-![CSS Layers](https://img.shields.io/badge/CSS-Layers-orange)
-![Tree Shaking](https://img.shields.io/badge/Tree-Shaking-green)
 
-A Vite plugin for processing `.morph` files with HTML-like syntax, CSS modules, and JavaScript helpers. Built on top of `@peter.naydenov/morph` v3.2.0.
+A Vite plugin for processing `.morph` files with HTML-like syntax, CSS modules, and JavaScript helpers. Built on top of `@peter.naydenov/morph` v3.3.0.
 
 ## Features
 
@@ -463,10 +461,16 @@ export default defineConfig({
         hmr: true,
         cssHmr: true, // Enable CSS hot reloading
       },
+      hashMode: 'development', // Stable hash for CSS class names
     }),
   ],
 });
 ```
+
+**Hash Modes:**
+
+- `'development'` (default): Stable hash based on component/class names. Class names don't change when CSS content changes - no template re-render needed.
+- `'production'`: Content-based hash. Hash changes when CSS content changes - optimal for cache busting.
 
 ### Error Handling
 
@@ -848,6 +852,129 @@ Check if running in production mode.
 
 See `src/types/index.js` for complete type definitions.
 
+### Runtime API (`@peter.naydenov/vite-plugin-morph/client`)
+
+Import runtime functions for CSS management:
+
+```javascript
+import {
+  applyStyles,
+  themesControl,
+  registerComponentCSS,
+  getAllComponentCSS,
+  generateCombinedCSS,
+  updateComponentCSS,
+  detectEnvironment,
+  getMorphConfig,
+  setMorphConfig,
+} from '@peter.naydenov/vite-plugin-morph/client';
+```
+
+#### `applyStyles()`
+
+Applies CSS based on current environment:
+
+- **Development**: Injects per-component `<style>` tags
+- **Library**: Uses embedded `componentsCSS` to register CSS
+- **Production**: Loads CSS from URLs
+
+```javascript
+applyStyles();
+```
+
+#### `themesControl`
+
+Runtime API for theme switching across libraries:
+
+```javascript
+// Get available themes
+const themes = themesControl.list();
+
+// Switch theme
+themesControl.set('dark');
+
+// Get current theme
+const current = themesControl.getCurrent();
+```
+
+#### `registerComponentCSS(componentName, cssRule)`
+
+Register CSS for a host project component:
+
+```javascript
+registerComponentCSS(
+  'MyComponent',
+  '.MyComponent_container_abc123 { padding: 1rem; }'
+);
+```
+
+#### `getAllComponentCSS()`
+
+Get all registered component CSS keyed by `'componentName/source'`:
+
+```javascript
+const allCSS = getAllComponentCSS();
+// { 'Button/@myorg/ui': '.Button_btn_x7k9p2 { ... }', 'Card/host': '.Card_card_y2m8r4 { ... }' }
+```
+
+#### `generateCombinedCSS()`
+
+Generate combined CSS string for production bundling:
+
+```javascript
+const combinedCSS = generateCombinedCSS();
+// '.Button_btn_x7k9p2 { ... }\n\n.Card_card_y2m8r4 { ... }'
+```
+
+#### `updateComponentCSS(componentName, cssRule, source)`
+
+Update component CSS for HMR:
+
+```javascript
+updateComponentCSS(
+  'Button',
+  '.Button_btn_x7k9p2 { background: red; }',
+  '@myorg/ui'
+);
+```
+
+#### `detectEnvironment()`
+
+Detect current execution environment:
+
+```javascript
+const env = detectEnvironment(); // 'development' | 'build' | 'library'
+```
+
+#### `getMorphConfig()` / `setMorphConfig(config)`
+
+Get or set morph configuration:
+
+```javascript
+const config = getMorphConfig();
+
+setMorphConfig({
+  environment: 'library',
+  componentsCSS: { Button: '.Button_btn_x7k9p2 { ... }' },
+  libraryName: '@myorg/my-components',
+});
+```
+
+### Global Storage
+
+The plugin uses global storage for cross-component CSS management:
+
+```javascript
+window.__MORPH_COMPONENTS_CSS__ = {
+  'Button/@myorg/ui': '.Button_btn_x7k9p2 { background: blue; }',
+  'Card/@myorg/ui': '.Card_card_y2m8r4 { padding: 10px; }',
+  'Input/host': '.Input_input_a1b2c { border: 1px solid red; }'
+};
+
+window.__MORPH_THEME_REGISTRY__ = [{ libraryName: '@myorg/ui', themes: ['light', 'dark'], defaultTheme: 'light' }];
+window.__MORPH_THEMES__ = { '@myorg/ui': { light: { ... }, dark: { ... } } };
+```
+
 ## Version History
 
 See [CHANGELOG.md](./CHANGELOG.md) for complete version history and migration information.
@@ -902,9 +1029,8 @@ Contributions are welcome! Please see our [Contributing Guide](./CONTRIBUTING.md
 
 The project maintains comprehensive test coverage:
 
-- **169 tests passing** ✅
+- **215 tests passing** ✅
 - **0 tests failing** ✅
-- **2 tests skipped** (intentionally skipped features)
 
 Run tests with:
 

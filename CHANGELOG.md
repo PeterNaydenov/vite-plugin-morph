@@ -5,30 +5,100 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-01-17
 
+- [x] Working scoped CSS for morph libraries and host based components. 
+- [x] HMR for component based CSS changes;
+- [x] Speed optimization for HMR updates;
+- [x] Themes support for morph libraries. Load order;
+- [x] General CSS changes has HDR support;
+- [x] Testing all flows for morph libraries;
+
+### 🚀 CSS Modules with componentsCSS
+
+Implemented CSS modules that automatically transform class names in morph templates and export scoped CSS for use in both host projects and morph libraries.
+
+#### CSS Scoper with Hash Modes
+
+- **Development mode**: Stable hash based on component/class names (`ComponentName_className_hash`)
+  - No template re-render when CSS content changes
+  - Consistent class names for debugging
+- **Production mode**: Content-based hash for cache busting
+  - Hash changes when CSS content changes
+  - Optimal for production caching
+
+#### componentsCSS Export
+
+- Each morph component exports a `componentsCSS` mapping
+- Format: `{ className: '.scoped { ... }' }`
+- Used by library builder for bundling component styles
+
+#### Runtime CSS Management
+
+- Global storage: `window.__MORPH_COMPONENTS_CSS__` with format `{ 'Component/source': '.scoped { ... }' }`
+- New runtime functions:
+  - `registerComponentCSS(componentName, cssRule)` - Register host component CSS
+  - `getAllComponentCSS()` - Get all registered CSS for production bundling
+  - `generateCombinedCSS()` - Generate combined CSS string for production
+  - `updateComponentCSS(componentName, cssRule, source)` - Update CSS for HMR
+
+#### Library Builder Integration
+
+- Extracts `componentsCSS` from all chunks
+- Embeds CSS in `client.mjs` with `applyStyles()` function
+- Registers CSS with source prefix (e.g., `Button/@myorg/ui`)
+- Per-component `<style>` tag injection in development
+
+#### CSS Hot Module Replacement
+
+- Local morph files: `import.meta.hot.accept()` self-accept for instant CSS updates
+- Library CSS: WebSocket events via `morph-css-update` for cross-library HMR
+- No full page refresh needed - styles update in real-time
+
+### 🔧 Technical Changes
+
+- Removed `__MORPH_PROCESSED_CSS__` references (replaced by `__MORPH_COMPONENTS_CSS__`)
+- Removed `processedCssUrls` from library config
+- Removed `tryLoadProcessedCss()` function (replaced by componentsCSS approach)
+- Added `hashMode` option to plugin configuration (`'development'` | `'production'`)
+
+### 📝 Documentation Updates
+
+- Added `componentsCSS` property to TypeScript definitions
+- Added `hashMode` option to MorphPluginOptions interface
+- Added runtime type definitions for MorphConfig and client functions
+- Added missing JSDoc for runtime functions
+
+### 🧪 Testing
+
+- All 215 tests passing
+- 0 lint errors
 
 ## [0.3.1] - 2026-01-03
+
 - [x] Type updates
-
-
 
 ## [0.3.0] - 2025-12-27
 
 ### 🚀 Major Feature: Library Mode
+
 Build distributable component libraries with runtime CSS control.
 
 #### Library Builder
+
 - `buildLibrary()` function for creating npm packages
 - Automatic package.json generation
 - Dependency graph analysis
 - CSS asset organization
 
 #### Client Runtime Module
+
 - `@peter.naydenov/vite-plugin-morph/client` virtual module
 - `applyStyles()` - Injects CSS link tags
 - `themesControl` - Runtime theme switching API
 
 #### Documentation
+
 - Created LIBRARY_MODE.md guide
 - Updated README with library mode section
 - Updated quickstart guide with CSS module access in helpers
@@ -47,18 +117,11 @@ Build distributable component libraries with runtime CSS control.
 - **Morph Integration**: Streamlined morph template processing with improved dependency passing to helpers
 - **Documentation Sync**: Updated all documentation to reflect current API patterns and examples
 
-
-
-
-
 ### 📈 **Quality Improvements**
 
 - **Test Coverage**: All tests passing with improved error handling
 - **Documentation Accuracy**: Synchronized all docs with current implementation
 - **API Consistency**: Unified component calling patterns across the system
-
-
-
 
 ### 📚 **Documentation Updates**
 
@@ -67,29 +130,17 @@ Build distributable component libraries with runtime CSS control.
 - **Spec Updates**: Added acceptance criteria for helper access to scoped CSS classes
 - **API Consistency**: Synchronized all documentation with current implementation
 
-
-
-
-
-
-
-
-
-
 ## [0.2.0] - 2025-12-18
+
 - [x] Enable helper functions in .morph files to access CSS module class mappings via a styles argument. This allows helpers to output correct scoped class names;
 
-
-
 ## [0.1.2] - 2025-12-13
+
 - [x] Dependency update. @peter.naydenov/morph 3.3.0;
 
-
-
 ## [0.1.1] - 2025-12-11
+
 - [x] Fix: Some types were missing;
-
-
 
 ## [0.1.0] - 2025-12-11
 
