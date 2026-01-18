@@ -510,9 +510,111 @@ export function createMorphPlugin(options = {}) {
           const hasCss = await checkFileHasCss(updatedContent);
 
           if (hasCss) {
+            // CSS-only change, let CSS HMR handle it
             return context.modules;
           }
-          return context.modules;
+
+          // This is a template/handshake change - need proper HMR handling
+          // Import the processor to get componentsCSS
+          const { processMorphFile } = await import('../core/processor.js');
+          const pluginOptions = {
+            ...resolvedOptions,
+            css: resolvedOptions.css || {},
+          };
+          const result = await processMorphFile(
+            updatedContent,
+            context.file,
+            pluginOptions
+          );
+
+          // Create HMR updates
+          const updates = [];
+          const componentName = context.file
+            .split(/[/\\]/)
+            .pop()
+            .replace('.morph', '');
+
+          // Update the main module
+          updates.push({
+            type: 'js-update',
+            path: context.file,
+            timestamp: context.timestamp,
+          });
+
+          // Send CSS update event if CSS changed
+          if (result.cssExports || result.componentsCSS) {
+            let cssRule = '';
+            if (result.componentsCSS) {
+              const cssParts = [];
+              for (const [className, rule] of Object.entries(
+                result.componentsCSS
+              )) {
+                cssParts.push(rule);
+              }
+              cssRule = cssParts.join('\n');
+            } else if (result.cssExports) {
+              cssRule = result.cssExports;
+            }
+
+            if (cssRule && context.server.ws) {
+              context.server.ws.send({
+                type: 'custom',
+                event: 'morph-css-update',
+                data: {
+                  componentName,
+                  cssRule,
+                  source: 'host',
+                },
+              });
+            }
+
+            updates.push({
+              type: 'css-update',
+              path: `${context.file}.css`,
+              timestamp: context.timestamp,
+            });
+          }
+
+          // Find all modules that import this morph file
+          let hmrModules = [...(context.modules || [])];
+
+          if (context.server && context.server.moduleGraph) {
+            try {
+              const module = context.server.moduleGraph.getModuleById(
+                context.file
+              );
+              if (module) {
+                for (const importer of module.importers || []) {
+                  if (
+                    importer.id &&
+                    !hmrModules.find((m) => m.id === importer.id)
+                  ) {
+                    hmrModules.push(importer);
+                  }
+                }
+              }
+            } catch (e) {
+              console.warn(
+                `Could not find importers for ${context.file}: ${e.message}`
+              );
+            }
+          }
+
+          // Add importer updates to trigger re-render
+          const importerUpdates = hmrModules
+            .filter((m) => m.id !== context.file)
+            .map((m) => ({
+              type: 'js-update',
+              path: m.file || m.id || context.file,
+              timestamp: context.timestamp,
+            }));
+
+          updates.push(...importerUpdates);
+
+          return {
+            modules: hmrModules,
+            updates,
+          };
         }
 
         if (context.file.endsWith('.css') && resolvedOptions.globalCSS) {

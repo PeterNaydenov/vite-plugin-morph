@@ -531,14 +531,6 @@ function generateESModule(
       parts.push(`}`);
 
       // Add HMR handling for CSS updates (only in non-test environments)
-      if (!options.test) {
-        parts.push('');
-        parts.push('// HMR handling for CSS updates');
-        parts.push(`if (import.meta.hot) {`);
-        parts.push(`  // Self-accept to re-execute module on changes`);
-        parts.push(`  import.meta.hot.accept();`);
-        parts.push(`}`);
-      }
     }
   } // else !isCSSOnly
   // Ensure all parts are strings and filter out any undefined values

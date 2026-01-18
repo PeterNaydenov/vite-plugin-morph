@@ -77,7 +77,20 @@ describe('Development Experience Integration', () => {
 
       const result = await plugin.handleHotUpdate(mockContext);
 
-      expect(result).toEqual([mockContext.modules[0]]);
+      // Should return object with modules and updates
+      expect(result).toBeDefined();
+      expect(result.modules).toBeDefined();
+      expect(Array.isArray(result.modules)).toBe(true);
+      expect(result.updates).toBeDefined();
+      expect(Array.isArray(result.updates)).toBe(true);
+      // The morph file itself should be in modules
+      expect(result.modules.find((m) => m.id === 'test.morph')).toBeDefined();
+      // Should have js-update for the morph file
+      expect(
+        result.updates.find(
+          (u) => u.type === 'js-update' && u.path === 'test.morph'
+        )
+      ).toBeDefined();
     });
 
     it('should handle HMR errors gracefully', async () => {
