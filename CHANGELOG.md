@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.3.3] - 2026-01-18
+- [x] Fix: HMR for morph components(template and handshake data changes);
+
+
+
 ## [0.3.2] - 2026-01-17
 
 - [x] Working scoped CSS for morph libraries and host based components. 
@@ -13,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [x] Themes support for morph libraries. Load order;
 - [x] General CSS changes has HDR support;
 - [x] Testing all flows for morph libraries;
+- [ ] Bug: HMR for morph components(template and handshake data changes);
 
 ### 🚀 CSS Modules with componentsCSS
 
