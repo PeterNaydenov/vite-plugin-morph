@@ -48,7 +48,7 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.0.18",
-    "autoprefixer": "^10.4.23",
+    "autoprefixer": "^10.4.24",
     "cssnano": "^7.1.2",
     "eslint": "^9.39.2",
     "jsdoc": "^4.0.2",
