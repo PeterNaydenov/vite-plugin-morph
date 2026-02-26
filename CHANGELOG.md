@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.3.6] - 2026-02-26
+- [x] Dependencies update. glob 13.0.6;
+- [x] Dependencies update. acorn 8.16.0;
+- [x] Dependencies update. acorn-walk 8.3.5;
+- [x] Dependencies update. autoprefixer 10.4.27;
+- [x] Dev dependencies updates. Autoprefixer 10.4.27;
+- [x] Dev dependencies updates. eslint 10.4.27;
+- [x] Dev dependencies updates. typedoc 0.28.17;
+
 
 
 ## [0.3.5] - 2026-02-10
