@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.3.7] - 2026-03-16
+- [x] Dependencies update. Vite - v.8.0.0
+
+
+
 ## [0.3.6] - 2026-02-26
 - [x] Dependencies update. glob 13.0.6;
 - [x] Dependencies update. acorn 8.16.0;
