@@ -57,11 +57,11 @@
     "postcss-nested": "^7.0.2",
     "prettier": "^3.8.1",
     "typedoc": "^0.28.17",
-    "vite": "^7.3.1",
+    "vite": "^8.0.0",
     "vitest": "^4.0.18"
   },
   "peerDependencies": {
-    "vite": "^7.3.0"
+    "vite": "^8.0.0"
   },
   "directories": {
     "doc": "docs",
