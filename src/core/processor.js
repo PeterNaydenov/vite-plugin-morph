@@ -28,6 +28,22 @@ import { scopeCss, transformHtmlClasses } from '../core/css-scoper.js';
 import { processCss } from '../core/css-processor.js';
 import { getCssCollector } from '../services/css-collection.js';
 
+function generateCssInjectionCode(componentName) {
+  return [
+    '// Inject CSS in development',
+    `if (typeof document !== 'undefined' && css) {`,
+    `  const styleId = 'morph-css-' + ${JSON.stringify(componentName)};`,
+    `  let styleElement = document.getElementById(styleId);`,
+    `  if (!styleElement) {`,
+    `    styleElement = document.createElement('style');`,
+    `    styleElement.id = styleId;`,
+    `    document.head.appendChild(styleElement);`,
+    `  }`,
+    `  styleElement.textContent = css;`,
+    `}`,
+  ];
+}
+
 /**
  * Process a morph file and return compiled result
  * @param {string} content - Raw morph file content
@@ -330,19 +346,7 @@ function generateESModule(
 
     // Inject CSS in development mode
     parts.push('');
-    parts.push('// Inject CSS in development');
-    parts.push(`if (typeof document !== 'undefined' && css) {`);
-    parts.push(
-      `  const styleId = 'morph-css-' + ${JSON.stringify(componentName)};`
-    );
-    parts.push(`  let styleElement = document.getElementById(styleId);`);
-    parts.push(`  if (!styleElement) {`);
-    parts.push(`    styleElement = document.createElement('style');`);
-    parts.push(`    styleElement.id = styleId;`);
-    parts.push(`    document.head.appendChild(styleElement);`);
-    parts.push(`  }`);
-    parts.push(`  styleElement.textContent = css;`);
-    parts.push(`}`);
+    parts.push(...generateCssInjectionCode(componentName));
 
     // Add HMR handling for CSS updates (only in non-test environments)
     if (!options.test) {
@@ -516,19 +520,7 @@ function generateESModule(
       parts.push('');
 
       // Inject CSS in development mode (similar to CSS modules)
-      parts.push('// Inject CSS in development');
-      parts.push(`if (typeof document !== 'undefined' && css) {`);
-      parts.push(
-        `  const styleId = 'morph-css-' + ${JSON.stringify(componentName)};`
-      );
-      parts.push(`  let styleElement = document.getElementById(styleId);`);
-      parts.push(`  if (!styleElement) {`);
-      parts.push(`    styleElement = document.createElement('style');`);
-      parts.push(`    styleElement.id = styleId;`);
-      parts.push(`    document.head.appendChild(styleElement);`);
-      parts.push(`  }`);
-      parts.push(`  styleElement.textContent = css;`);
-      parts.push(`}`);
+      parts.push(...generateCssInjectionCode(componentName));
 
       // Add HMR handling for CSS updates (only in non-test environments)
     }

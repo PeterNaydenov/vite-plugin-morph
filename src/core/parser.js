@@ -7,6 +7,31 @@
 
 import { parseFragment } from 'parse5';
 
+function findScriptNodes(node, scriptType) {
+  const nodes = [];
+
+  if (node.nodeName === 'script' && node.attrs) {
+    const hasCorrectType = node.attrs.some(
+      (attr) => attr.name === 'type' && attr.value === scriptType
+    );
+    const hasNoType =
+      !node.attrs.some((attr) => attr.name === 'type') &&
+      scriptType === 'text/javascript';
+
+    if (hasCorrectType || hasNoType) {
+      nodes.push(node);
+    }
+  }
+
+  if (node.childNodes) {
+    for (const child of node.childNodes) {
+      nodes.push(...findScriptNodes(child, scriptType));
+    }
+  }
+
+  return nodes;
+}
+
 /**
  * Parse JSON-like content with comments and flexible syntax
  * @param {string} content - JSON-like content with comments
@@ -74,34 +99,7 @@ export function parseHTMLFragment(content) {
  * @returns {string|null} Script content or null if not found
  */
 export function extractScriptContent(document, scriptType) {
-  // Helper function to search recursively for script nodes
-  function findScriptNodes(node) {
-    const nodes = [];
-
-    if (node.nodeName === 'script' && node.attrs) {
-      const hasCorrectType = node.attrs.some(
-        (attr) => attr.name === 'type' && attr.value === scriptType
-      );
-      // Also match scripts without type attribute (default to JavaScript)
-      const hasNoType =
-        !node.attrs.some((attr) => attr.name === 'type') &&
-        scriptType === 'text/javascript';
-
-      if (hasCorrectType || hasNoType) {
-        nodes.push(node);
-      }
-    }
-
-    if (node.childNodes) {
-      for (const child of node.childNodes) {
-        nodes.push(...findScriptNodes(child));
-      }
-    }
-
-    return nodes;
-  }
-
-  const scriptNodes = findScriptNodes(document);
+  const scriptNodes = findScriptNodes(document, scriptType);
 
   console.log(
     '[vite-plugin-morph] Found',
@@ -178,34 +176,7 @@ export function extractStyleContent(document) {
  * @returns {string|null} Script content or null if not found
  */
 export function extractHandshakeContent(document, scriptType) {
-  // Helper function to search recursively for script nodes
-  function findScriptNodes(node) {
-    const nodes = [];
-
-    if (node.nodeName === 'script' && node.attrs) {
-      const hasCorrectType = node.attrs.some(
-        (attr) => attr.name === 'type' && attr.value === scriptType
-      );
-      // Also match scripts without type attribute (default to JavaScript)
-      const hasNoType =
-        !node.attrs.some((attr) => attr.name === 'type') &&
-        scriptType === 'text/javascript';
-
-      if (hasCorrectType || hasNoType) {
-        nodes.push(node);
-      }
-    }
-
-    if (node.childNodes) {
-      for (const child of node.childNodes) {
-        nodes.push(...findScriptNodes(child));
-      }
-    }
-
-    return nodes;
-  }
-
-  const scriptNodes = findScriptNodes(document);
+  const scriptNodes = findScriptNodes(document, scriptType);
 
   console.log(
     '[vite-plugin-morph] Found',

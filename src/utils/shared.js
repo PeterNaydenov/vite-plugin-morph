@@ -32,3 +32,69 @@ export function isProductionMode(options) {
 
   return isNodeEnvProduction || hasProductionFlag || optionsIndicateProduction;
 }
+
+/**
+ * Build style object CSS
+ * @param {string} selector - CSS selector
+ * @param {Object} styles - Style object
+ * @returns {string} CSS rules
+ */
+export function buildStyleObject(selector, styles) {
+  const cssLines = [`${selector} {`];
+
+  for (const [property, value] of Object.entries(styles)) {
+    if (typeof value === 'object' && value !== null) {
+      cssLines.push(buildNestedStyles(property, value, '  '));
+    } else {
+      cssLines.push(`  ${property}: ${value};`);
+    }
+  }
+
+  cssLines.push('}');
+  return cssLines.join('\n');
+}
+
+/**
+ * Build nested styles (media queries, pseudo-classes)
+ * @param {string} nestedSelector - Nested selector
+ * @param {Object} styles - Nested styles
+ * @param {string} indent - Indentation
+ * @returns {string} Nested CSS
+ */
+export function buildNestedStyles(nestedSelector, styles, indent) {
+  const cssLines = [];
+
+  if (nestedSelector.startsWith('@')) {
+    cssLines.push(`${indent}${nestedSelector} {`);
+    cssLines.push(
+      buildStyleObject('', styles).replace(/^.*\{\n|\}$/g, '')
+    );
+    cssLines.push(`${indent}}`);
+  } else {
+    cssLines.push(`${indent}&${nestedSelector} {`);
+    for (const [property, value] of Object.entries(styles)) {
+      cssLines.push(`${indent}  ${property}: ${value};`);
+    }
+    cssLines.push(`${indent}}`);
+  }
+
+  return cssLines.join('\n');
+}
+
+/**
+ * Build CSS rule string from processing result
+ * @param {Object} result - Morph processing result
+ * @returns {string} CSS rule string
+ */
+export function buildCssRuleFromResult(result) {
+  if (result.componentsCSS) {
+    const cssParts = [];
+    for (const [className, rule] of Object.entries(result.componentsCSS)) {
+      cssParts.push(rule);
+    }
+    return cssParts.join('\n');
+  } else if (result.cssExports) {
+    return result.cssExports;
+  }
+  return '';
+}

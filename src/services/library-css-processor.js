@@ -9,6 +9,34 @@ import { join, dirname, resolve } from 'path';
 import { createHash } from 'crypto';
 import { debug, info, warn } from '../utils/logger.js';
 
+async function buildPostCSSPlugins(postcssConfig, searchPaths) {
+  const postcss = await import('postcss');
+  const postcssImport = await import('postcss-import');
+
+  const plugins = [
+    postcssImport.default({
+      path: searchPaths,
+    }),
+  ];
+
+  if (postcssConfig.plugins && postcssConfig.plugins.length > 0) {
+    plugins.push(...postcssConfig.plugins);
+  }
+
+  return plugins;
+}
+
+async function processCSSWithPostCSS(css, cssPath, plugins) {
+  const postcss = await import('postcss');
+  return postcss.default(plugins).process(css, {
+    from: cssPath,
+    map: {
+      inline: false,
+      annotation: false,
+    },
+  });
+}
+
 /**
  * Detect morph libraries that have isMorphLibrary marker
  * @param {string} projectRoot - Path to host project
@@ -90,30 +118,14 @@ export async function processLibraryMainCSS(library, cacheDir, postcssConfig) {
   const css = readFileSync(mainCssPath, 'utf-8');
   debug(`Processing main.css for ${library.name}, size: ${css.length} bytes`);
 
-  // Load PostCSS and plugins
-  const postcss = await import('postcss');
-  const postcssImport = await import('postcss-import');
-
-  // Build PostCSS config
-  const plugins = [
-    postcssImport.default({
-      path: [join(library.path, 'assets'), join(library.path, 'themes')],
-    }),
-  ];
-
-  // Add host project's PostCSS plugins if any
-  if (postcssConfig.plugins && postcssConfig.plugins.length > 0) {
-    plugins.push(...postcssConfig.plugins);
-  }
+  // Build PostCSS plugins
+  const plugins = await buildPostCSSPlugins(postcssConfig, [
+    join(library.path, 'assets'),
+    join(library.path, 'themes'),
+  ]);
 
   // Process CSS
-  const result = await postcss.default(plugins).process(css, {
-    from: mainCssPath,
-    map: {
-      inline: false,
-      annotation: false,
-    },
-  });
+  const result = await processCSSWithPostCSS(css, mainCssPath, plugins);
 
   // Create MD5 hash
   const hash = createHash('MD5').update(result.css).digest('hex');
@@ -166,30 +178,11 @@ export async function processLocalCss(
   const fileName = cssPath.split('/').pop();
   debug(`Processing local CSS: ${cssPath}, size: ${css.length} bytes`);
 
-  // Load PostCSS and plugins
-  const postcss = await import('postcss');
-  const postcssImport = await import('postcss-import');
-
-  // Build PostCSS config
-  const plugins = [
-    postcssImport.default({
-      path: [cssDir],
-    }),
-  ];
-
-  // Add host project's PostCSS plugins if any
-  if (postcssConfig.plugins && postcssConfig.plugins.length > 0) {
-    plugins.push(...postcssConfig.plugins);
-  }
+  // Build PostCSS plugins
+  const plugins = await buildPostCSSPlugins(postcssConfig, [cssDir]);
 
   // Process CSS
-  const result = await postcss.default(plugins).process(css, {
-    from: cssPath,
-    map: {
-      inline: false,
-      annotation: false,
-    },
-  });
+  const result = await processCSSWithPostCSS(css, cssPath, plugins);
 
   // Use mtime-based cache key instead of hash
   const sourceMtime = statSync(cssPath).mtimeMs;

@@ -24,6 +24,7 @@ import {
   processLocalCss,
   getLocalCssCache,
 } from '../services/library-css-processor.js';
+import { buildCssRuleFromResult } from '../utils/shared.js';
 
 /**
  * Process a morph file and return compiled result
@@ -543,18 +544,7 @@ export function createMorphPlugin(options = {}) {
 
           // Send CSS update event if CSS changed
           if (result.cssExports || result.componentsCSS) {
-            let cssRule = '';
-            if (result.componentsCSS) {
-              const cssParts = [];
-              for (const [className, rule] of Object.entries(
-                result.componentsCSS
-              )) {
-                cssParts.push(rule);
-              }
-              cssRule = cssParts.join('\n');
-            } else if (result.cssExports) {
-              cssRule = result.cssExports;
-            }
+            const cssRule = buildCssRuleFromResult(result);
 
             if (cssRule && context.server.ws) {
               context.server.ws.send({

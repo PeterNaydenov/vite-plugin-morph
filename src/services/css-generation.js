@@ -6,6 +6,7 @@
 import { writeFile, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import { debug, info, warn } from '../utils/logger.js';
+import { buildStyleObject, buildNestedStyles } from '../utils/shared.js';
 
 /**
  * CSS Generation Service
@@ -166,19 +167,7 @@ export class CSSGenerationService {
    * @returns {string} CSS rules
    */
   buildStyleObject(selector, styles) {
-    const cssLines = [`${selector} {`];
-
-    for (const [property, value] of Object.entries(styles)) {
-      if (typeof value === 'object' && value !== null) {
-        // Nested object (media queries, pseudo-classes)
-        cssLines.push(this.buildNestedStyles(property, value, '  '));
-      } else {
-        cssLines.push(`  ${property}: ${value};`);
-      }
-    }
-
-    cssLines.push('}');
-    return cssLines.join('\n');
+    return buildStyleObject(selector, styles);
   }
 
   /**
@@ -189,25 +178,7 @@ export class CSSGenerationService {
    * @returns {string} Nested CSS
    */
   buildNestedStyles(nestedSelector, styles, indent) {
-    const cssLines = [];
-
-    if (nestedSelector.startsWith('@')) {
-      // Media query
-      cssLines.push(`${indent}${nestedSelector} {`);
-      cssLines.push(
-        this.buildStyleObject('', styles).replace(/^.*\{\n|\}$/g, '')
-      );
-      cssLines.push(`${indent}}`);
-    } else {
-      // Pseudo-class or nested selector
-      cssLines.push(`${indent}&${nestedSelector} {`);
-      for (const [property, value] of Object.entries(styles)) {
-        cssLines.push(`${indent}  ${property}: ${value};`);
-      }
-      cssLines.push(`${indent}}`);
-    }
-
-    return cssLines.join('\n');
+    return buildNestedStyles(nestedSelector, styles, indent);
   }
 
   /**

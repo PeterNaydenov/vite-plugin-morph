@@ -49,6 +49,19 @@ function initializeComponentsCSS() {
   }
 }
 
+// Ensure a style element exists for a component, create if needed, update with CSS
+function ensureStyleElement(componentName, cssRule) {
+  const styleId = 'morph-css-' + componentName.replace(/[^a-zA-Z0-9]/g, '-');
+  let style = document.getElementById(styleId);
+  if (!style) {
+    style = document.createElement('style');
+    style.id = styleId;
+    document.head.appendChild(style);
+  }
+  style.textContent = cssRule;
+  return style;
+}
+
 // Initialize on module load
 initializeThemeRegistry();
 initializeComponentsCSS();
@@ -263,16 +276,7 @@ async function applyStylesDev() {
     // Inject CSS for each registered component
     for (const [key, cssRule] of Object.entries(componentsCSS)) {
       const componentName = key.split('/')[0];
-      const styleId =
-        'morph-css-' + componentName.replace(/[^a-zA-Z0-9]/g, '-');
-
-      let existing = document.getElementById(styleId);
-      if (!existing) {
-        const styleElement = document.createElement('style');
-        styleElement.id = styleId;
-        styleElement.textContent = cssRule;
-        document.head.appendChild(styleElement);
-      }
+      ensureStyleElement(componentName, cssRule);
     }
   }
 
@@ -415,15 +419,7 @@ async function applyStylesLibrary() {
       window.__MORPH_COMPONENTS_CSS__[key] = cssRule;
 
       // Inject via <style> tag
-      const styleId =
-        'morph-css-' + componentName.replace(/[^a-zA-Z0-9]/g, '-');
-      let style = document.getElementById(styleId);
-      if (!style) {
-        style = document.createElement('style');
-        style.id = styleId;
-        document.head.appendChild(style);
-      }
-      style.textContent = cssRule;
+      ensureStyleElement(componentName, cssRule);
     }
   }
 
@@ -649,14 +645,7 @@ export function registerComponentCSS(componentName, cssRule) {
   componentsCSS[componentName + '/host'] = cssRule;
 
   // Inject via <style> tag for development
-  const styleId = 'morph-css-' + componentName.replace(/[^a-zA-Z0-9]/g, '-');
-  let style = document.getElementById(styleId);
-  if (!style) {
-    style = document.createElement('style');
-    style.id = styleId;
-    document.head.appendChild(style);
-  }
-  style.textContent = cssRule;
+  ensureStyleElement(componentName, cssRule);
 }
 
 /**
@@ -696,14 +685,7 @@ export function updateComponentCSS(componentName, cssRule, source = 'host') {
   componentsCSS[key] = cssRule;
 
   // Update <style> tag for this component
-  const styleId = 'morph-css-' + componentName.replace(/[^a-zA-Z0-9]/g, '-');
-  let style = document.getElementById(styleId);
-  if (!style) {
-    style = document.createElement('style');
-    style.id = styleId;
-    document.head.appendChild(style);
-  }
-  style.textContent = cssRule;
+  ensureStyleElement(componentName, cssRule);
 }
 
 // HMR handler for CSS changes in morph files

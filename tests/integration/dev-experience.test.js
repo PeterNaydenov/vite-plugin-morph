@@ -18,6 +18,7 @@ import {
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { mkdtemp, rm } from 'fs/promises';
+import { createMockMorphContext } from '../utils/test-utils.js';
 
 describe('Development Experience Integration', () => {
   let tempDir;
@@ -40,19 +41,7 @@ describe('Development Experience Integration', () => {
 
   describe('CSS Hot Module Replacement', () => {
     it('should handle morph file changes with CSS', async () => {
-      const mockContext = {
-        file: 'test.morph',
-        read: vi.fn().mockResolvedValue(`
-          <template>
-            <div class="test">Hello</div>
-          </template>
-          <style>
-            .test { color: red; }
-          </style>
-        `),
-        timestamp: Date.now(),
-        modules: [{ id: 'test.morph' }],
-      };
+      const mockContext = createMockMorphContext({ hasCss: true });
 
       const result = await plugin.handleHotUpdate(mockContext);
 
@@ -61,19 +50,7 @@ describe('Development Experience Integration', () => {
     });
 
     it('should handle morph file changes without CSS', async () => {
-      const mockContext = {
-        file: 'test.morph',
-        read: vi.fn().mockResolvedValue(`
-          <template>
-            <div>Hello</div>
-          </template>
-          <script>
-            function test() { return 'hello'; }
-          </script>
-        `),
-        timestamp: Date.now(),
-        modules: [{ id: 'test.morph' }],
-      };
+      const mockContext = createMockMorphContext({ hasCss: false, hasScript: true });
 
       const result = await plugin.handleHotUpdate(mockContext);
 

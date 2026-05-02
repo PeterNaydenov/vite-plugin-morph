@@ -31,33 +31,14 @@ describe('CSS Chunking', () => {
       chunkStrategy: 'size',
       maxChunkSize: 100,
     });
-    // Mock tree-shaking
-    service.applyTreeShaking = async function () {
-      return;
-    };
-
+    service.applyTreeShaking = async function () { return; };
     service.startCollection();
-
-    // Add CSS that exceeds chunk size
-    service.addComponentCss(
-      'Button',
-      '@layer components { .btn { color: red; } }'
-    );
-    service.addComponentCss(
-      'Input',
-      '@layer components { .input { border: 1px solid #ccc; } }'
-    );
-    service.addComponentCss(
-      'Modal',
-      '@layer components { .modal { position: fixed; top: 0; } }'
-    );
-
+    service.addComponentCss('Button', '@layer components { .btn { color: red; } }');
+    service.addComponentCss('Input', '@layer components { .input { border: 1px solid #ccc; } }');
+    service.addComponentCss('Modal', '@layer components { .modal { position: fixed; top: 0; } }');
     await service.stopCollection();
-
-    // Check that chunks were created
     const files = await fs.readdir(tempDir);
     const cssFiles = files.filter((f) => f.endsWith('.css'));
-
     expect(cssFiles.length).toBeGreaterThan(1);
     expect(files).toContain('chunks.json');
   });
@@ -68,35 +49,15 @@ describe('CSS Chunking', () => {
       chunkingEnabled: true,
       chunkStrategy: 'category',
     });
-    // Mock tree-shaking
-    service.applyTreeShaking = async function () {
-      return;
-    };
-
+    service.applyTreeShaking = async function () { return; };
     service.startCollection();
-
-    service.addComponentCss(
-      'Button',
-      '@layer components { .btn { color: red; } }'
-    );
-    service.addComponentCss(
-      'Input',
-      '@layer components { .input { border: 1px solid #ccc; } }'
-    );
-    service.addComponentCss(
-      'Modal',
-      '@layer components { .modal { position: fixed; top: 0; } }'
-    );
-    service.addComponentCss(
-      'Dialog',
-      '@layer components { .dialog { z-index: 1000; } }'
-    );
-
+    service.addComponentCss('Button', '@layer components { .btn { color: red; } }');
+    service.addComponentCss('Input', '@layer components { .input { border: 1px solid #ccc; } }');
+    service.addComponentCss('Modal', '@layer components { .modal { position: fixed; top: 0; } }');
+    service.addComponentCss('Dialog', '@layer components { .dialog { z-index: 1000; } }');
     await service.stopCollection();
-
     const files = await fs.readdir(tempDir);
     const cssFiles = files.filter((f) => f.endsWith('.css'));
-
     expect(cssFiles.length).toBeGreaterThan(1);
     expect(files).toContain('chunks.json');
   });
