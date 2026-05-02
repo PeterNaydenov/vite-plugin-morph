@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.3.8] - 2026-05-02
+- [x] Dependencies update. Parse5 - v.8.0.1;
+- [x] Refactoring: Code optimization. No functional changes;
+
+
+
 ## [0.3.7] - 2026-03-16
 - [x] Dependencies update. Vite - v.8.0.0
 
