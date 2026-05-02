@@ -43,7 +43,7 @@
     "@peter.naydenov/morph": "^3.3.0",
     "acorn": "^8.16.0",
     "acorn-walk": "^8.3.5",
-    "parse5": "^8.0.0",
+    "parse5": "^8.0.1",
     "glob": "^13.0.6"
   },
   "devDependencies": {
