@@ -52,7 +52,7 @@
     "cssnano": "^7.1.8",
     "eslint": "^10.2.0",
     "jsdoc": "^4.0.2",
-    "postcss": "^8.5.10",
+    "postcss": "^8.5.13",
     "postcss-import": "^16.1.1",
     "postcss-nested": "^7.0.2",
     "prettier": "^3.8.3",
