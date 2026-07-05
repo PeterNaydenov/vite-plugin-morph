@@ -2,6 +2,7 @@
 .fallow
 .specify
 node_modules
+graphify-out
 .DS_Store
 .nyc_output
 coverage
