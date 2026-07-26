@@ -5,9 +5,9 @@
 ![npm version](https://img.shields.io/npm/v/@peter.naydenov/vite-plugin-morph.svg)
 ![npm license](https://img.shields.io/npm/l/@peter.naydenov/vite-plugin-morph.svg)
 ![bundle size](https://img.shields.io/bundlephobia/minzip/@peter.naydenov/vite-plugin-morph.svg)
-![Morph compatibility](https://img.shields.io/badge/@peter.naydenov/morph-v3.3.0-blue)
+![Morph compatibility](https://img.shields.io/badge/@peter.naydenov/morph-v3.5.2-blue)
 
-A Vite plugin for processing `.morph` files with HTML-like syntax, CSS modules, and JavaScript helpers. Built on top of `@peter.naydenov/morph` v3.3.0.
+A Vite plugin for processing `.morph` files with HTML-like syntax, CSS modules, and JavaScript helpers. Built on top of `@peter.naydenov/morph` v3.5.2.
 
 ## Features
 
@@ -21,7 +21,7 @@ A Vite plugin for processing `.morph` files with HTML-like syntax, CSS modules, 
 - 🐛 **Enhanced Error Reporting** - File location tracking and detailed CSS error messages
 - 🔧 **CSS Debugging Tools** - Rich inspection utilities and processing logs
 - 🛠️ **TypeScript Support** - Full type definitions included
-- ⚡ **Vite Integration** - Seamless Vite 4.x plugin API integration
+- ⚡ **Vite Integration** - Seamless Vite 8.x+ plugin API integration
 - 🔄 **Morph Syntax** - Full support for `@peter.naydenov/morph` template syntax and helpers
 - ⚙️ **Zero Config** - Works out of the box with sensible defaults
 - 🎯 **Production Optimized** - Built-in optimizations for production builds
@@ -171,30 +171,57 @@ Generates scoped CSS:
 }
 ```
 
+> **No double hashing.** The scoper must detect a class name that's already in scoped/hashed form (e.g. re-processing `libs`-layer CSS from an already-built library) and leave it as-is, rather than hashing it again into something like `Button_Button_btn_abc123_xyz789`. This matters whenever CSS could pass through the scoping step more than once — e.g. a project that both locally develops and locally consumes a component library.
+
 ### CSS @layer Cascade Control
 
-Organize styles with predictable precedence using CSS layers:
+Organize styles with predictable precedence using five CSS layers, lowest to highest precedence (a later `@layer` always wins over an earlier one regardless of selector specificity):
+
+```css
+@layer vendors, libs, modules, app, context;
+```
+
+| Layer | Contents | Scoped? |
+| --- | --- | --- |
+| `vendors` | Third-party CSS you don't control (resets, external non-morph UI kit base styles). | No |
+| `libs` | Published `.morph` component libraries' shipped CSS — "white-label" component descriptions. | **Yes** — CSS-modules scoped (hashed class names), generated once at the point the `.morph` file compiles (i.e. at `buildLibrary()` time for a library). |
+| `modules` | Local, host-authored component CSS. | **Yes** — same scoping mechanism as `libs`, just compiled by the host's own build instead of a library's. |
+| `app` | Current app/brand-level customization — colors, sizes, fonts, and theme variable (`--token`) definitions. Theme switching (see [Library Lifecycle](#library-lifecycle-two-theme-runtimes)) is a swap of the values defined at this layer, not a separate cascade layer. | No — pure, unscoped selectors. |
+| `context` | Situational/contextual overrides (e.g. "this button looks different inside the sidebar"). | No — pure selectors, often with contextual combinators (`.sidebar .btn`). |
+
+Because `libs` and `modules` are both CSS-modules scoped, they can't accidentally clobber each other — any genuine collision resolves in favor of `modules` (local/host) by layer order. Because `app`/`context` sit above both, brand and contextual overrides always win without needing extra specificity or `!important`.
+
+**Dual class-name export** is what makes `app`/`context` able to target components at all despite `libs`/`modules` using hashed names: every component CSS-module class is exported under *two* names simultaneously — the standard hashed/scoped one, and a parallel plain "light label" with no hash, applied to the same element:
+
+```html
+<button class="Button_btn_x7k9p2 btn">Click me</button>
+```
+
+`Button_btn_x7k9p2` is what `libs`/`modules` rules use internally (collision-safe). `btn` — the light label — is not a design/styling name, it's a stable hook: `app`/`context` layer rules target it with plain selectors to customize a component for the current brand/situation without forking the component's own CSS.
 
 ```html
 <!-- Theme.morph -->
 <style>
-  @layer reset {
-    * {
-      box-sizing: border-box;
+  @layer libs {
+    .Button_btn_x7k9p2 {
+      background: var(--primary-color);
+      padding: var(--btn-padding);
     }
   }
 
-  @layer global {
+  @layer app {
     :root {
       --primary-color: #007bff;
       --btn-padding: 0.5rem 1rem;
     }
+    .btn {
+      border-radius: 999px; /* brand-level shape override, targets the light label */
+    }
   }
 
-  @layer components {
-    .btn {
-      background: var(--primary-color);
-      padding: var(--btn-padding);
+  @layer context {
+    .sidebar .btn {
+      padding: 0.25rem 0.5rem; /* smaller in this specific context */
     }
   }
 </style>
@@ -433,6 +460,27 @@ export default defineConfig({
 });
 ```
 
+### Theme Configuration
+
+```javascript
+// vite.config.js
+export default defineConfig({
+  plugins: [
+    morphPlugin({
+      themes: {
+        enabled: true,
+        directories: ['src/themes'],
+        defaultTheme: 'default',
+        watch: true,
+        outputDir: 'dist/themes',
+      },
+    }),
+  ],
+});
+```
+
+Controls local theme discovery for this project (used by `themeRuntime` in local mode — see [Library Lifecycle](#library-lifecycle-two-theme-runtimes)). Full option reference: [plugin-config.md](.agents/skills/vite-plugin-morph/references/plugin-config.md); full walkthrough: [setup-component-library.md](setup-component-library.md).
+
 ### Production Optimization
 
 ```javascript
@@ -494,12 +542,14 @@ export default defineConfig({
 
 ### CSS-Only Morph Files
 
-For global styles and design systems, create CSS-only morph files:
+> **Compatibility feature, not recommended.** CSS-only `.morph` files are supported for backward compatibility but are not the recommended way to write global/general styles — use plain `.css` files instead (see [Theme Configuration](#theme-configuration) and `setup-component-library.md`). This feature will not be developed further.
+
+For global styles and design systems, you *can* create CSS-only morph files (legacy pattern):
 
 ```html
 <!-- src/styles/theme.morph -->
 <style>
-  @layer reset {
+  @layer vendors {
     * {
       box-sizing: border-box;
       margin: 0;
@@ -507,7 +557,7 @@ For global styles and design systems, create CSS-only morph files:
     }
   }
 
-  @layer global {
+  @layer app {
     :root {
       --primary-color: #007bff;
       --secondary-color: #6c757d;
@@ -516,8 +566,8 @@ For global styles and design systems, create CSS-only morph files:
     }
   }
 
-  @layer components {
-    .btn {
+  @layer modules {
+    .Button_btn_x7k9p2 {
       background: var(--primary-color);
       color: white;
       padding: var(--btn-padding);
@@ -526,7 +576,7 @@ For global styles and design systems, create CSS-only morph files:
       cursor: pointer;
     }
 
-    .btn:hover {
+    .Button_btn_x7k9p2:hover {
       opacity: 0.9;
     }
   }
@@ -537,6 +587,8 @@ For global styles and design systems, create CSS-only morph files:
 
 Create component-specific styles with proper layer organization:
 
+You write plain class names in your `.morph` file's `<style>` block — the build automatically scopes them (hashing) and assigns the layer (`modules` for local project components, `libs` for library components):
+
 ```html
 <!-- src/components/Card.morph -->
 <div class="card {{ variant : getVariantClass }}">
@@ -545,7 +597,7 @@ Create component-specific styles with proper layer organization:
 </div>
 
 <style>
-  @layer components {
+  @layer modules {
     .card {
       background: white;
       border-radius: 8px;
@@ -647,11 +699,21 @@ function validateEmail({data}) {
 
 Build distributable component libraries that work like Svelte - framework-free at runtime with full CSS control. CSS processing is delegated to host applications for maximum flexibility.
 
+### Library Lifecycle: Two Theme Runtimes
+
+vite-plugin-morph ships two theme-switching APIs for two different points in a project's lifecycle — they are not the same API under two names, and neither is a mistake:
+
+- **`themeRuntime` / `getThemeRuntime()`** (`@peter.naydenov/vite-plugin-morph/browser`) — **local mode**. For a single project working directly with its own local theme files (auto-discovered via the plugin's `themes` config, or supplied manually via `.initialize()`). Use this while building any project — whether or not it will ever be published. See [setup-component-library.md](setup-component-library.md).
+- **`themesControl`** (`@peter.naydenov/vite-plugin-morph/client`) — **consumption mode**. For a host app that imports one or more already-published `.morph` component libraries (built with `buildLibrary()`, below) and needs to manage themes across all of them — plus its own local resources — together. A project assembled this way can itself be republished as another library for others to combine further. This is the API documented in the rest of this section and in [LIBRARY_MODE.md](./LIBRARY_MODE.md).
+
+Both share the same method vocabulary — `list()`, `getCurrent()`, `getDefault()`, `set(name)`, `setDefault(name)`, `has(name)` — so switching between the two doesn't mean relearning verbs. `themesControl` additionally has `listForLibrary(libraryName)` since it spans multiple libraries; `themeRuntime` additionally has `initialize(themesMap)` for manual, non-auto-discovered setup.
+
 ### CSS Handling in Libraries
 
-- **Raw CSS Assets**: All CSS files from `src/styles/` are copied as raw assets without processing
-- **Host Processing**: CSS layers, scoping, and optimization are handled by the host application's plugin configuration
-- **Runtime Control**: Library consumers get full control over CSS architecture (themes, overrides, etc.)
+- **Raw CSS Assets**: General/global CSS files from `src/styles/` are copied as raw assets without processing — these are unscoped by design (host decides how to layer/optimize them).
+- **Component Scoping (library-side)**: Component CSS is already CSS-modules scoped (hashed class names) by the time the library is built — see [CSS @layer Cascade Control](#css-layer-cascade-control). The library also exports each component's parallel non-hashed "light label" class for host-side overrides.
+- **Host Processing**: The host assigns layer membership (wrapping the library's CSS in `@layer libs`) and handles optimization (PostCSS, minification) — it does not re-scope the library's already-hashed class names.
+- **Runtime Control**: Library consumers get full control over `app`/`context`-layer customization (themes, brand overrides, contextual tweaks) via the light-label classes and CSS variables — see [Library Lifecycle](#library-lifecycle-two-theme-runtimes).
 
 ### Quick Start
 
@@ -714,9 +776,9 @@ export default defineConfig({
 
 ### Requirements
 
-- Node.js 16+
-- Vite 4.x
-- @peter.naydenov/morph v3.1.5
+- Node.js 20.0.0+
+- Vite 8.0.0+ (earlier versions are not supported and will not be tested against)
+- @peter.naydenov/morph v3.5.2
 
 ### Setup Development Environment
 
@@ -859,6 +921,7 @@ Import runtime functions for CSS management:
 ```javascript
 import {
   applyStyles,
+  applyGeneralStyles,
   themesControl,
   registerComponentCSS,
   getAllComponentCSS,
@@ -870,31 +933,58 @@ import {
 } from '@peter.naydenov/vite-plugin-morph/client';
 ```
 
+**Two kinds of CSS, two loading rules:** component CSS always travels with its component (automatic, via `applyStyles()`). General/global CSS (project-wide base styles) is a separate, explicit choice via `applyGeneralStyles()` — so a host combining several libraries can pick which one(s) general CSS to load, instead of getting conflicting global styles from all of them.
+
 #### `applyStyles()`
 
-Applies CSS based on current environment:
+Applies component CSS based on current environment (matching `detectEnvironment()`'s three states, below). Never uses `<link>` tags in any mode.
 
-- **Development**: Injects per-component `<style>` tags
-- **Library**: Uses embedded `componentsCSS` to register CSS
-- **Production**: Loads CSS from URLs
+- **`development`**: Injects per-component `<style>` tags
+- **`library`**: Uses embedded `componentsCSS` to register CSS
+- **`build`**: Same as library — CSS embedded at build time, applied as `<style>` tags
 
 ```javascript
 applyStyles();
 ```
 
-#### `themesControl`
+#### `applyGeneralStyles()`
 
-Runtime API for theme switching across libraries:
+Applies general/global CSS (see above). In development this fetches live from the dev server (HMR-friendly); in a build or library, the CSS text was already embedded at build time, so it applies instantly with no network request. When called on an imported library, the style element is scoped by library name so multiple libraries' general CSS can coexist.
 
 ```javascript
-// Get available themes
+applyStyles();          // always — component CSS + theme
+applyGeneralStyles();   // your own project's general CSS: usually always wanted
+
+// Consuming libraries — pick which ones' general CSS you want:
+import { applyGeneralStyles as libAGeneral } from '@myorg/lib-a';
+libAGeneral(); // use lib-a as your base theme; skip lib-b's general CSS entirely
+```
+
+#### `themesControl`
+
+Runtime API for theme switching across libraries (see [Library Lifecycle](#library-lifecycle-two-theme-runtimes) above for how this relates to `themeRuntime`):
+
+```javascript
+// Get available themes (across all registered libraries)
 const themes = themesControl.list();
+
+// Themes for one specific library
+const uiThemes = themesControl.listForLibrary('@myorg/ui');
 
 // Switch theme
 themesControl.set('dark');
 
 // Get current theme
 const current = themesControl.getCurrent();
+
+// Get the configured default theme name
+const def = themesControl.getDefault();
+
+// Designate a new default theme and apply it immediately
+themesControl.setDefault('light');
+
+// Check whether a theme exists
+themesControl.has('high-contrast');
 ```
 
 #### `registerComponentCSS(componentName, cssRule)`
@@ -948,7 +1038,7 @@ const env = detectEnvironment(); // 'development' | 'build' | 'library'
 
 #### `getMorphConfig()` / `setMorphConfig(config)`
 
-Get or set morph configuration:
+Get or set morph configuration. Partial example (library mode):
 
 ```javascript
 const config = getMorphConfig();
@@ -959,6 +1049,8 @@ setMorphConfig({
   libraryName: '@myorg/my-components',
 });
 ```
+
+This is a partial example — the full config shape (including `css`, `themes`, `defaultTheme`, `themeUrls`, `cssUrls`) is documented in the skill's [runtime-api.md](.agents/skills/vite-plugin-morph/references/runtime-api.md#getmorphconfig--setmorphconfigconfig).
 
 ### Global Storage
 
@@ -973,7 +1065,10 @@ window.__MORPH_COMPONENTS_CSS__ = {
 
 window.__MORPH_THEME_REGISTRY__ = [{ libraryName: '@myorg/ui', themes: ['light', 'dark'], defaultTheme: 'light' }];
 window.__MORPH_THEMES__ = { '@myorg/ui': { light: { ... }, dark: { ... } } };
+window.__MORPH_CONFIG__ = { /* the current MorphConfig, as set by setMorphConfig() above */ };
 ```
+
+This list mirrors the skill's [runtime-api.md](.agents/skills/vite-plugin-morph/references/runtime-api.md#global-storage-layout) — treat these as an internal contract; use the API functions above rather than reading/writing them directly.
 
 ## Version History
 
@@ -1053,9 +1148,9 @@ npm run test:watch         # Watch mode for development
 
 ## Requirements
 
-- Node.js 16+
-- Vite 4.x
-- @peter.naydenov/morph v3.1.5
+- Node.js 20.0.0+
+- Vite 8.0.0+ (earlier versions are not supported and will not be tested against)
+- @peter.naydenov/morph v3.5.2
 
 ## Links
 
