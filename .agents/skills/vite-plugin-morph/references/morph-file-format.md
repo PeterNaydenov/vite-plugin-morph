@@ -103,7 +103,9 @@ The consumer calls the default export as a function: `UserCard('view', { name: '
 
 ## CSS-only `.morph` files
 
-A file with only a `<style>` block (no template) is treated as a **CSS-only morph file**. It is registered as a side-effect import that injects the styles. Useful for global stylesheets and design tokens.
+A file with only a `<style>` block (no template) is treated as a **CSS-only morph file**. It is registered as a side-effect import that injects the styles.
+
+> **Compatibility feature, not recommended.** This exists for backward compatibility, not as the recommended way to write global stylesheets or design tokens — use plain `.css` files instead (see `setup-component-library.md`). Don't reach for this pattern in new code.
 
 ## Common mistakes — quick check
 

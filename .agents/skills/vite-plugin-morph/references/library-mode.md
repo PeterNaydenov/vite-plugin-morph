@@ -1,6 +1,8 @@
 # Library Mode — publishing `.morph` components
 
-Library Mode lets you ship a set of `.morph` components as a standalone npm package that consumers drop into any Vite app (or any non-Vite app that can apply a `<style>` block). The library ships **raw CSS**; the host app processes it with its own plugin config. This separation is the whole point — the consumer controls theming, layering, and optimization.
+Library Mode lets you ship a set of `.morph` components as a standalone npm package that consumers drop into any Vite app (or any non-Vite app that can apply a `<style>` block).
+
+**Scoping happens once, at compile time.** A `.morph` file compiles to a JS render function exactly once — for a library, that's at `buildLibrary()` time. Class names are CSS-modules scoped (hashed) then, and that's final; there's no host-side re-scoping step, because nothing re-compiles an already-built component. The library ships this pre-scoped CSS **plus** a parallel non-hashed "light label" class on the same elements (`Button_btn_x7k9p2 btn`) — see [README.md's CSS @layer Cascade Control](../../../../README.md#css-layer-cascade-control) for the full five-layer model (`vendors, libs, modules, app, context`). The host does **not** re-scope the library's CSS; it assigns layer membership (`@layer libs`), runs PostCSS/optimization on the combined output, and writes `app`/`context`-layer rules against the light-label classes for theming and brand/contextual overrides. That division — the host controls layering, optimization, and `app`/`context` customization, not component scoping — is the actual separation of concerns.
 
 ## When to use Library Mode
 
@@ -43,7 +45,7 @@ export {
 } from '@peter.naydenov/vite-plugin-morph/client';
 ```
 
-Each component's CSS is **not** processed at library build time. The library ships the raw CSS strings, plus a `componentsCSS` map the host can register.
+Each component's CSS is scoped (hashed) at library build time — that scoping is final and not repeated by the host. The library ships this pre-scoped CSS, plus a `componentsCSS` map the host can register, plus each class's parallel non-hashed light-label name for host-side `app`/`context` overrides.
 
 ### 3. Library `package.json` exports
 
@@ -70,7 +72,7 @@ export default {
   plugins: [
     morphPlugin({
       css: {
-        layers: { enabled: true, order: ['reset','global','components','utilities'] },
+        layers: { enabled: true, order: ['vendors','libs','modules','app','context'] },
         postcss: { autoprefixer: true, minify: true },
       },
     }),
@@ -111,16 +113,17 @@ Themes are registered per library via the runtime. The plugin keeps a global reg
 
 | Concern | Library | Host |
 | --- | --- | --- |
-| Component compilation | ✅ (raw CSS, no PostCSS) | (none) |
-| CSS layers | ❌ | ✅ (host's `@layer` order) |
-| Scoping | ✅ (hash generated, applied at runtime) | (host plugin handles) |
+| Component compilation | ✅ (scoped CSS + light-label classes, no PostCSS) | (none) |
+| Scoping (hashing) | ✅ — final, done once at compile time | ❌ — never re-scopes |
+| CSS layer assignment | ❌ | ✅ — wraps library CSS in `@layer libs` |
 | Tree-shaking | ❌ (host decides) | ✅ |
 | PostCSS / minification | ❌ | ✅ |
+| `app`/`context` customization | ❌ — that's the host's job | ✅ — pure selectors against light-label classes |
 | Theme application | exposes `themesControl` | `applyStyles()` orchestrates |
 
 ## Anti-patterns in Library Mode
 
-- **Minifying or scoping at the library level.** The host owns that. Doing it twice breaks scoping and prevents theme overrides.
+- **Minifying, layering, or PostCSS-processing at the library level.** The host owns that. (Scoping/hashing is different — that's correctly done once by the library at compile time, not repeated by the host.)
 - **Hardcoding colors in component CSS.** The whole point of library mode is themeability — use `var(--token, fallback)`.
 - **Importing the library's CSS directly via `<link>` instead of `applyStyles()`.** The runtime knows about HMR, theme switching, and the componentsCSS registry; raw `<link>` tags bypass all of it.
 - **Re-implementing the component render on the consumer side.** Import the component, call it, render the result. Don't re-parse the template.
@@ -131,7 +134,7 @@ Themes are registered per library via the runtime. The plugin keeps a global reg
 The library build produces:
 
 - A JS bundle per component (template + helpers + handshake).
-- Raw CSS files.
+- Pre-scoped CSS files (hashed class names, plus light-label class exports).
 - A `componentsCSS` map exported in the bundle.
 - A `themes` registry exported in the bundle.
 

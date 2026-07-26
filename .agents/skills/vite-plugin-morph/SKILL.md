@@ -197,7 +197,7 @@ export default {
       hashMode: 'production',
       globalCSS: { directory: 'src/styles', include: ['**/*.css'] },
       css: {
-        layers: { enabled: true, order: ['reset', 'global', 'components', 'utilities'] },
+        layers: { enabled: true, order: ['vendors', 'libs', 'modules', 'app', 'context'] },
         treeShaking: { enabled: true },
         postcss: { autoprefixer: true, minify: true, sourceMaps: true },
       },

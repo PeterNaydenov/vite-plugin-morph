@@ -22,6 +22,18 @@ becomes (in the consumer's bundle):
 - The hash is content-based in `production` mode, name-based in `development` mode (so dev edits don't churn the hash and don't require re-rendering the template).
 - Multiple classes combined into a single selector keep their relationship (both get the same component prefix).
 - Tag selectors, ID selectors, and CSS variables are **not** renamed.
+- Scoping happens once, at the point the `.morph` file compiles — for a library component, that's at `buildLibrary()` time, and it's final; nothing re-scopes it later (see `library-mode.md`).
+- **No double hashing**: the scoper must detect a class name already in scoped form (matching the hash pattern) and leave it alone rather than hashing it again. This matters whenever CSS could pass through scoping more than once — e.g. a project that both locally develops and locally consumes a component library.
+
+### Dual class-name export (light labels)
+
+The rendered markup carries **both** the scoped class and a parallel non-hashed "light label" (the original, unhashed class name) on the same element:
+
+```html
+<button class="Button_btn_a1b2c btn">Click me</button>
+```
+
+The light label (`btn`) isn't a styling name for the component's own CSS — it's a stable hook for the `app`/`context` layers (below) to target with plain selectors, without needing to know the generated hash. `libs`/`modules`-layer rules should only ever target the hashed name; `app`/`context`-layer rules should only ever target the light label.
 
 ### How to use a scoped class from a template
 
@@ -45,21 +57,26 @@ To keep a class un-scoped (rare; usually a bad idea), wrap it in `:global(.foo)`
 
 ## 2. CSS layers
 
-`@layer` is a real CSS feature; the plugin doesn't fake it. Declared layers give you predictable cascade order regardless of CSS load order:
+`@layer` is a real CSS feature; the plugin doesn't fake it. Declared layers give you predictable cascade order regardless of CSS load order. The canonical order, lowest to highest precedence:
 
 ```css
-@layer reset { * { box-sizing: border-box; } }
-@layer global { :root { --primary: #007bff; } }
-@layer components { .btn { background: var(--primary); } }
-@layer utilities { .visually-hidden { /* … */ } }
+@layer vendors, libs, modules, app, context;
+
+@layer vendors { * { box-sizing: border-box; } }                    /* third-party CSS you don't control */
+@layer libs { .Button_btn_a1b2c { background: var(--primary); } }   /* published .morph library components, scoped */
+@layer modules { .Card_card_d3e4f { padding: 1rem; } }              /* local/host components, scoped */
+@layer app { :root { --primary: #007bff; } .btn { border-radius: 999px; } }  /* brand-level: theme variables + pure-selector overrides against light-label classes */
+@layer context { .sidebar .btn { padding: 0.25rem; } }              /* situational overrides, highest precedence */
 ```
 
-With `css.layers.order: ['reset','global','components','utilities']`, the cascade is exactly that order, with later layers winning. A consumer can re-declare any layer to change the order without forking your library.
+With `css.layers.order: ['vendors','libs','modules','app','context']`, the cascade is exactly that order, with later layers winning regardless of selector specificity. `libs` and `modules` are both CSS-modules scoped, so they can't accidentally clobber each other; a genuine collision resolves in favor of `modules` (local/host) by layer order alone. `app`/`context` use pure, unscoped selectors against each component's light-label class (see Dual class-name export, above) — that's what lets brand/contextual overrides win without extra specificity or `!important`. Theme variable definitions live in the `app` layer; there is no separate `themes` layer — switching themes swaps the values defined there (see README.md's Library Lifecycle / `themesControl`).
+
+A consumer can re-declare any layer to change the order without forking your library, and can add their own extra layers beyond these five if needed.
 
 ### When to use layers
 
-- **When the component is part of a multi-file cascade** — a design system, a host app with a defined layer order, a library whose consumers will override. Wrap the component's rules in the appropriate layer (`components`, `utilities`, etc.) so cascade order is predictable across files.
-- **When you anticipate theme overrides** — layers let a consumer drop a higher-precedence rule into a `global` or `utilities` layer without `!important`.
+- **When the component is part of a multi-file cascade** — a design system, a host app with a defined layer order, a library whose consumers will override. Wrap the component's rules in the appropriate layer (`libs` for library components, `modules` for local ones) so cascade order is predictable across files.
+- **When you anticipate theme or brand overrides** — layers let a consumer drop an `app`- or `context`-layer rule against the light-label class without `!important`.
 
 ### When not to use layers
 

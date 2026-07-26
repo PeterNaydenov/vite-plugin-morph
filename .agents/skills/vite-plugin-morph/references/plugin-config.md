@@ -12,6 +12,7 @@ The plugin is configured by passing a `MorphPluginOptions` object to `morphPlugi
 | `development` | `{ sourceMaps?, hmr?, cssHmr? }` | on | Dev-time ergonomics. `cssHmr` enables live CSS updates without reload. |
 | `errorHandling` | `{ failOnError?, showLocation?, maxErrors?, cssErrors? }` | off | Make failures loud and actionable. `cssErrors: true` enables line/offset for CSS errors. |
 | `css` | object | on | CSS subsystem configuration. See below. |
+| `themes` | `{ enabled?, directories?, defaultTheme?, watch?, outputDir? }` | on | Local theme discovery/output config for the plugin's own project — see `setup-component-library.md`. `defaultTheme` names which discovered theme is the default; it's inherited by `library.defaultTheme` when packaging with `buildLibrary()` unless overridden (see `library-mode.md`). |
 
 ## `css.*` fields
 
@@ -24,7 +25,7 @@ The plugin is configured by passing a `MorphPluginOptions` object to `morphPlugi
 | `css.modules.enabled` | boolean | `true` | Scoped class names. |
 | `css.modules.generateScopedName` | string | (file-class-hash) | Custom scoper (advanced). |
 | `css.layers.enabled` | boolean | `true` | Honor `@layer` declarations in component CSS. |
-| `css.layers.order` | string[] | `['reset','global','components','utilities']` | Layer cascade order. |
+| `css.layers.order` | string[] | `['vendors','libs','modules','app','context']` | Layer cascade order. |
 | `css.treeShaking.enabled` | boolean | `true` | Drop CSS for unimported components. |
 | `css.bundling.enabled` | boolean | `true` | Bundle scoped CSS into per-component exports. |
 | `css.bundling.outputDir` | string | `'dist/components'` | Where bundling artifacts are written (when applicable). |
@@ -70,7 +71,7 @@ morphPlugin({
   hashMode: 'production',
   globalCSS: { directory: 'src/styles', include: ['**/*.css'] },
   css: {
-    layers: { enabled: true, order: ['reset','global','components','utilities'] },
+    layers: { enabled: true, order: ['vendors','libs','modules','app','context'] },
     postcss: { autoprefixer: true, minify: true, sourceMaps: false },
     treeShaking: { enabled: true },
   },
