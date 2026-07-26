@@ -25,6 +25,8 @@ CSS-only morph file demonstrating:
 - Utility classes
 - No template or script sections
 
+> Note: CSS-only `.morph` files are a compatibility feature, not the recommended way to write global styles — prefer a plain `.css` file (see the root `setup-component-library.md`). This example is kept to demonstrate the legacy pattern still works.
+
 ## Usage
 
 These examples show how to write `.morph` files using the new HTML-like syntax while maintaining compatibility with the existing `@peter.naydenov/morph` ecosystem.
