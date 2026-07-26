@@ -20,6 +20,8 @@ import { info } from './utils/logger.js';
  * @param {Object} [config.library.packageJson] - Additional package.json fields
  * @param {string} [config.outputDir='dist/library'] - Output directory
  * @param {string} [config.rootDir=process.cwd()] - Project root directory
+ * @param {string} [config.themesDir='src/themes'] - Directory containing theme CSS files
+ * @param {string} [config.hashMode='development'] - CSS class-name hash mode: 'development' or 'production'
  * @param {Object} [config.morphPlugin] - Morph plugin options
  * @returns {Promise<void>}
  *
@@ -45,6 +47,8 @@ export async function buildLibrary(config = {}) {
     library = {},
     outputDir = 'dist/library',
     rootDir = process.cwd(),
+    themesDir,
+    hashMode,
     morphPlugin = {},
   } = config;
 
@@ -58,12 +62,20 @@ export async function buildLibrary(config = {}) {
   info(`Output: ${outputDir}`);
 
   // Create builder instance
+  // `library.defaultTheme` inherits the project's own `themes.defaultTheme`
+  // (from morphPlugin config) when not explicitly set on `library`.
+  // `themesDir`/`hashMode` are accepted as top-level buildLibrary() options
+  // (not nested under morphPlugin) and take precedence over any same-named
+  // key that happens to be nested inside morphPlugin.
   const builder = createLibraryBuilder({
     entry,
     outputDir,
     library,
     rootDir,
+    projectDefaultTheme: morphPlugin.themes?.defaultTheme,
     ...morphPlugin,
+    ...(themesDir !== undefined ? { themesDir } : {}),
+    ...(hashMode !== undefined ? { hashMode } : {}),
   });
 
   // Execute build

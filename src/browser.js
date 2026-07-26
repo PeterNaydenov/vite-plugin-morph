@@ -6,8 +6,6 @@ import { getThemeRuntime } from './services/theme-runtime.js';
  * @returns {import('./services/theme-runtime.js').ThemeRuntime} Theme runtime instance
  */
 export function themeRuntime() {
-    console.log('[Morph Debug] themeRuntime called. Imported themes:', themes);
-    console.log('[Morph Debug] themeRuntime calling getThemeRuntime with options:', { themes, defaultTheme });
     return getThemeRuntime({
         themes,
         defaultTheme,
