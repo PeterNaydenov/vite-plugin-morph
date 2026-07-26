@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.4.0] - 2026-07-25
+
+Aligns the implementation with the reconciled documentation (CSS architecture, theme system, config schema). Several breaking changes — see notes below.
+
+**CSS architecture**
+- [x] Replaced the 4-layer cascade (`reset, global, components, themes`) with a 5-layer model: `vendors, libs, modules, app, context`. **Breaking**: any consumer CSS targeting the old layer names by name needs updating.
+- [x] Component CSS is now wrapped in `@layer libs` (published library components) or `@layer modules` (local/host components) based on where it was compiled from — both for the bundled/production CSS output and for the `<style>` tag every compiled `.morph` component self-injects on import (dev, build, and library modes alike; the latter path was initially missed and bypassed the cascade entirely until this was caught and fixed).
+- [x] Dev-mode CSS source maps: a component's `<style>` tag and the project's global CSS (served via `/@morph-css/local/...`) now both carry a `sourceMappingURL` comment (with embedded `sourcesContent`, since neither is otherwise fetchable by the browser), so DevTools can jump straight from a rule to its real file and line instead of showing a generic `<style>` source.
+- [x] Added dual class-name export: rendered markup now carries both the scoped/hashed class and the original "light label" class (e.g. `class="Button_btn_x7k9p2 btn"`), so `app`/`context`-layer CSS can target components with plain selectors. **Breaking**: changes rendered HTML output for every component (additive, but affects exact `className` string checks).
+- [x] Added a `:global(.foo)` escape hatch to exclude a class from scoping entirely.
+- [x] Added a guard against double-hashing CSS that passes through scoping more than once.
+- [x] `css.postcss` (autoprefixer/minify/sourceMaps), `css.modules.generateScopedName`, `css.layers.order`, `css.treeShaking.enabled`, `css.bundling.*`, `css.debug.*`, and `css.enabled` are now actually read and wired to real behavior (previously declared in types only).
+
+**Theme system**
+- [x] Consolidated three divergent theme-discovery implementations into one (plain `.css` theme files only — the `_css.{name}.morph` convention and non-`.css` theme file formats are no longer discovered). **Breaking** if you relied on non-`.css` theme files.
+- [x] Fixed `themesControl.getCurrent()` — it previously returned the configured default theme instead of the theme actually applied via `.set()`.
+- [x] Added `themesControl.getDefault()`.
+- [x] `ThemeRuntime`: added `setDefault()`/`has()`; `getCurrentTheme()` renamed to `getCurrent()` (old name kept as a deprecated alias).
+- [x] `library.defaultTheme` now inherits the project's own `themes.defaultTheme` when not explicitly set.
+- [x] Fixed a broken `virtual:morph-themes` import (`src/browser.js` imported a named `defaultTheme` export that didn't exist).
+- [x] Fixed the default-theme selection used by `applyStyles()`: it previously ignored the theme registry's actual configured `defaultTheme` and fell back to whichever theme happened to sort first (an arbitrary, discovery-order pick — e.g. `dark` before `light`). It also had an async-ordering bug where this fallback was applied after an internal `await`, so it could resolve on a later microtask than a synchronous `themesControl.set(...)` call made right after `applyStyles()`, silently reverting it.
+
+**Client runtime**
+- [x] `applyStyles()` no longer creates `<link>` elements in any environment — all CSS is injected via `<style>` tags or fetched-then-injected. **Breaking** if anything queried for those `<link>` elements directly.
+- [x] Removed the undocumented, `<link>`-based `createStyleLink`/`removeStyleLink`/`createThemeController` exports.
+- [x] Added `applyGeneralStyles()` — applies a project's/library's general/global CSS (as opposed to component CSS, which `applyStyles()` already always applies). Unlike component CSS, general CSS is never auto-applied for an imported library — a host combining several libraries calls `someLibrary.applyGeneralStyles()` only for the ones whose general CSS it actually wants. In dev this fetches live (HMR); in a build or library, the CSS text is embedded at build time (same technique as themes) — no `<link>`/fetch/URL involved. Closes a real gap: previously a plain host's production build never applied general CSS at all, and a published library's general CSS was bundled as a file with no function to ever apply it.
+- [x] Fixed `virtual:morph-css`'s output, broken by the `addComponentCss` source-tagging change above (`[object Object]` instead of CSS text).
+
+**Library builder**
+- [x] `themesDir` and `hashMode` are now accepted as top-level `buildLibrary()` options (previously silently dropped unless nested under `morphPlugin`).
+- [x] The library build's internal PostCSS config now respects `css.postcss.autoprefixer`.
+- [x] Generated library bundles now embed the library's general CSS as text and export `applyGeneralStyles()` (see above).
+- [x] Removed a stray `console.log` shipped into every consumer's browser console on theme registration.
+- [x] Fixed the `generateBundle` hook to use `this.emitFile()` instead of directly mutating the `bundle` object — the latter is a deprecated Rollup pattern that Rolldown (Vite 8's default bundler) silently ignores, so `client.mjs`, `runtime.js`, and CSS assets were missing from real Vite 8 library builds even though unit tests (which don't exercise a real bundler) passed.
+- [x] Fixed `libraryComponentsCSS` staying empty (`{}`) in real builds: it was regex-extracted from bundled JS chunk code (`const css = ...`/`const componentsCSS = ...`), which Rolldown breaks by renaming local variables even without minification. Now reads directly from the CSS-collection registry that the plugin's own transform hook already populates correctly, keyed by component name.
+
+**Additional fixes**
+- [x] Fixed a cache-key collision in `processMorphFile()`: the cache key didn't include the file path, so two different files with identical content and options could silently return each other's cached result (wrong `componentName`, wrong CSS layer, wrong source).
+- [x] Fixed the dev-server HMR handler for global/general CSS file changes: it invalidated `virtual:morph-client`, a module nothing actually imports, so edits silently did nothing. Now sends the `morph-local-css-update` event the client already listens for, so editing global CSS files updates the page live again without a full reload.
+
+**Housekeeping**
+- [x] Removed dead code: `src/plugin/hooks.js`, `src/core/themer.js`, `src/services/theme-discovery.js` (none were reachable from the public API).
+- [x] Removed ~50 leftover debug `console.log` statements from the plugin's transform/dev-server code.
+- [x] Bumped `@peter.naydenov/morph` to `^3.5.2`, Node.js requirement to `>=20.0.0`, Vite requirement to `>=8.0.0`.
+
+
+
+## [0.3.9] - 2026-07-25
+- [x] Agent skill was added;
+
+
+
 ## [0.3.8] - 2026-05-02
 - [x] Dependencies update. Parse5 - v.8.0.1;
 - [x] Refactoring: Code optimization. No functional changes;
