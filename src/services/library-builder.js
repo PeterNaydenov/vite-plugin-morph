@@ -10,7 +10,6 @@ import { join, dirname, relative } from 'path';
 import { fileURLToPath } from 'url';
 import { glob } from 'glob';
 import { info, warn, debug } from '../utils/logger.js';
-import { createThemeDiscovery } from './theme-discovery.js';
 import { getCssCollector } from './css-collection.js';
 import {
   extractThemesFromDir,
@@ -28,7 +27,12 @@ export class LibraryBuilder {
     this.rootDir = options.rootDir || process.cwd();
     this.themesDir = options.themesDir || 'src/themes';
     this.stylesDir = options.stylesDir || 'src/styles';
-    this.discoveredThemes = new Map(); // Store themes for build process
+    // Fallback default theme inherited from the project's own `themes.defaultTheme`
+    // plugin config, used when `library.defaultTheme` isn't explicitly set.
+    this.projectDefaultTheme = options.projectDefaultTheme;
+    this.discoveredThemes = {}; // Store themes for build process (name -> {variables, raw})
+    this.hashMode = options.hashMode || 'development';
+    this.postcssOptions = options.css?.postcss || {};
   }
 
   /**
@@ -41,7 +45,7 @@ export class LibraryBuilder {
     try {
       // 1. Discover themes first
       this.discoveredThemes = await this.discoverThemes();
-      debug(`Discovered ${this.discoveredThemes.size} themes`);
+      debug(`Discovered ${Object.keys(this.discoveredThemes).length} themes`);
 
       // 2. Scan and prepare morph components
       const morphFiles = await this.scanMorphFiles();
@@ -51,7 +55,7 @@ export class LibraryBuilder {
       await this.generateEntryFile(morphFiles);
 
       // 4. Build with Vite in library mode
-      await this.buildWithVite(this.discoveredThemes);
+      await this.buildWithVite();
 
       // 5. Generate package.json
       await this.generatePackageJson();
@@ -67,16 +71,11 @@ export class LibraryBuilder {
   }
 
   /**
-   * Discover available themes
-   * @returns {Promise<Map>} Discovered themes
+   * Discover available themes (plain `.css` files in the themes directory)
+   * @returns {Promise<Object.<string, {variables: Object, raw: string}>>} Discovered themes
    */
   async discoverThemes() {
-    const themeDiscovery = createThemeDiscovery({
-      directories: [join(this.rootDir, this.themesDir)],
-      defaultTheme: this.libraryConfig.defaultTheme || 'default',
-    });
-
-    return await themeDiscovery.discoverThemes();
+    return await extractThemesFromDir(join(this.rootDir, this.themesDir));
   }
 
   /**
@@ -162,21 +161,29 @@ ${exports}
    * @param {Map} themes - Discovered themes
    * @returns {Promise<void>}
    */
-  async buildWithVite(themes) {
+  async buildWithVite() {
     const { createMorphPlugin } = await import('../plugin/index.js');
     const self = this;
+
+    // postcss-import/postcss-nested are structural (needed regardless of user
+    // preference); autoprefixer respects the resolved css.postcss.autoprefixer
+    // flag so a consumer that disabled it isn't overridden here. cssnano stays
+    // off unconditionally to preserve CSS variables/structure for re-processing
+    // by the host.
+    const libraryPostcssPlugins = {
+      'postcss-import': {},
+      'postcss-nested': {},
+    };
+    if (this.postcssOptions.autoprefixer !== false) {
+      libraryPostcssPlugins.autoprefixer = { grid: true };
+    }
 
     const viteConfig = {
       root: this.rootDir,
       configFile: false, // Don't load external vite.config.js
       css: {
         postcss: {
-          plugins: {
-            'postcss-import': {},
-            'postcss-nested': {},
-            autoprefixer: { grid: true },
-            // Disable cssnano to preserve CSS variables and structure
-          },
+          plugins: libraryPostcssPlugins,
         },
       },
       build: {
@@ -210,6 +217,7 @@ ${exports}
       plugins: [
         createMorphPlugin({
           // Configure plugin for library mode
+          hashMode: this.hashMode,
           css: {
             chunking: {
               enabled: false, // Disable chunking for library builds
@@ -224,69 +232,64 @@ ${exports}
           async generateBundle(options, bundle) {
             // Collect CSS assets from morph components
             const cssAssets = [];
-            let componentCss = '';
 
-            // Collect componentsCSS from all morph components
+            // Per-component CSS (name -> scoped CSS rule) and the concatenated
+            // blob for assets/components.css, read directly from the CSS
+            // collection singleton that the plugin's own transform hook
+            // populated while this same Vite build ran. This used to be
+            // regex-extracted from `const css = ...`/`const componentsCSS = ...`
+            // literals in the bundled JS chunks, but Rolldown (Vite 8's default
+            // bundler) renames local variables even without minification, so
+            // those patterns never matched and the registry silently stayed
+            // empty in real builds.
+            const collector = getCssCollector();
             const allComponentsCSS = {};
-
-            // Extract CSS and componentsCSS from generated JS chunks
-            for (const [fileName, chunk] of Object.entries(bundle)) {
-              if (chunk.type === 'chunk' && chunk.code) {
-                // Look for CSS export from morph processing
-                const cssMatch = chunk.code.match(/const css = ([^;]+);/);
-                if (cssMatch) {
-                  try {
-                    const css = JSON.parse(cssMatch[1]);
-                    componentCss += css + '\n';
-                  } catch (e) {
-                    debug(`Failed to parse css from ${fileName}`);
-                  }
-                }
-
-                // Look for componentsCSS export
-                const componentsCSSMatch = chunk.code.match(
-                  /const componentsCSS = ({[^;]+});/
-                );
-                if (componentsCSSMatch) {
-                  try {
-                    const componentsCSS = JSON.parse(componentsCSSMatch[1]);
-                    // Merge into allComponentsCSS (component name -> css rule)
-                    Object.assign(allComponentsCSS, componentsCSS);
-                  } catch (e) {
-                    debug(`Failed to parse componentsCSS from ${fileName}`);
-                  }
-                }
-              }
+            let componentCss = '';
+            for (const [componentName, entry] of collector.components) {
+              allComponentsCSS[componentName] = entry.css;
+              componentCss += entry.css + '\n';
             }
 
             // Create component CSS asset
             if (componentCss.trim()) {
-              bundle['assets/components.css'] = {
+              this.emitFile({
                 type: 'asset',
                 fileName: 'assets/components.css',
                 source: componentCss.trim(),
-              };
+              });
               cssAssets.push('assets/components.css');
             }
 
-            // Copy all CSS files from styles directory
+            // Copy all CSS files from styles directory, and also collect their
+            // text content as this library's general CSS (embedded into the
+            // generated client module for applyGeneralStyles() — see below).
             const stylesDir = join(self.rootDir, self.stylesDir);
             const cssFiles = await glob('**/*.css', {
               cwd: stylesDir,
               absolute: false,
             });
 
+            const generalCssParts = [];
+
             for (const cssFile of cssFiles) {
               const cssPath = join(stylesDir, cssFile);
               const cssSource = await readFile(cssPath, 'utf-8');
               const assetName = `assets/${cssFile}`;
-              bundle[assetName] = {
+              this.emitFile({
                 type: 'asset',
                 fileName: assetName,
                 source: cssSource,
-              };
+              });
               cssAssets.push(assetName);
+              generalCssParts.push(cssSource);
             }
+
+            // Wrapped in @layer app for consistency with how the host's own
+            // general CSS is embedded (src/plugin/index.js's virtual:morph-config).
+            const generalCssBody = generalCssParts.join('\n\n');
+            const generalCssContent = generalCssBody
+              ? `@layer app {\n${generalCssBody}\n}`
+              : '';
 
             debug(`Copied ${cssFiles.length} CSS files from ${self.stylesDir}`);
 
@@ -295,40 +298,41 @@ ${exports}
             const runtimePath = join(pluginDir, '../client/runtime.js');
             try {
               const runtimeSource = await readFile(runtimePath, 'utf-8');
-              bundle['runtime.js'] = {
+              this.emitFile({
                 type: 'asset',
                 fileName: 'runtime.js',
                 source: runtimeSource,
-              };
+              });
               debug(`Copied runtime.js from plugin`);
             } catch (error) {
               warn(`Failed to copy runtime.js: ${error.message}`);
             }
 
-            // Extract themes first (needed for both themes.json and client.mjs)
-            const themesDir = join(self.rootDir, self.themesDir);
-            const themes = await extractThemesFromDir(themesDir);
+            // Theme content was already discovered in build() as self.discoveredThemes
+            // (name -> {variables, raw}) — reused here for both themes.json and client.mjs.
+            const themes = self.discoveredThemes;
 
             // Generate client module with theme content and componentsCSS
             const clientCode = self.generateClientModule(
               cssAssets,
-              self.discoveredThemes,
               themes,
-              allComponentsCSS
+              themes,
+              allComponentsCSS,
+              generalCssContent
             );
 
-            bundle['client.mjs'] = {
+            this.emitFile({
               type: 'asset',
               fileName: 'client.mjs',
               source: clientCode,
-            };
+            });
 
             if (Object.keys(themes).length > 0) {
-              bundle['themes.json'] = {
+              this.emitFile({
                 type: 'asset',
                 fileName: 'themes.json',
                 source: JSON.stringify(themes, null, 2),
-              };
+              });
               debug(
                 `Generated themes.json with ${Object.keys(themes).length} themes`
               );
@@ -457,13 +461,17 @@ export { applyStyles, themesControl } from './runtime.js';
    */
   generateClientModule(
     cssAssets,
-    themeNamesMap,
+    themesObject,
     extractedThemes = {},
-    componentsCSS = {}
+    componentsCSS = {},
+    generalCss = ''
   ) {
-    const themeNames = Array.from(themeNamesMap.keys());
+    const themeNames = Object.keys(themesObject);
     const defaultTheme =
-      this.libraryConfig.defaultTheme || themeNames[0] || 'default';
+      this.libraryConfig.defaultTheme ||
+      this.projectDefaultTheme ||
+      themeNames[0] ||
+      'default';
     const libraryName = this.libraryConfig.name || 'morph-library';
 
     const cssImports = cssAssets
@@ -522,15 +530,13 @@ if (typeof window !== 'undefined') {
   
   // Load extracted theme content into runtime registry
   window.__MORPH_THEMES__[libraryName] = ${JSON.stringify(extractedThemes)};
-  
-  console.log('[Morph Client] Registered themes for ' + libraryName + ':', libraryThemes);
 }
 `;
 
     return `
 ${cssImports}
 ${themeImports}
-import { setMorphConfig, themesControl } from './runtime.js';
+import { setMorphConfig, themesControl, applyGeneralStyles } from './runtime.js';
 ${applyStylesCode}
 ${themeRegistration}
 
@@ -544,16 +550,20 @@ const config = {
   cssUrls: ${JSON.stringify(cssUrls)},  // Fallback raw CSS URLs
   libraryName: '${libraryName}',  // Library name for CSS URL construction
   componentsCSS: ${JSON.stringify(componentsCSS)},  // Components CSS mapping
+  generalCss: ${JSON.stringify(generalCss)},  // This library's general/global CSS, embedded as text
 };
 
 // Initialize the unified runtime
 setMorphConfig(config);
 
-// Auto-apply styles on module load
+// Auto-apply component styles + theme on module load. General CSS is NOT
+// auto-applied — call applyGeneralStyles() explicitly if you want this
+// library's general/base styles too (useful when combining several
+// libraries and you only want one of their general CSS to take effect).
 applyStyles();
 
 // Export unified runtime API
-export { applyStyles, themesControl };
+export { applyStyles, themesControl, applyGeneralStyles };
 export const __morphConfig__ = config;
 `;
   }

@@ -93,6 +93,51 @@ export async function extractThemesFromDir(themesDir) {
 }
 
 /**
+ * Extract themes from multiple theme directories, merging results.
+ * A theme name found in an earlier directory takes precedence over the same
+ * name found in a later one (first occurrence wins).
+ * @param {string[]} themesDirs - Paths to theme directories
+ * @returns {Promise<Object.<string, {variables: Object, raw: string}>>} Merged theme registry
+ */
+export async function extractThemesFromDirs(themesDirs) {
+  const merged = {};
+
+  for (const dir of themesDirs) {
+    const themes = await extractThemesFromDir(dir);
+    for (const [name, theme] of Object.entries(themes)) {
+      if (!(name in merged)) {
+        merged[name] = theme;
+      }
+    }
+  }
+
+  return merged;
+}
+
+/**
+ * Get the configured default theme, falling back to the first available theme.
+ * @param {Object.<string, {variables: Object, raw: string}>} themes - Theme registry
+ * @param {string} [defaultThemeName='default'] - Configured default theme name
+ * @returns {{name: string, theme: Object}|null} Default theme name + data, or null if no themes exist
+ */
+export function getDefaultTheme(themes, defaultThemeName = 'default') {
+  if (themes[defaultThemeName]) {
+    return { name: defaultThemeName, theme: themes[defaultThemeName] };
+  }
+
+  const firstName = Object.keys(themes)[0];
+  if (firstName) {
+    console.warn(
+      `[theme-variables] Default theme '${defaultThemeName}' not found, using '${firstName}'`
+    );
+    return { name: firstName, theme: themes[firstName] };
+  }
+
+  console.warn('[theme-variables] No themes available');
+  return null;
+}
+
+/**
  * Build complete theme registry from multiple theme sources
  * @param {Array<{name: string, themes: Object}>} themeSources - Array of theme sources
  * @returns {Object} Combined theme registry

@@ -9,7 +9,6 @@
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { debug, info, warn } from '../utils/logger.js';
-import { createThemeDiscovery } from '../services/theme-discovery.js';
 import { getCSSTreeShaker } from '../services/css-tree-shaker.js';
 
 /**
@@ -37,6 +36,28 @@ export class CSSCollectionService {
     this.chunks = new Map(); // For manual chunking
     this.cacheEnabled = options.cacheEnabled !== false;
     this.cacheManifest = new Map(); // Cache manifest for invalidation
+    this.treeShakingEnabled = options.treeShakingEnabled !== false;
+    this.bundlingEnabled = options.bundlingEnabled !== false;
+    this.debugEnabled = options.debugEnabled || false;
+    this.layersEnabled = options.layersEnabled !== false;
+    this.layersOrder = options.layersOrder || [
+      'vendors',
+      'libs',
+      'modules',
+      'app',
+      'context',
+    ];
+  }
+
+  /**
+   * Wrap CSS content in a named cascade layer, unless layers are disabled.
+   * @param {string} css - CSS content
+   * @param {string} layerName - Layer name (e.g. 'libs', 'modules')
+   * @returns {string} Layer-wrapped CSS
+   */
+  wrapInLayer(css, layerName) {
+    if (!this.layersEnabled) return css;
+    return `@layer ${layerName} {\n${css}\n}`;
   }
 
   /**
@@ -53,19 +74,28 @@ export class CSSCollectionService {
    */
   async stopCollection() {
     this.isCollecting = false;
-    await this.generateBundle();
+
+    if (this.treeShakingEnabled) {
+      await this.applyTreeShaking();
+    }
+
+    if (this.bundlingEnabled) {
+      await this.generateBundle();
+    }
   }
 
   /**
    * Add component CSS to collection
    * @param {string} componentName - Component name
    * @param {string} css - CSS content
+   * @param {'library'|'module'} [source='module'] - Where the component came from;
+   *   determines which cascade layer (`libs` or `modules`) it's wrapped in.
    */
-  addComponentCss(componentName, css) {
+  addComponentCss(componentName, css, source = 'module') {
     if (!this.isCollecting) return;
 
-    debug(`Adding CSS for component: ${componentName}`);
-    this.components.set(componentName, css);
+    debug(`Adding CSS for component: ${componentName} (source: ${source})`);
+    this.components.set(componentName, { css, source });
   }
 
   /**
@@ -137,6 +167,15 @@ export class CSSCollectionService {
       info(
         `CSS tree-shaking complete: ${savings} unused components removed, ${filteredSize} components kept`
       );
+
+      if (this.debugEnabled) {
+        const { getCssDebugUtils } = await import('../utils/css-debug.js');
+        getCssDebugUtils().logTreeShaking({
+          originalCount: originalSize,
+          usedCount: filteredSize,
+          removedCount: savings,
+        });
+      }
     } catch (error) {
       warn(`CSS tree-shaking failed: ${error.message}`);
       // Continue without tree-shaking on failure
@@ -176,6 +215,16 @@ export class CSSCollectionService {
         info(
           `Generated CSS bundle: ${outputPath} (${this.components.size} components)`
         );
+
+        if (this.debugEnabled) {
+          const { getCssDebugUtils } = await import('../utils/css-debug.js');
+          getCssDebugUtils().logCssBundle({
+            outputPath,
+            componentCount: this.components.size,
+            bundleSize: bundledCss.length,
+            chunkCount: 0,
+          });
+        }
       }
 
       // Update cache manifest after successful generation
@@ -202,6 +251,15 @@ export class CSSCollectionService {
 
     // Generate chunk manifest for loading management
     await this.generateChunkManifest(chunks);
+
+    if (this.debugEnabled) {
+      const { getCssDebugUtils } = await import('../utils/css-debug.js');
+      getCssDebugUtils().logChunking({
+        chunkCount: chunks.size,
+        strategy: this.chunkStrategy,
+        maxChunkSize: this.maxChunkSize,
+      });
+    }
   }
 
   /**
@@ -228,12 +286,12 @@ export class CSSCollectionService {
       }
     } else if (this.chunkStrategy === 'category') {
       // Group by component category (inferred from naming)
-      for (const [componentName, css] of this.components) {
+      for (const [componentName, entry] of this.components) {
         const category = this.getComponentCategory(componentName);
         if (!chunks.has(category)) {
           chunks.set(category, []);
         }
-        chunks.get(category).push([componentName, css]);
+        chunks.get(category).push([componentName, entry]);
       }
     } else {
       // Default: size-based chunking
@@ -241,8 +299,8 @@ export class CSSCollectionService {
       let currentSize = 0;
       let chunkIndex = 0;
 
-      for (const [componentName, css] of this.components) {
-        const cssSize = css.length;
+      for (const [componentName, entry] of this.components) {
+        const cssSize = entry.css.length;
 
         if (
           currentSize + cssSize > this.maxChunkSize &&
@@ -254,7 +312,7 @@ export class CSSCollectionService {
           chunkIndex++;
         }
 
-        currentChunk.push([componentName, css]);
+        currentChunk.push([componentName, entry]);
         currentSize += cssSize;
       }
 
@@ -294,14 +352,18 @@ export class CSSCollectionService {
   buildChunkCss(components) {
     const cssParts = [];
 
-    // Add layer hierarchy declaration
-    cssParts.push('@layer reset, global, components, themes;');
+    // Add layer hierarchy declaration (5-layer model: vendors, libs, modules, app, context)
+    if (this.layersEnabled) {
+      cssParts.push(`@layer ${this.layersOrder.join(', ')};`);
+    }
 
-    // Add each component's CSS (already wrapped in @layer components)
-    for (const [componentName, css] of components) {
+    // Add each component's CSS, wrapped in its source's layer (libs for published
+    // library components, modules for local/host ones)
+    for (const [componentName, entry] of components) {
+      const layerName = entry.source === 'library' ? 'libs' : 'modules';
       cssParts.push('');
       cssParts.push(`/* ${componentName} */`);
-      cssParts.push(css);
+      cssParts.push(this.wrapInLayer(entry.css, layerName));
     }
 
     return cssParts.join('\n');
@@ -338,14 +400,18 @@ export class CSSCollectionService {
   buildBundledCss() {
     const cssParts = [];
 
-    // Add layer hierarchy declaration
-    cssParts.push('@layer reset, global, components, themes;');
+    // Add layer hierarchy declaration (5-layer model: vendors, libs, modules, app, context)
+    if (this.layersEnabled) {
+      cssParts.push(`@layer ${this.layersOrder.join(', ')};`);
+    }
 
-    // Add each component's CSS (already wrapped in @layer components)
-    for (const [componentName, css] of this.components) {
+    // Add each component's CSS, wrapped in its source's layer (libs for published
+    // library components, modules for local/host ones)
+    for (const [componentName, entry] of this.components) {
+      const layerName = entry.source === 'library' ? 'libs' : 'modules';
       cssParts.push('');
       cssParts.push(`/* ${componentName} */`);
-      cssParts.push(css);
+      cssParts.push(this.wrapInLayer(entry.css, layerName));
     }
 
     return cssParts.join('\n');
@@ -405,9 +471,9 @@ export class CSSCollectionService {
     if (!this.cacheEnabled) return false;
 
     // Check if any component CSS has changed
-    for (const [componentName, css] of this.components) {
+    for (const [componentName, entry] of this.components) {
       const cachedHash = this.cacheManifest.get(componentName);
-      const currentHash = this.hashCss(css);
+      const currentHash = this.hashCss(entry.css);
 
       if (cachedHash !== currentHash) {
         debug(`Cache invalidation needed for component: ${componentName}`);
@@ -424,8 +490,8 @@ export class CSSCollectionService {
   updateCacheManifest() {
     if (!this.cacheEnabled) return;
 
-    for (const [componentName, css] of this.components) {
-      this.cacheManifest.set(componentName, this.hashCss(css));
+    for (const [componentName, entry] of this.components) {
+      this.cacheManifest.set(componentName, this.hashCss(entry.css));
     }
 
     debug(`Updated cache manifest for ${this.components.size} components`);

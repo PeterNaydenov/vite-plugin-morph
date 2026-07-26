@@ -267,8 +267,40 @@ export class ThemeRuntime {
    * Get current theme name
    * @returns {string} Current theme name
    */
-  getCurrentTheme() {
+  getCurrent() {
     return this.currentTheme;
+  }
+
+  /**
+   * @deprecated Use getCurrent() instead. Kept as an alias for backward compatibility.
+   * @returns {string} Current theme name
+   */
+  getCurrentTheme() {
+    return this.getCurrent();
+  }
+
+  /**
+   * Designate a new default theme and apply it immediately
+   * @param {string} themeName - Theme name to set as default
+   * @returns {boolean} True if the theme exists and was applied
+   */
+  setDefault(themeName) {
+    if (!this.themes.has(themeName)) {
+      warn(`Theme '${themeName}' not found`);
+      return false;
+    }
+
+    this.initialDefaultTheme = themeName;
+    return this.set(themeName);
+  }
+
+  /**
+   * Check whether a theme exists
+   * @param {string} themeName - Theme name to check
+   * @returns {boolean} True if the theme exists
+   */
+  has(themeName) {
+    return this.themes.has(themeName);
   }
 
   /**
@@ -472,26 +504,19 @@ let globalThemeRuntime = null;
  */
 export function getThemeRuntime(options = {}) {
   if (!globalThemeRuntime) {
-    console.log('[Morph Debug] Creating NEW globalThemeRuntime. Options keys:', Object.keys(options));
     globalThemeRuntime = new ThemeRuntime(options);
   } else if (options.themes) {
-    console.log('[Morph Debug] Existing globalThemeRuntime found. Checking hydration.');
-    console.log('[Morph Debug] Current themes size:', globalThemeRuntime.themes.size);
     // If instance exists but has no themes, we should try to hydrate it
     if (globalThemeRuntime.themes.size === 0) {
-      console.log('[Morph Debug] Hydrating empty runtime with provided themes.');
       const potentialThemes = options.themes instanceof Map
         ? options.themes
         : new Map(Object.entries(options.themes));
 
-      console.log('[Morph Debug] Potential themes to hydrate:', potentialThemes.size);
       if (potentialThemes.size > 0) {
         globalThemeRuntime.initialize(potentialThemes, options);
-        console.log('[Morph Debug] Hydration complete. New size:', globalThemeRuntime.themes.size);
       }
     }
   }
-  console.log('[Morph Debug] Returning globalThemeRuntime. Available themes:', Array.from(globalThemeRuntime.themes.keys()));
   return globalThemeRuntime;
 }
 
