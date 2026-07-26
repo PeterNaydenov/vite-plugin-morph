@@ -197,7 +197,7 @@ Implement CSS @layer for predictable cascade order and conflict resolution.
 - Legacy browser fallback works with polyfill
 
 - [x] T035 [US4] Implement @layer directive generation
-- [x] T036 [US4] Define CSS layer hierarchy (reset, global, components, themes)
+- [x] T036 [US4] Define CSS layer hierarchy (historical: reset, global, components, themes — superseded by the 5-layer vendors/libs/modules/app/context model, see README.md)
 - [x] T037 [US4] Add cascade-layer polyfill integration
 - [x] T038 [US4] Create layer validation and ordering logic
 - [x] T039 [US4] Add CSS layers integration tests

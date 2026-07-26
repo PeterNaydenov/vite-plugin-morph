@@ -3,6 +3,8 @@
 **Date**: 2025-11-16  
 **Purpose**: Define plugin interfaces and API contracts
 
+> **Foundational contract.** This defines the base `MorphPluginOptions` shape. `specs/003-css-layers/contracts/plugin-api.md` (2025-12-11) adds a `css` field on top of this — its own "Complete TypeScript Interface" section only lists `css` because that spec's scope was CSS-only, not because `globalCSS`/`production`/`development`/`errorHandling` were removed. The real, complete `MorphPluginOptions` is the union of both: everything defined here, plus `css` from 003. Also note `development.sourceMaps`/`development.hmr` here don't include a `cssHmr` field — later docs (README.md, the skill's `plugin-config.md`) add one; this contract simply predates it, not a conflict.
+
 ## Plugin Configuration Interface
 
 ```javascript

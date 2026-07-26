@@ -6,6 +6,8 @@
 
 This plan outlines the phased implementation of CSS layers architecture for the morph plugin, providing CSS modules, PostCSS processing, tree-shaking, and conflict resolution through CSS layers.
 
+> **Superseded (layer model only):** the `reset → global → components → themes` hierarchy mentioned below was replaced by a 5-layer model: `vendors → libs → modules → app → context`. See README.md's [CSS @layer Cascade Control](../../README.md#css-layer-cascade-control).
+
 ## Technical Context
 
 ### Technology Stack
@@ -73,7 +75,7 @@ This plan outlines the phased implementation of CSS layers architecture for the 
 
 ### Technical Requirements
 
-- ✅ Node.js 16+ and Vite 7.x+ support
+- ✅ Node.js 16+ and Vite 7.x+ support *(minimums since raised — current requirement is Node.js 20.0.0+ and Vite 8.0.0+, see README.md)*
 - ✅ TypeScript with proper type definitions
 - ✅ Tree-shakeable implementation
 - ✅ ESM and CommonJS support

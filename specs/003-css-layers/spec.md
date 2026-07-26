@@ -5,6 +5,8 @@
 **Status**: Draft
 **Input**: CSS modules, PostCSS processing, tree-shaking, and CSS layers for component styles - automatic CSS scoping, bundling, and conflict resolution
 
+> **Superseded (layer model only):** the `reset → global → components → themes` cascade order used throughout this spec (FR-004, SC-004, and elsewhere) was later replaced by a 5-layer model: `vendors → libs → modules → app → context` — `components` splits into `libs`/`modules` by source, `themes` folds into `app` as variable definitions, `context` is new for situational overrides. See README.md's [CSS @layer Cascade Control](../../README.md#css-layer-cascade-control) for the current canonical model. CSS modules/PostCSS/tree-shaking sections of this spec are unaffected.
+
 ## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - CSS Modules for Component Scoping (Priority: P1)

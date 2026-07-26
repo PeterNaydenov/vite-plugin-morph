@@ -4,6 +4,10 @@
 
 This contract defines the public API for CSS layers functionality in the morph plugin, ensuring consistent integration and usage patterns.
 
+> **Partially superseded:** this contract was written 2025-12-11 as an early formal design. The `css.postcss` shape below (`{ plugins?: PostCSSPlugin[], options?: PostCSSOptions }`) was later simplified — every doc written since (README.md, the vite-plugin-morph skill's `plugin-config.md`/`css-system.md`, `setup-component-library.md`) instead documents `css.postcss` as boolean flags: `{ autoprefixer?: boolean, minify?: boolean, sourceMaps?: boolean }`. Treat the plugins/options object shape here as historical; the boolean-flags shape is canonical.
+>
+> **The `css.layers.order` default below is also superseded.** The 4-layer `reset → global → components → themes` model documented throughout this spec (also in `data-model.md`, `plan.md`, `quickstart.md`, `tasks.md`) was replaced by a 5-layer model: `vendors → libs → modules → app → context`. Key differences: `components` splits into `libs` (published library components) and `modules` (local components), both CSS-modules scoped; `global`/`reset` fold into `vendors` (external/uncontrolled CSS) plus `app` (brand-level tokens and pure-selector overrides); `themes` folds into `app` as variable definitions rather than its own layer; `context` is new, for situational overrides. See README.md's [CSS @layer Cascade Control](../../../README.md#css-layer-cascade-control) for the current canonical model, including the dual hashed/light-label class export that makes `app`/`context` overrides possible without re-scoping.
+
 ## Configuration API
 
 ### Plugin Options
@@ -24,7 +28,7 @@ interface MorphPluginOptions {
     // CSS modules configuration
     modules?: {
       enabled?: boolean;
-      generateScopedName?: (name: string, filename: string) => string;
+      generateScopedName?: string; // e.g. '[name]_[local]_[hash:base64:5]' — was typed as a function here originally; corrected to match this file's own example (below) and the skill's plugin-config.md, which both use a string pattern
       localsConvention?: 'camelCase' | 'dashes';
     };
 
@@ -424,6 +428,8 @@ console.log(
 ## Type Definitions
 
 ### Complete TypeScript Interface
+
+> **Scoped to this feature.** `MorphPluginOptions` below only shows the `css` field this spec adds — it does not redeclare `globalCSS`/`production`/`development`/`errorHandling` from `specs/001-morph-plugin/contracts/plugin-api.md`, which are still part of the real, complete options shape. Read this interface as "`MorphPluginOptions` extended with `css`," not as the full type.
 
 ````typescript
 // Main plugin options

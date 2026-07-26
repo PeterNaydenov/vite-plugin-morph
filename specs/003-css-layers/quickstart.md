@@ -4,6 +4,8 @@
 
 Get started with CSS modules, PostCSS processing, and CSS layers in your morph plugin project. This guide covers the essential setup and usage patterns.
 
+> **Superseded (layer names only):** the `reset, global, components, themes` layer order used in the examples below was replaced by a 5-layer model: `vendors, libs, modules, app, context`. See README.md's [CSS @layer Cascade Control](../../README.md#css-layer-cascade-control) for the current canonical examples.
+
 ## Installation & Setup
 
 ### 1. Enable CSS Processing

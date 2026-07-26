@@ -30,9 +30,11 @@ As a developer, I want to create CSS themes using a standardized naming conventi
 
 **Why this priority**: Theme system is essential for providing flexible styling options and enabling runtime theme switching capabilities.
 
-**Independent Test**: Can be fully tested by creating CSS-only morph files with the `_css.{themeName}.morph` naming convention and verifying they are processed as themes.
+> **Superseded (2025-12-19):** the `.morph`-based theme convention below (`_css.{themeName}.morph`) was this spec's original design (written 2025-12-09, following `_IDEA_nextLevel.md` from 2025-12-08). Ten days later the project settled on a simpler split instead — **plain `.css` files** for themes and general/global styles, with `.morph` files reserved for components (which describe themselves: template + script + style + handshake). That's the convention documented in `setup-component-library.md`, `LIBRARY_MODE.md`, `docs/library-mode.md`, and `MORPH-LIBRARY-SYSTEM.md`. The acceptance scenarios and FR-004/FR-005 below are kept for historical record but are **not** the current design — read "CSS-only morph file named `_css.dark.morph`" as "plain CSS file named `dark.css`" and "`_css.dark.default.morph`" as "the `themes.defaultTheme` / `library.defaultTheme` config field naming `dark` as default" (see [task tracking](#) for the default-theme designation follow-up).
 
-**Acceptance Scenarios**:
+**Independent Test**: Can be fully tested by creating CSS-only morph files with the `_css.{themeName}.morph` naming convention and verifying they are processed as themes. *(Historical — see note above; current convention uses plain `.css` files instead.)*
+
+**Acceptance Scenarios** *(historical — see superseded note above)*:
 
 1. **Given** a CSS-only morph file named `_css.dark.morph`, **When** the build process runs, **Then** a `dark.css` file is generated in the themes directory
 2. **Given** a CSS-only morph file named `_css.dark.default.morph`, **When** the build process runs, **Then** the dark theme is marked as the default theme
@@ -51,10 +53,12 @@ As a developer, I want to switch themes at runtime using a simple API, so that u
 
 **Acceptance Scenarios**:
 
-1. **Given** the theme manager plugin is imported and initialized, **When** `themeControl.load('dark')` is called, **Then** the dark theme CSS is loaded and applied to the page
-2. **Given** multiple themes are available, **When** `themeControl.list()` is called, **Then** an array of available theme names is returned
-3. **Given** a theme is currently active, **When** `themeControl.getCurrent()` is called, **Then** the name of the currently active theme is returned
-4. **Given** `themeControl.default()` is called, **Then** the application switches to the default theme defined during build time
+1. **Given** the theme manager plugin is imported and initialized, **When** `themesControl.set('dark')` is called, **Then** the dark theme CSS is loaded and applied to the page
+2. **Given** multiple themes are available, **When** `themesControl.list()` is called, **Then** an array of available theme names is returned
+3. **Given** a theme is currently active, **When** `themesControl.getCurrent()` is called, **Then** the name of the currently active theme is returned
+4. **Given** `themesControl.set(themesControl.getDefault())` is called, **Then** the application switches to the default theme defined during build time
+
+> Naming note: this doc originally used the singular `themeControl` with `.load()`/`.default()` method names. Aligned here to the settled cross-doc vocabulary — plural `themesControl`, with `.set(name)` (was `.load()`) and `.getDefault()` + `.set()` (was the no-arg `.default()`) — matching README.md, LIBRARY_MODE.md, and the vite-plugin-morph skill's `runtime-api.md`.
 
 ---
 
@@ -109,10 +113,12 @@ As a developer, I want to query component metadata and composition information d
 - **FR-001**: System MUST parse `morph.config.js` configuration files for component composition definitions
 - **FR-002**: System MUST generate composed components using morph curry command based on configuration definitions
 - **FR-003**: System MUST follow resolution priority: configuration definition → original file → create from configuration
-- **FR-004**: System MUST discover CSS-only morph files matching `_css.{themeName}.morph` pattern
-- **FR-005**: System MUST identify default themes from `_css.{themeName}.default.morph` files
-- **FR-006**: System MUST generate CSS files from theme morph files in a themes directory
-- **FR-007**: System MUST provide runtime theme management plugin with getCurrent(), list(), load(), and default() methods
+- **FR-004** *(historical, superseded 2025-12-19 — see note above)*: System MUST discover CSS-only morph files matching `_css.{themeName}.morph` pattern
+- **FR-004 (current)**: System MUST discover plain `.css` theme files in the configured themes directory/directories
+- **FR-005** *(historical, superseded 2025-12-19)*: System MUST identify default themes from `_css.{themeName}.default.morph` files
+- **FR-005 (current)**: System MUST identify the default theme from the `themes.defaultTheme` (project/local config) or `library.defaultTheme` (library-packaging config) field, not from a filename convention
+- **FR-006**: System MUST generate CSS files from theme morph files in a themes directory *(historical wording — current: theme `.css` files are discovered directly, not generated from `.morph` sources)*
+- **FR-007**: System MUST provide runtime theme management plugin (`themesControl`) with `getCurrent()`, `list()`, `set(name)`, `getDefault()`, `setDefault(name)`, and `has(name)` methods
 - **FR-008**: System MUST implement theme switching by changing CSS links in the document head
 - **FR-009**: System MUST provide component registry plugin for querying composition metadata
 - **FR-010**: System MUST support hot module replacement for configuration changes during development
@@ -138,8 +144,8 @@ As a developer, I want to query component metadata and composition information d
 ### Key Entities _(include if feature involves data)_
 
 - **Composition Definition**: Configuration entry specifying host component and placeholder mappings
-- **Theme File**: CSS-only morph file following `_css.{themeName}.morph` naming convention
-- **Default Theme**: Theme marked with `.default` suffix that loads automatically
+- **Theme File**: Plain `.css` file in a configured themes directory *(historical design: CSS-only morph file following `_css.{themeName}.morph` naming convention — superseded 2025-12-19)*
+- **Default Theme**: Theme named by the `themes.defaultTheme` / `library.defaultTheme` config field, loaded automatically *(historical design: marked with a `.default` filename suffix — superseded 2025-12-19)*
 - **Generated Component**: ES module created through morph curry composition process
 - **Theme Registry**: Runtime metadata about available themes and their properties
 - **Component Registry**: Runtime metadata about composed components and their sources

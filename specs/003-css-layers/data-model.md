@@ -1,5 +1,7 @@
 # Data Model: CSS Layers Architecture
 
+> **Superseded (layer names only):** the `name` enum below (`reset, global, components, themes`) was replaced by a 5-layer model: `vendors, libs, modules, app, context`. See README.md's [CSS @layer Cascade Control](../../README.md#css-layer-cascade-control).
+
 ## Core Entities
 
 ### CSS Module

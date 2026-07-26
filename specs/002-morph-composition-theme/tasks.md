@@ -18,7 +18,7 @@ Implement build-time component composition and CSS theme system for morph files,
 **Task 1**: Create project structure for composition and theme system
 
 - [x] T001 Create src/core/composer.js for component composition using morph curry
-- [x] T002 Create src/core/themer.js for theme discovery and CSS generation
+- [x] T002 Create src/core/themer.js for theme discovery and CSS generation (scaffolding only — the actual discovery/pattern-matching/default-detection logic is tracked separately in T024-T027 below; this checkbox does not imply those are done)
 - [ ] T003 Create src/utils/file-watcher.js for hot module replacement support
 - [ ] T004 Create src/plugin/hmr.js for composition and theme HMR integration
 - [ ] T005 Create src/plugin/runtime/ directory structure
@@ -56,10 +56,10 @@ Implement build-time component composition and CSS theme system for morph files,
 
 **Task 14**: Implement theme discovery and naming convention
 
-- [ ] T024 [P] [US2] Implement theme file discovery in src/core/themer.js
-- [ ] T025 [P] [US2] Add \_css.{themeName}.morph pattern matching in src/core/themer.js
-- [ ] T026 [P] [US2] Implement default theme detection in src/core/themer.js
-- [ ] T027 [P] [US2] Add validation for multiple default themes in src/core/themer.js
+- [ ] T024 [P] [US2] Implement theme file discovery in src/core/themer.js (discovering plain `.css` files in configured theme directories — see spec.md's 2025-12-19 superseded note; no longer `.morph`-based)
+- [ ] T025 [P] [US2] ~~Add \_css.{themeName}.morph pattern matching~~ — superseded; replace with: discover `.css` files directly, no filename pattern-matching needed
+- [ ] T026 [P] [US2] Implement default theme detection in src/core/themer.js (via `themes.defaultTheme` / `library.defaultTheme` config field, not a filename convention)
+- [ ] T027 [P] [US2] ~~Add validation for multiple default themes~~ — superseded; a single `defaultTheme` config field can't specify multiple defaults, so this validation no longer applies
 
 **Task 15**: Implement CSS generation and processing
 
