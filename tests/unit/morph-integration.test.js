@@ -15,8 +15,8 @@ describe('Morph Library Integration', () => {
   });
 
   it('should include morph utilities in generated code', async () => {
-    const { transformHook } = await import('../../src/plugin/hooks.js');
-    const result = await transformHook(
+    const { processMorphFile } = await import('../../src/core/processor.js');
+    const result = await processMorphFile(
       `
                     <div>{{title}}</div>
                     <script>
@@ -25,7 +25,8 @@ describe('Morph Library Integration', () => {
                           }
                     </script>
                   `,
-      'test.morph'
+      'test.morph',
+      {}
     );
 
     expect(result).toBeDefined();
@@ -43,15 +44,16 @@ describe('Morph Library Integration', () => {
   }); // it
 
   it('should handle template-only files without placeholders', async () => {
-    const { transformHook } = await import('../../src/plugin/hooks.js');
-    const result = await transformHook(
+    const { processMorphFile } = await import('../../src/core/processor.js');
+    const result = await processMorphFile(
       `
                                             <div class="static-content">
                                               <h1>Static Title</h1>
                                               <p>This is static content</p>
                                             </div>
                                           `,
-      'template-only.morph'
+      'template-only.morph',
+      {}
     );
 
     expect(result).toBeDefined();
@@ -69,14 +71,15 @@ describe('Morph Library Integration', () => {
   }); // it
 
   it('should not include morph utilities in CSS-only files', async () => {
-    const { transformHook } = await import('../../src/plugin/hooks.js');
-    const result = await transformHook(
+    const { processMorphFile } = await import('../../src/core/processor.js');
+    const result = await processMorphFile(
       `
               <style>
                 .btn { background: blue; }
               </style>
             `,
-      'css-only.morph'
+      'css-only.morph',
+      {}
     );
 
     expect(result).toBeDefined();

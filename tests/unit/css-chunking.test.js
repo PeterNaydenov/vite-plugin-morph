@@ -29,13 +29,13 @@ describe('CSS Chunking', () => {
       outputDir: tempDir,
       chunkingEnabled: true,
       chunkStrategy: 'size',
-      maxChunkSize: 100,
+      maxChunkSize: 40,
     });
     service.applyTreeShaking = async function () { return; };
     service.startCollection();
-    service.addComponentCss('Button', '@layer components { .btn { color: red; } }');
-    service.addComponentCss('Input', '@layer components { .input { border: 1px solid #ccc; } }');
-    service.addComponentCss('Modal', '@layer components { .modal { position: fixed; top: 0; } }');
+    service.addComponentCss('Button', '.btn { color: red; }');
+    service.addComponentCss('Input', '.input { border: 1px solid #ccc; }');
+    service.addComponentCss('Modal', '.modal { position: fixed; top: 0; }');
     await service.stopCollection();
     const files = await fs.readdir(tempDir);
     const cssFiles = files.filter((f) => f.endsWith('.css'));
@@ -51,10 +51,10 @@ describe('CSS Chunking', () => {
     });
     service.applyTreeShaking = async function () { return; };
     service.startCollection();
-    service.addComponentCss('Button', '@layer components { .btn { color: red; } }');
-    service.addComponentCss('Input', '@layer components { .input { border: 1px solid #ccc; } }');
-    service.addComponentCss('Modal', '@layer components { .modal { position: fixed; top: 0; } }');
-    service.addComponentCss('Dialog', '@layer components { .dialog { z-index: 1000; } }');
+    service.addComponentCss('Button', '.btn { color: red; }');
+    service.addComponentCss('Input', '.input { border: 1px solid #ccc; }');
+    service.addComponentCss('Modal', '.modal { position: fixed; top: 0; }');
+    service.addComponentCss('Dialog', '.dialog { z-index: 1000; }');
     await service.stopCollection();
     const files = await fs.readdir(tempDir);
     const cssFiles = files.filter((f) => f.endsWith('.css'));
@@ -82,19 +82,19 @@ describe('CSS Chunking', () => {
 
     service.addComponentCss(
       'Button',
-      '@layer components { .btn { color: red; } }'
+      '.btn { color: red; }'
     );
     service.addComponentCss(
       'Input',
-      '@layer components { .input { border: 1px solid #ccc; } }'
+      '.input { border: 1px solid #ccc; }'
     );
     service.addComponentCss(
       'Modal',
-      '@layer components { .modal { position: fixed; top: 0; } }'
+      '.modal { position: fixed; top: 0; }'
     );
     service.addComponentCss(
       'Dialog',
-      '@layer components { .dialog { z-index: 1000; } }'
+      '.dialog { z-index: 1000; }'
     );
 
     await service.stopCollection();
@@ -123,11 +123,11 @@ describe('CSS Chunking', () => {
 
     service.addComponentCss(
       'Button',
-      '@layer components { .btn { color: red; } }'
+      '.btn { color: red; }'
     );
     service.addComponentCss(
       'Input',
-      '@layer components { .input { border: 1px solid #ccc; } }'
+      '.input { border: 1px solid #ccc; }'
     );
 
     await service.stopCollection();
@@ -158,11 +158,11 @@ describe('CSS Chunking', () => {
 
     service.addComponentCss(
       'Button',
-      '@layer components { .btn { color: red; } }'
+      '.btn { color: red; }'
     );
     service.addComponentCss(
       'Input',
-      '@layer components { .input { border: 1px solid #ccc; } }'
+      '.input { border: 1px solid #ccc; }'
     );
 
     await service.stopCollection();
@@ -189,7 +189,7 @@ describe('CSS Chunking', () => {
     service.startCollection();
     service.addComponentCss(
       'Button',
-      '@layer components { .btn { color: red; } }'
+      '.btn { color: red; }'
     );
     await service.stopCollection();
 
@@ -200,7 +200,7 @@ describe('CSS Chunking', () => {
     service.startCollection();
     service.addComponentCss(
       'Button',
-      '@layer components { .btn { color: red; } }'
+      '.btn { color: red; }'
     );
     expect(service.needsCacheInvalidation()).toBe(false);
     await service.stopCollection();
@@ -209,10 +209,73 @@ describe('CSS Chunking', () => {
     service.startCollection();
     service.addComponentCss(
       'Button',
-      '@layer components { .btn { color: blue; } }'
+      '.btn { color: blue; }'
     );
     expect(service.needsCacheInvalidation()).toBe(true);
     await service.stopCollection();
+  });
+
+  it('should wrap component CSS in the modules layer by default (no source given)', async () => {
+    service = new CSSCollectionService({
+      outputDir: tempDir,
+      chunkingEnabled: false,
+    });
+    service.applyTreeShaking = async function () { return; };
+    service.startCollection();
+    service.addComponentCss('Button', '.btn { color: red; }');
+    await service.stopCollection();
+
+    const css = await fs.readFile(join(tempDir, 'components.css'), 'utf-8');
+    expect(css).toContain('@layer vendors, libs, modules, app, context;');
+    expect(css).toMatch(/@layer modules \{\n\.btn \{ color: red; \}\n\}/);
+    expect(css).not.toContain('@layer libs {');
+  });
+
+  it('should wrap library-sourced component CSS in the libs layer', async () => {
+    service = new CSSCollectionService({
+      outputDir: tempDir,
+      chunkingEnabled: false,
+    });
+    service.applyTreeShaking = async function () { return; };
+    service.startCollection();
+    service.addComponentCss('Button', '.btn { color: red; }', 'library');
+    service.addComponentCss('Card', '.card { padding: 1rem; }', 'module');
+    await service.stopCollection();
+
+    const css = await fs.readFile(join(tempDir, 'components.css'), 'utf-8');
+    expect(css).toMatch(/@layer libs \{\n\.btn \{ color: red; \}\n\}/);
+    expect(css).toMatch(/@layer modules \{\n\.card \{ padding: 1rem; \}\n\}/);
+  });
+
+  it('should honor a custom layer order and support disabling layers entirely', async () => {
+    service = new CSSCollectionService({
+      outputDir: tempDir,
+      chunkingEnabled: false,
+      layersOrder: ['reset', 'components'],
+    });
+    service.applyTreeShaking = async function () { return; };
+    service.startCollection();
+    service.addComponentCss('Button', '.btn { color: red; }');
+    await service.stopCollection();
+
+    const css = await fs.readFile(join(tempDir, 'components.css'), 'utf-8');
+    expect(css).toContain('@layer reset, components;');
+
+    // Now with layers disabled entirely
+    const outputDir2 = join(tempDir, 'no-layers');
+    await fs.mkdir(outputDir2, { recursive: true });
+    const service2 = new CSSCollectionService({
+      outputDir: outputDir2,
+      chunkingEnabled: false,
+      layersEnabled: false,
+    });
+    service2.applyTreeShaking = async function () { return; };
+    service2.startCollection();
+    service2.addComponentCss('Button', '.btn { color: red; }');
+    await service2.stopCollection();
+
+    const css2 = await fs.readFile(join(outputDir2, 'components.css'), 'utf-8');
+    expect(css2).not.toContain('@layer');
   });
 
   it('should disable cache when cacheEnabled is false', async () => {
@@ -229,7 +292,7 @@ describe('CSS Chunking', () => {
     service.startCollection();
     service.addComponentCss(
       'Button',
-      '@layer components { .btn { color: red; } }'
+      '.btn { color: red; }'
     );
 
     expect(service.needsCacheInvalidation()).toBe(false);

@@ -47,8 +47,8 @@ describe('Basic Morph Processing Integration', () => {
     const outputPath = resolve(testOutputDir, 'basic.js');
 
     // Simulate the transform process
-    const { transformHook } = await import('../../src/plugin/hooks.js');
-    const result = await transformHook(inputContent, 'test.morph');
+    const { processMorphFile } = await import('../../src/core/processor.js');
+    const result = await processMorphFile(inputContent, 'test.morph');
 
     expect(result).toBeDefined();
     expect(result.code).toBeDefined();
@@ -58,7 +58,7 @@ describe('Basic Morph Processing Integration', () => {
     expect(result.code).toContain('export default renderFunction;');
     expect(result.code).toContain('export { template };');
     expect(result.code).not.toContain('export const styles');
-    expect(result.meta['vite-plugin-morph'].isCSSOnly).toBe(false);
+    expect(result.isCSSOnly).toBe(false);
 
     writeFileSync(outputPath, result.code);
 
@@ -81,14 +81,12 @@ describe('Basic Morph Processing Integration', () => {
       'utf8'
     );
 
-    const { transformHook } = await import('../../src/plugin/hooks.js');
-    const result = await transformHook(inputContent, 'syntax-error.morph');
+    const { processMorphFile } = await import('../../src/core/processor.js');
+    const result = await processMorphFile(inputContent, 'syntax-error.morph');
 
     expect(result).toBeDefined();
-    expect(result.meta).toBeDefined();
-    expect(result.meta['vite-plugin-morph']).toBeDefined();
-    expect(result.meta['vite-plugin-morph'].errors).toBeDefined();
-    expect(result.meta['vite-plugin-morph'].errors.length).toBeGreaterThan(0);
+    expect(result.errors).toBeDefined();
+    expect(result.errors.length).toBeGreaterThan(0);
   });
 
   it('should handle template-only morph files without placeholders', async () => {
@@ -98,8 +96,8 @@ describe('Basic Morph Processing Integration', () => {
     );
     const outputPath = resolve(testOutputDir, 'template-only.js');
 
-    const { transformHook } = await import('../../src/plugin/hooks.js');
-    const result = await transformHook(inputContent, 'template-only.morph', {});
+    const { processMorphFile } = await import('../../src/core/processor.js');
+    const result = await processMorphFile(inputContent, 'template-only.morph', {});
 
     expect(result).toBeDefined();
     expect(result.code).toBeDefined();
@@ -165,8 +163,8 @@ function showNotify ({ data, dependencies:{ cards } }) {
     ]
 } </script>`;
 
-    const { transformHook } = await import('../../src/plugin/hooks.js');
-    const result = await transformHook(morphContent, 'projects.morph');
+    const { processMorphFile } = await import('../../src/core/processor.js');
+    const result = await processMorphFile(morphContent, 'projects.morph');
 
     expect(result).toBeDefined();
     expect(result.code).toBeDefined();
@@ -192,8 +190,8 @@ function showNotify ({ data, dependencies:{ cards } }) {
 function existingHelper(data) { return data; }
 </script>`;
 
-    const { transformHook } = await import('../../src/plugin/hooks.js');
-    const result = await transformHook(morphContent, 'missing-helper.morph');
+    const { processMorphFile } = await import('../../src/core/processor.js');
+    const result = await processMorphFile(morphContent, 'missing-helper.morph');
 
     // Should succeed but generate code with available helpers
     expect(result).toBeDefined();
@@ -217,8 +215,8 @@ function existingHelper(data) { return data; }
   }
 }</script>`;
 
-    const { transformHook } = await import('../../src/plugin/hooks.js');
-    const result = await transformHook(morphContent, 'json-test.morph');
+    const { processMorphFile } = await import('../../src/core/processor.js');
+    const result = await processMorphFile(morphContent, 'json-test.morph');
 
     expect(result).toBeDefined();
     expect(result.code).toContain('export const handshake =');
@@ -250,8 +248,8 @@ function formatTitle(title) {
   "title": "Test Title"
 }</script>`;
 
-    const { transformHook } = await import('../../src/plugin/hooks.js');
-    const result = await transformHook(morphContent, 'template-test.morph', {
+    const { processMorphFile } = await import('../../src/core/processor.js');
+    const result = await processMorphFile(morphContent, 'template-test.morph', {
       development: { sourceMaps: true },
     });
 
@@ -294,8 +292,8 @@ function formatTitle(title) {
   "message": "Hello World"
 }</script>`;
 
-    const { transformHook } = await import('../../src/plugin/hooks.js');
-    const result = await transformHook(
+    const { processMorphFile } = await import('../../src/core/processor.js');
+    const result = await processMorphFile(
       morphContent,
       'named-import-test.morph',
       {
@@ -322,8 +320,8 @@ function formatTitle(title) {
   "title": "Dynamic"
 }</script>`;
 
-    const { transformHook } = await import('../../src/plugin/hooks.js');
-    const result = await transformHook(morphContent, 'dynamic-test.morph');
+    const { processMorphFile } = await import('../../src/core/processor.js');
+    const result = await processMorphFile(morphContent, 'dynamic-test.morph');
 
     // Verify the generated code supports both static and dynamic imports
     expect(result.code).toContain('export default renderFunction;');
@@ -393,8 +391,8 @@ function setupData ({ data }) {
         ]
 } </script>`;
 
-    const { transformHook } = await import('../../src/plugin/hooks.js');
-    const result = await transformHook(morphContent, 'complex-contacts.morph', {
+    const { processMorphFile } = await import('../../src/core/processor.js');
+    const result = await processMorphFile(morphContent, 'complex-contacts.morph', {
       development: { sourceMaps: true },
     });
   });
@@ -413,8 +411,8 @@ function ul(data) { return \`<ul>\${data}</ul>\`; }
 function a(data) { return \`<a href="#">\${data}</a>\`; }
 </script>`;
 
-    const { transformHook } = await import('../../src/plugin/hooks.js');
-    const result = await transformHook(morphContent, 'prefix-test.morph');
+    const { processMorphFile } = await import('../../src/core/processor.js');
+    const result = await processMorphFile(morphContent, 'prefix-test.morph');
 
     expect(result).toBeDefined();
     expect(result.code).toContain('export default renderFunction;');
@@ -469,8 +467,8 @@ function setupData ({ data }) {
   "contacts": [{"name": "Test", "id-contact": "123"}]
 }</script>`;
 
-    const { transformHook } = await import('../../src/plugin/hooks.js');
-    const result = await transformHook(
+    const { processMorphFile } = await import('../../src/core/processor.js');
+    const result = await processMorphFile(
       morphContent,
       'complex-helpers-test.morph',
       {

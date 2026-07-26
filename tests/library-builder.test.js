@@ -29,6 +29,23 @@ describe('Library Builder', () => {
       expect(builder.outputDir).toBe('dist/library');
     });
 
+    it('should default hashMode to development and postcssOptions to empty', () => {
+      const builder = createLibraryBuilder();
+
+      expect(builder.hashMode).toBe('development');
+      expect(builder.postcssOptions).toEqual({});
+    });
+
+    it('should accept a custom hashMode and postcss options', () => {
+      const builder = createLibraryBuilder({
+        hashMode: 'production',
+        css: { postcss: { autoprefixer: false } },
+      });
+
+      expect(builder.hashMode).toBe('production');
+      expect(builder.postcssOptions).toEqual({ autoprefixer: false });
+    });
+
     it('should create instance with custom options', () => {
       const builder = createLibraryBuilder({
         entry: 'src/index.js',
@@ -52,14 +69,29 @@ describe('Library Builder', () => {
         library: { defaultTheme: 'custom' },
       });
 
-      const themes = new Map([
-        ['custom', { name: 'custom' }],
-        ['other', { name: 'other' }],
-      ]);
+      const themes = {
+        custom: { variables: {}, raw: '' },
+        other: { variables: {}, raw: '' },
+      };
 
       const code = builder.generateClientModule([], themes);
 
       expect(code).toContain("defaultTheme: 'custom'");
+    });
+
+    it('should fall back to projectDefaultTheme when library.defaultTheme is unset', () => {
+      const builder = createLibraryBuilder({
+        projectDefaultTheme: 'from-project',
+      });
+
+      const themes = {
+        'from-project': { variables: {}, raw: '' },
+        other: { variables: {}, raw: '' },
+      };
+
+      const code = builder.generateClientModule([], themes);
+
+      expect(code).toContain("defaultTheme: 'from-project'");
     });
   });
 
@@ -77,7 +109,7 @@ describe('Library Builder', () => {
 
       // The themes discovery may or may not find themes depending on directory structure
       // What matters is that the method runs without error
-      expect(themes).toBeInstanceOf(Map);
+      expect(typeof themes).toBe('object');
 
       // If themes directory exists, we expect themes to be found
       const fs = await import('fs');
@@ -87,7 +119,7 @@ describe('Library Builder', () => {
           .readdirSync(themesPath)
           .filter((f) => f.endsWith('.css'));
         if (files.length > 0) {
-          expect(themes.size).toBeGreaterThan(0);
+          expect(Object.keys(themes).length).toBeGreaterThan(0);
         }
       }
     });

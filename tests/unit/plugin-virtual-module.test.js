@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMorphPlugin } from '../../src/plugin/index.js';
-import { createThemeDiscovery } from '../../src/services/theme-discovery.js';
+import { extractThemesFromDirs } from '../../src/services/theme-variables.js';
 
-// Mock dependnecies
-vi.mock('../../src/services/theme-discovery.js');
+// Mock dependencies
+vi.mock('../../src/services/theme-variables.js', () => ({
+  extractThemesFromDirs: vi.fn(),
+}));
 vi.mock('../../src/plugin/config.js', () => ({
   default: { defaultConfig: {} },
   resolveThemeDirectories: () => ['/themes'],
@@ -14,24 +16,15 @@ vi.mock('../../src/services/css-collection.js', () => ({
 }));
 
 describe('Plugin - Virtual Morph Themes', () => {
-  let mockDiscoverThemes;
-
   beforeEach(() => {
     vi.resetAllMocks();
-
-    mockDiscoverThemes = vi.fn();
-    createThemeDiscovery.mockReturnValue({
-      discoverThemes: mockDiscoverThemes,
-    });
   });
 
   it('should generate virtual module with discovered themes', async () => {
-    // Setup mock themes
-    const themesMap = new Map();
-    themesMap.set('light', { name: 'light', variables: { '--bg': '#fff' } });
-    themesMap.set('dark', { name: 'dark', variables: { '--bg': '#000' } });
-
-    mockDiscoverThemes.mockResolvedValue(themesMap);
+    extractThemesFromDirs.mockResolvedValue({
+      light: { variables: { '--bg': '#fff' } },
+      dark: { variables: { '--bg': '#000' } },
+    });
 
     const plugin = createMorphPlugin({ themes: { defaultTheme: 'light' } });
     const loadHook = plugin.load.bind(plugin);
@@ -50,17 +43,18 @@ describe('Plugin - Virtual Morph Themes', () => {
     expect(exportedThemes.dark).toBeDefined();
     expect(exportedThemes.light.variables['--bg']).toBe('#fff');
     expect(exportedThemes.dark.variables['--bg']).toBe('#000');
+
+    // Verify the named defaultTheme export exists and resolves (src/browser.js imports it)
+    expect(code).toMatch(/export const defaultTheme = "light";/);
   });
 
   it('should handle circular dependencies by JSON.stringify', async () => {
     // Test if standard stringify works or if we need special handling
     // (Though standard JSON.stringify throws on circular, we want to see if that's the issue)
-    const themesMap = new Map();
     const circularTheme = { name: 'circular' };
     circularTheme.self = circularTheme; // Circular ref
-    themesMap.set('circular', circularTheme);
 
-    mockDiscoverThemes.mockResolvedValue(themesMap);
+    extractThemesFromDirs.mockResolvedValue({ circular: circularTheme });
 
     const plugin = createMorphPlugin();
     const loadHook = plugin.load.bind(plugin);

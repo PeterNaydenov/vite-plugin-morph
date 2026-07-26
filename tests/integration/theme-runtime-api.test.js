@@ -96,6 +96,52 @@ describe('Theme Runtime API', () => {
         expect(runtime.getCurrentTheme()).toBe('default'); // Should stay on default
     });
 
+    it('should expose getCurrent() as the canonical name for getCurrentTheme()', () => {
+        runtime = new ThemeRuntime({
+            themes: mockThemes,
+            defaultTheme: 'default'
+        });
+
+        expect(runtime.getCurrent()).toBe('default');
+        runtime.set('dark');
+        expect(runtime.getCurrent()).toBe('dark');
+        expect(runtime.getCurrentTheme()).toBe('dark'); // deprecated alias stays in sync
+    });
+
+    it('should designate and apply a new default theme via setDefault()', () => {
+        runtime = new ThemeRuntime({
+            themes: mockThemes,
+            defaultTheme: 'default'
+        });
+
+        const success = runtime.setDefault('dark');
+
+        expect(success).toBe(true);
+        expect(runtime.getDefault()).toBe('dark');
+        expect(runtime.getCurrent()).toBe('dark');
+    });
+
+    it('should reject setDefault() with an unknown theme', () => {
+        runtime = new ThemeRuntime({
+            themes: mockThemes,
+            defaultTheme: 'default'
+        });
+
+        const success = runtime.setDefault('nonexistent');
+
+        expect(success).toBe(false);
+        expect(runtime.getDefault()).toBe('default');
+    });
+
+    it('should check theme existence via has()', () => {
+        runtime = new ThemeRuntime({
+            themes: mockThemes
+        });
+
+        expect(runtime.has('dark')).toBe(true);
+        expect(runtime.has('nonexistent')).toBe(false);
+    });
+
     it('should support manual initialization via initialize()', () => {
         runtime = new ThemeRuntime({
             defaultTheme: 'default'

@@ -70,17 +70,69 @@ describe('CSS Modules - Content-Based Hashing', () => {
     });
   });
 
+  describe('scopeCss - no double hashing', () => {
+    it('should not re-hash a class name that is already in scoped form', () => {
+      // Simulate CSS that already went through scoping once
+      const alreadyScoped = '.Button_btn_abc12 { background: blue; }';
+      const result = scopeCss(alreadyScoped, 'Button', { hashMode: 'production' });
+
+      expect(result.scopedClasses.Button_btn_abc12).toBe('Button_btn_abc12');
+      expect(result.scopedCss).toContain('.Button_btn_abc12');
+      expect(result.scopedCss).not.toMatch(/Button_Button_btn_abc12_[a-z0-9]{5}/);
+    });
+
+    it('should still hash a plain, never-scoped class name normally', () => {
+      const result = scopeCss('.btn { color: red; }', 'Button', {
+        hashMode: 'production',
+      });
+
+      expect(result.scopedClasses.btn).toMatch(/^Button_btn_[a-z0-9]{1,5}$/);
+      expect(result.scopedClasses.btn).not.toBe('btn');
+    });
+  });
+
+  describe('scopeCss - :global() escape hatch', () => {
+    it('should not scope a class wrapped in :global()', () => {
+      const css = ':global(.vendor-widget) { color: red; }';
+      const result = scopeCss(css, 'Button', { hashMode: 'production' });
+
+      expect(result.scopedClasses['vendor-widget']).toBeUndefined();
+      expect(result.classNames).not.toContain('vendor-widget');
+    });
+
+    it('should unwrap the :global() syntax in the output CSS', () => {
+      const css = ':global(.vendor-widget) { color: red; }';
+      const result = scopeCss(css, 'Button', { hashMode: 'production' });
+
+      expect(result.scopedCss).toBe('.vendor-widget { color: red; }');
+      expect(result.scopedCss).not.toContain(':global(');
+    });
+
+    it('should scope other classes normally alongside a :global() one', () => {
+      const css = `
+        .btn { color: blue; }
+        :global(.vendor-widget) { color: red; }
+      `;
+      const result = scopeCss(css, 'Button', { hashMode: 'production' });
+
+      expect(result.scopedClasses.btn).toMatch(/^Button_btn_[a-z0-9]{1,5}$/);
+      expect(result.scopedClasses['vendor-widget']).toBeUndefined();
+      expect(result.scopedCss).not.toContain(':global(');
+      expect(result.scopedCss).toContain('.vendor-widget');
+    });
+  });
+
   describe('transformHtmlClasses - Template transformation', () => {
-    it('should transform class names in HTML', () => {
+    it('should render both the scoped class and the original light label', () => {
       const scopedClasses = { btn: 'Button_btn_abc12' };
       const html = '<div class="btn">Click</div>';
 
       const result = transformHtmlClasses(html, scopedClasses);
 
-      expect(result.html).toBe('<div class="Button_btn_abc12">Click</div>');
+      expect(result.html).toBe('<div class="Button_btn_abc12 btn">Click</div>');
     });
 
-    it('should handle multiple classes', () => {
+    it('should handle multiple classes, each with its own light label', () => {
       const scopedClasses = {
         btn: 'Button_btn_abc12',
         primary: 'Button_primary_xyz34',
@@ -90,18 +142,18 @@ describe('CSS Modules - Content-Based Hashing', () => {
       const result = transformHtmlClasses(html, scopedClasses);
 
       expect(result.html).toBe(
-        '<button class="Button_btn_abc12 Button_primary_xyz34">Submit</button>'
+        '<button class="Button_btn_abc12 btn Button_primary_xyz34 primary">Submit</button>'
       );
     });
 
-    it('should keep classes not in scopedClasses unchanged', () => {
+    it('should keep classes not in scopedClasses unchanged (no light-label duplication)', () => {
       const scopedClasses = { btn: 'Button_btn_abc12' };
       const html = '<div class="btn framework-class">Content</div>';
 
       const result = transformHtmlClasses(html, scopedClasses);
 
       expect(result.html).toBe(
-        '<div class="Button_btn_abc12 framework-class">Content</div>'
+        '<div class="Button_btn_abc12 btn framework-class">Content</div>'
       );
     });
 
@@ -111,7 +163,7 @@ describe('CSS Modules - Content-Based Hashing', () => {
 
       const result = transformHtmlClasses(html, scopedClasses);
 
-      expect(result.html).toBe("<div class='Button_btn_abc12'>Click</div>");
+      expect(result.html).toBe("<div class='Button_btn_abc12 btn'>Click</div>");
     });
 
     it('should handle no class attribute', () => {

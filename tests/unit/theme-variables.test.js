@@ -3,10 +3,15 @@
  * @fileoverview Unit tests for theme variable extraction
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
+import { mkdtempSync, writeFileSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import {
   extractThemeVariables,
   extractThemesFromDir,
+  extractThemesFromDirs,
+  getDefaultTheme,
   buildThemeRegistry,
   getAllThemeNames,
 } from '../../src/services/theme-variables.js';
@@ -101,6 +106,103 @@ describe('Theme Variable Extractor', () => {
       // The regex extracts all variables from the entire :root content
       expect(result.variables['--color']).toBe('#fff');
       expect(result.variables['--nested-color']).toBe('#000'); // Also extracted
+    });
+
+    it('should ignore non-variable properties in :root', () => {
+      const css = `:root {
+        --valid-var: 10px;
+        display: block;
+        --another-var: red;
+      }`;
+      const result = extractThemeVariables(css);
+
+      expect(result.variables).toEqual({
+        '--valid-var': '10px',
+        '--another-var': 'red',
+      });
+      expect(result.variables['display']).toBeUndefined();
+    });
+
+    it('should handle values containing colons (e.g. URLs)', () => {
+      const css = `:root {
+        --bg-image: url('https://example.com/img.jpg');
+      }`;
+      const result = extractThemeVariables(css);
+
+      expect(result.variables['--bg-image']).toBe(
+        "url('https://example.com/img.jpg')"
+      );
+    });
+  });
+
+  describe('extractThemesFromDir / extractThemesFromDirs', () => {
+    let dirA;
+    let dirB;
+
+    afterEach(() => {
+      for (const dir of [dirA, dirB]) {
+        if (dir) rmSync(dir, { recursive: true, force: true });
+      }
+      dirA = undefined;
+      dirB = undefined;
+    });
+
+    it('should discover and parse plain .css theme files in a directory', async () => {
+      dirA = mkdtempSync(join(tmpdir(), 'morph-themes-'));
+      writeFileSync(
+        join(dirA, 'dark.css'),
+        ':root { --color-bg: #000; --color-text: #fff; }'
+      );
+      writeFileSync(join(dirA, 'not-a-theme.txt'), 'ignored');
+
+      const themes = await extractThemesFromDir(dirA);
+
+      expect(Object.keys(themes)).toEqual(['dark']);
+      expect(themes.dark.variables).toEqual({
+        '--color-bg': '#000',
+        '--color-text': '#fff',
+      });
+    });
+
+    it('should return an empty object for a non-existent directory', async () => {
+      const themes = await extractThemesFromDir('/nonexistent/themes/dir');
+      expect(themes).toEqual({});
+    });
+
+    it('should merge multiple directories, first occurrence winning', async () => {
+      dirA = mkdtempSync(join(tmpdir(), 'morph-themes-a-'));
+      dirB = mkdtempSync(join(tmpdir(), 'morph-themes-b-'));
+      writeFileSync(join(dirA, 'dark.css'), ':root { --bg: #000; }');
+      writeFileSync(join(dirB, 'dark.css'), ':root { --bg: #111; }');
+      writeFileSync(join(dirB, 'light.css'), ':root { --bg: #fff; }');
+
+      const themes = await extractThemesFromDirs([dirA, dirB]);
+
+      expect(Object.keys(themes).sort()).toEqual(['dark', 'light']);
+      expect(themes.dark.variables['--bg']).toBe('#000'); // dirA wins
+      expect(themes.light.variables['--bg']).toBe('#fff');
+    });
+  });
+
+  describe('getDefaultTheme', () => {
+    const themes = {
+      light: { variables: { '--bg': '#fff' }, raw: '' },
+      dark: { variables: { '--bg': '#000' }, raw: '' },
+    };
+
+    it('should return the configured default theme when it exists', () => {
+      const result = getDefaultTheme(themes, 'dark');
+      expect(result).toEqual({ name: 'dark', theme: themes.dark });
+    });
+
+    it('should fall back to the first available theme when the default is missing', () => {
+      const result = getDefaultTheme(themes, 'nonexistent');
+      expect(result.name).toBe('light');
+    });
+
+    it('should return null when there are no themes at all', () => {
+      const result = getDefaultTheme({}, 'default');
+      expect(result).toBeNull();
     });
   });
 
