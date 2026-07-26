@@ -22,7 +22,9 @@ export default {
       themes: {
         enabled: true,
         directories: ['src/themes'], // Store theme definitions here
-        defaultTheme: 'default',
+        defaultTheme: 'default', // Local/dev default. If you later package this project with
+                                 // buildLibrary(), library.defaultTheme inherits this value
+                                 // unless overridden — see LIBRARY_MODE.md / docs/library-mode.md.
         watch: true,
         outputDir: 'dist/themes',
       },
@@ -60,14 +62,14 @@ src/
 
 ## 3. General CSS (Resets & Typography)
 
-Use standard CSS files for global styles that apply everywhere.
+Use standard CSS files for global styles that apply everywhere. Layer order is `vendors, libs, modules, app, context` (see [README.md's CSS @layer Cascade Control](README.md#css-layer-cascade-control) for the full model) — resets/typography belong in `vendors`, brand-wide base styles in `app`.
 
 **`src/styles/main.css`**
 
 ```css
-@layer reset, global, components, themes;
+@layer vendors, libs, modules, app, context;
 
-@layer reset {
+@layer vendors {
   * {
     box-sizing: border-box;
     margin: 0;
@@ -75,7 +77,7 @@ Use standard CSS files for global styles that apply everywhere.
   }
 }
 
-@layer global {
+@layer app {
   body {
     font-family: sans-serif;
   }
@@ -253,6 +255,8 @@ Consumers of your library will import the JS components and link the CSS files t
 
 You can enable dynamic theme switching in your application using the `themeRuntime` API provided by the plugin.
 
+> **Local mode vs. consumption mode.** `themeRuntime`/`getThemeRuntime` (`@peter.naydenov/vite-plugin-morph/browser`) is the **local-mode** theme API — for this project working directly with its own local theme files. Once you package this project into a library with `buildLibrary()`, a *consuming* host app manages themes (potentially across several installed libraries at once) with a separate **consumption-mode** API, `themesControl` (`@peter.naydenov/vite-plugin-morph/client`) — see [README.md](README.md#library-lifecycle-two-theme-runtimes) and [LIBRARY_MODE.md](LIBRARY_MODE.md). Both share the same method vocabulary (`list`, `getCurrent`, `getDefault`, `set`, `setDefault`, `has`); `themeRuntime` additionally has `initialize()` for manual setup, and `themesControl` additionally has `listForLibrary()` since it spans multiple libraries.
+
 ### Setup
 
 Import the runtime helper. It comes pre-configured with your discovered themes.
@@ -264,17 +268,19 @@ import { themeRuntime } from '@peter.naydenov/vite-plugin-morph/browser';
 const runtime = themeRuntime();
 
 // No need for async initialization - it's ready immediately!
-console.log(`Current theme: ${runtime.getCurrentTheme()}`);
+console.log(`Current theme: ${runtime.getCurrent()}`);
 ```
 
 ### API Reference
 
 The runtime object provides a simple API for managing themes:
 
-- **`getCurrentTheme()`**: Returns the name of the currently active theme.
+- **`getCurrent()`**: Returns the name of the currently active theme.
 - **`list()`**: Returns an array of available theme names.
 - **`set(themeName)`**: Switches to the specified theme.
 - **`getDefault()`**: Returns the name of the default theme.
+- **`setDefault(themeName)`**: Designates a new default theme and applies it immediately.
+- **`has(themeName)`**: Returns whether a theme with this name exists.
 
 ### Example Usage
 
@@ -296,7 +302,7 @@ const defaultTheme = runtime.getDefault();
 runtime.set(defaultTheme);
 ```
 
-**Note:** Themes are automatically discovered from your configured theme directories (default: `themes/`). Create theme files as JSON or JS modules for automatic loading. The `themeRuntime` ensures that when you run `npm run dev`, your themes are detected and available immediately.
+**Note:** Themes are automatically discovered from your configured theme directories (default: `themes/`). Create theme files as JSON or JS modules for automatic loading. The `themeRuntime` ensures that when you run `npm run dev`, your themes are detected and available immediately. (Elsewhere in this guide, themes are authored as `.css` files with custom properties — §4 "Global Themes" — which the plugin discovers and converts into this same in-memory theme representation; JSON/JS theme files and `.css` theme files are two authoring formats for the same runtime data, not competing systems.)
 
 ### Custom / Manual Setup
 
