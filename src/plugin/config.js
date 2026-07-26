@@ -10,6 +10,10 @@ import { createMorphError, ErrorCodes } from '../core/errors.js';
  * Default configuration for morph composition and theme system
  */
 const defaultConfig = {
+  // How scoped CSS class names are generated: 'development' (stable, name-based)
+  // or 'production' (content-based, optimal for cache busting)
+  hashMode: 'development',
+
   // Theme configuration
   themes: {
     enabled: true,
@@ -43,6 +47,34 @@ const defaultConfig = {
 
   // CSS configuration
   css: {
+    // Master switch for CSS processing (scoping, layers, tree-shaking, bundling)
+    enabled: true,
+    postcss: {
+      autoprefixer: true,
+      minify: false,
+      sourceMaps: true,
+    },
+    modules: {
+      enabled: true,
+      // Pattern used to generate scoped class names
+      generateScopedName: '[name]_[local]_[hash:base64:5]',
+    },
+    layers: {
+      enabled: true,
+      order: ['vendors', 'libs', 'modules', 'app', 'context'],
+    },
+    treeShaking: {
+      enabled: true,
+    },
+    bundling: {
+      enabled: true,
+      outputDir: 'dist/components',
+    },
+    debug: {
+      enabled: false,
+      verbose: false,
+      showSourceMaps: false,
+    },
     chunking: {
       enabled: false,
       strategy: 'size', // 'size', 'category', 'manual'
@@ -69,11 +101,6 @@ const defaultConfig = {
   production: {
     removeHandshake: true,
     minifyCSS: true,
-  },
-
-  developmentLegacy: {
-    sourceMaps: true,
-    hmr: true,
   },
 
   errorHandling: {
@@ -174,14 +201,20 @@ export function validateConfig(config) {
     }
   }
 
-  // Validate legacy development configuration
-  if (config.developmentLegacy) {
-    if (typeof config.developmentLegacy.sourceMaps !== 'boolean') {
-      errors.push('development.sourceMaps must be a boolean');
+  // Validate CSS configuration
+  if (config.css) {
+    if (
+      config.css.modules?.generateScopedName !== undefined &&
+      typeof config.css.modules.generateScopedName !== 'string'
+    ) {
+      errors.push('css.modules.generateScopedName must be a string');
     }
 
-    if (typeof config.developmentLegacy.hmr !== 'boolean') {
-      errors.push('development.hmr must be a boolean');
+    if (
+      config.css.layers?.order !== undefined &&
+      !Array.isArray(config.css.layers.order)
+    ) {
+      errors.push('css.layers.order must be an array');
     }
   }
 
