@@ -13,6 +13,9 @@ let morphConfig = {
   themes: [],
   defaultTheme: 'default',
   themeUrls: {},
+  // General/global CSS text, embedded at build time (production build or library
+  // export) so applyGeneralStyles() can apply it without a <link>/fetch/URL.
+  generalCss: '',
   globalCSS: {
     directory: 'src/styles',
     entry: 'main.css',
@@ -22,6 +25,9 @@ let morphConfig = {
 // Theme registry - populated by libraries on load
 let themeRegistry = []; // [{libraryName, themes: [], defaultTheme}]
 let themeContent = {}; // {libraryName: {themeName: {variables, raw}}}
+
+// Last theme actually applied via themesControl.set()/setDefault() (distinct from the configured default)
+let currentAppliedTheme = null;
 
 // Components CSS registry - populated by libraries and host components
 let componentsCSS = {}; // { 'Component/source': '.scoped { ... }' }
@@ -73,6 +79,8 @@ if (typeof import.meta !== 'undefined' && import.meta.env) {
     if (pluginConfig && pluginConfig.default) {
       morphConfig.globalCSS =
         pluginConfig.default.globalCSS || morphConfig.globalCSS;
+      morphConfig.generalCss =
+        pluginConfig.default.generalCss || morphConfig.generalCss;
     }
   } catch (e) {
     // Config not available, use defaults
@@ -156,88 +164,30 @@ export function detectEnvironment() {
 }
 
 /**
- * Create and inject a <link> tag for CSS
- * @param {string} href - CSS file URL
- * @param {string} id - Unique ID for the link element
- * @param {string} [rel='stylesheet'] - Link relationship
- * @returns {HTMLLinkElement} The created link element
+ * Fetch a CSS URL and inject its contents into a <style> tag.
+ * Never creates a <link> element — applyStyles() must not use <link> tags in any mode.
+ * @param {string} url - CSS file URL
+ * @param {string} styleId - Unique ID for the <style> element
+ * @returns {Promise<void>}
  */
-export function createStyleLink(href, id, rel = 'stylesheet') {
-  if (typeof document === 'undefined') {
-    return null;
-  }
+async function loadCssUrlAsStyle(url, styleId) {
+  if (typeof document === 'undefined' || !url) return;
 
-  // Check if link already exists
-  const existing = document.getElementById(id);
-  if (existing) {
-    // Update href with cache busting
-    const newHref = `${href}?v=${Date.now()}`;
-    existing.href = newHref;
-    return existing;
-  }
-
-  // Create new link element
-  const link = document.createElement('link');
-  link.id = id;
-  link.rel = rel;
-  link.href = `${href}?v=${Date.now()}`;
-
-  // Insert into head
-  document.head.appendChild(link);
-
-  return link;
-}
-
-/**
- * Remove a style link by ID
- * @param {string} id - Link element ID
- */
-export function removeStyleLink(id) {
-  if (typeof document === 'undefined') return;
-
-  const link = document.getElementById(id);
-  if (link) {
-    link.remove();
-  }
-}
-
-/**
- * Create a theme controller for managing theme switching
- * @param {Object} config - Theme configuration
- * @param {string[]} config.themes - Available theme names
- * @param {string} config.defaultTheme - Default theme name
- * @param {Function} config.getThemeUrl - Function to get theme CSS URL
- * @returns {Object} Theme controller API
- */
-export function createThemeController(config) {
-  const { themes = [], defaultTheme = 'default', getThemeUrl } = config;
-  let currentTheme = defaultTheme;
-
-  return {
-    list() {
-      return [...themes];
-    },
-
-    getCurrent() {
-      return currentTheme;
-    },
-
-    getDefault() {
-      return defaultTheme;
-    },
-
-    set(themeName) {
-      if (!themes.includes(themeName)) {
-        return false;
+  try {
+    const response = await fetch(url);
+    if (response.ok) {
+      const css = await response.text();
+      let style = document.getElementById(styleId);
+      if (!style) {
+        style = document.createElement('style');
+        style.id = styleId;
+        document.head.appendChild(style);
       }
-
-      const themeUrl = getThemeUrl(themeName);
-      createStyleLink(themeUrl, 'morph-theme');
-      currentTheme = themeName;
-
-      return true;
-    },
-  };
+      style.textContent = css;
+    }
+  } catch (e) {
+    // Could not load CSS
+  }
 }
 
 /**
@@ -280,11 +230,51 @@ async function applyStylesDev() {
     }
   }
 
-  // Try to load local CSS from dev server
-  await loadLocalCss();
-
-  // Apply default theme via link tag
+  // Apply default theme before the general-CSS await below, so this
+  // completes synchronously within the same tick as applyStyles(). Callers
+  // conventionally write `applyStyles(); themesControl.set(x);` without
+  // awaiting — if the default theme were applied after an await here, it
+  // would resolve on a later microtask and silently clobber that manual
+  // set() call.
   applyDefaultTheme(config);
+
+  // Apply this project's own general CSS (always-on for the host's own project;
+  // for an imported library, general CSS is a separate, opt-in call — see
+  // applyGeneralStyles()).
+  await applyGeneralStyles();
+}
+
+/**
+ * Apply general/global CSS — base styles that aren't tied to any one component.
+ *
+ * Unlike component CSS (which always travels with its component automatically),
+ * general CSS is a separate, explicit call. For the current project this is
+ * called automatically as part of applyStyles(). For an imported library, it is
+ * NOT auto-applied — a host combining several libraries calls
+ * `someLibrary.applyGeneralStyles()` only for the ones whose general CSS it
+ * actually wants, avoiding conflicting global styles from the others.
+ *
+ * In development, this fetches live from the dev server (HMR-friendly). In a
+ * production build or a published library, the general CSS text is already
+ * embedded at build time, so this applies it directly with no network request.
+ * @returns {Promise<void>}
+ */
+export async function applyGeneralStyles() {
+  const config = getConfig();
+  const env = config.environment || detectEnvironment();
+
+  if (env === 'development') {
+    await loadLocalCss();
+    return;
+  }
+
+  if (config.generalCss && typeof document !== 'undefined') {
+    // Scope the style element per library, so a host applying several
+    // libraries' general CSS gets them side by side instead of one
+    // overwriting another.
+    const scope = config.libraryName ? `general-${config.libraryName}` : 'general-host';
+    ensureStyleElement(scope, config.generalCss);
+  }
 }
 
 /**
@@ -385,22 +375,6 @@ if (typeof window !== 'undefined' && import.meta.hot) {
 }
 
 /**
- * Load CSS asynchronously and wait for it to be parsed
- * @param {string} url - CSS URL
- * @returns {Promise<void>}
- */
-async function loadCssAsync(url) {
-  return new Promise((resolve, reject) => {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = url;
-    link.onload = () => resolve();
-    link.onerror = () => reject(new Error(`Failed to load CSS: ${url}`));
-    document.head.appendChild(link);
-  });
-}
-
-/**
  * Apply CSS in library mode (URL-based loading for all layers)
  */
 async function applyStylesLibrary() {
@@ -430,22 +404,23 @@ async function applyStylesLibrary() {
 /**
  * Apply CSS in build mode (URL-based loading for all layers)
  */
-function applyStylesBuild() {
+async function applyStylesBuild() {
   const config = getConfig();
 
-  // Build mode should have CSS URLs configured by build process
-  // Apply general CSS if URL provided
-  if (config.generalCssUrl) {
-    createStyleLink(config.generalCssUrl, 'morph-general-css');
-  }
-
-  // Apply component CSS if URL provided
-  if (config.componentCssUrl) {
-    createStyleLink(config.componentCssUrl, 'morph-component-css');
-  }
-
-  // Apply default theme
+  // Apply default theme first — see applyStylesDev() for why this must not
+  // run after an await (would race a synchronous themesControl.set() call
+  // made right after applyStyles()).
   applyDefaultTheme(config);
+
+  // Apply this project's own general CSS (embedded at build time — see
+  // applyGeneralStyles()).
+  await applyGeneralStyles();
+
+  // Component CSS URL override, for non-Vite shells that set it explicitly
+  // via setMorphConfig() (most projects don't need this — see runtime-api.md).
+  if (config.componentCssUrl) {
+    await loadCssUrlAsStyle(config.componentCssUrl, 'morph-component-css');
+  }
 }
 
 /**
@@ -494,20 +469,16 @@ function applyThemeToLibrary(libraryName, themeName) {
  * @returns {boolean} True if theme was applied
  */
 function applyProjectDefaultTheme(libraryName) {
-  const defaultTheme = morphConfig.defaultTheme || 'default';
+  const registry = themeRegistry.find((r) => r.libraryName === libraryName);
+  const defaultTheme =
+    (registry && registry.defaultTheme) || morphConfig.defaultTheme || 'default';
 
-  // First try to apply the configured/default theme
   if (applyThemeToLibrary(libraryName, defaultTheme)) {
     return true;
   }
 
-  // If that failed and we're dealing with 'host' (host project), try first local theme
-  if (libraryName === 'host') {
-    const hostRegistry = themeRegistry.find((r) => r.libraryName === 'host');
-    if (hostRegistry && hostRegistry.themes.length > 0) {
-      const firstTheme = hostRegistry.themes[0];
-      return applyThemeToLibrary('host', firstTheme);
-    }
+  if (registry && registry.themes.length > 0) {
+    return applyThemeToLibrary(libraryName, registry.themes[0]);
   }
 
   return false;
@@ -572,14 +543,27 @@ export const themesControl = {
       }
     }
 
+    if (applied > 0) {
+      currentAppliedTheme = themeName;
+    }
+
     return applied;
   },
 
   /**
-   * Get current project's default theme name
-   * @returns {string} Default theme name
+   * Get the name of the theme actually applied via set()/setDefault().
+   * Falls back to the configured default theme if nothing has been applied yet.
+   * @returns {string} Current theme name
    */
   getCurrent() {
+    return currentAppliedTheme || morphConfig.defaultTheme || 'default';
+  },
+
+  /**
+   * Get the configured default theme's name (distinct from the current theme)
+   * @returns {string} Default theme name
+   */
+  getDefault() {
     return morphConfig.defaultTheme || 'default';
   },
 
