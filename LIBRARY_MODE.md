@@ -4,6 +4,8 @@
 
 Library Mode allows you to build distributable component libraries with `vite-plugin-morph`. Your library will extract your components, CSS layers, and runtime controls into a single, self-contained package. It will be a standard npm package containing:
 
+> **Two theme runtimes exist for two lifecycle stages.** This doc's `themesControl` is the **consumption-mode** API — for a host app combining one or more published libraries. There is a second, **local-mode** API, `themeRuntime`/`getThemeRuntime` (`@peter.naydenov/vite-plugin-morph/browser`), for a single project working directly with its own local theme files before (or instead of) publishing — see [setup-component-library.md](setup-component-library.md). Both share the same method vocabulary (`list`, `getCurrent`, `getDefault`, `set`, `setDefault`, `has`); `themesControl` adds `listForLibrary()`, `themeRuntime` adds `initialize()`.
+
 - **Components** - Compiled `.morph` files as ES modules
 - **CSS Modules** - Scoped CSS with unique class names for each component
 - **Runtime Controls** - `applyStyles()`, `themesControl`, and CSS management functions
@@ -74,7 +76,13 @@ Publish your library package to npm as usual.
 
 ### `applyStyles()`
 
-Injects `<style>` tags for all component CSS. Uses `componentsCSS` mapping to register styles with source prefix.
+Applies CSS based on the current execution environment (see [README.md](./README.md#runtime-api-peternaydenovvite-plugin-morphclient) for the full breakdown):
+
+- **`development`**: injects per-component `<style>` tags
+- **`library`**: uses the embedded `componentsCSS` mapping to register `<style>` tags, with source prefix
+- **`build`**: loads CSS from URLs
+
+Always `<style>` tag injection (or URL loading in production) — never `<link>` tags.
 
 ```javascript
 import { applyStyles } from '@myorg/my-components';
@@ -87,8 +95,9 @@ Runtime API for theme switching.
 
 - `list()` - Get available themes
 - `getCurrent()` - Get current theme
-- `getDefault()` - Get default theme
+- `getDefault()` - Get the configured default theme's name
 - `set(themeName)` - Switch theme
+- `setDefault(themeName)` - Designate a new default theme and apply it immediately
 - `listForLibrary(libraryName)` - Get themes for specific library
 - `has(themeName)` - Check if theme exists
 
@@ -152,16 +161,22 @@ const componentsCSS = {
 };
 ```
 
-The class `btn` maps to `Button_btn_x7k9p2` to prevent conflicts with host project styles.
+The class `btn` maps to `Button_btn_x7k9p2` to prevent conflicts with host project styles. Scoping happens once, here at library build time — the host never re-scopes it. The rendered element carries **both** names (`class="Button_btn_x7k9p2 btn"`): the scoped name is what the library's own CSS (in the `libs` cascade layer) targets, and the plain `btn` "light label" is what a host app can target with pure selectors in its `app`/`context` layers to customize the component — see [README.md's CSS @layer Cascade Control](README.md#css-layer-cascade-control) for the full five-layer model.
 
 ## Configuration
 
-| Option            | Type   | Required | Description                                                |
-| ----------------- | ------ | -------- | ---------------------------------------------------------- |
-| `entry`           | string | No       | Entry point (default: `src/main.js`)                       |
-| `library.name`    | string | **Yes**  | Package name                                               |
-| `library.version` | string | No       | Version (default: `1.0.0`)                                 |
-| `outputDir`       | string | No       | Output directory (default: `dist/library`)                 |
-| `hashMode`        | string | No       | `'development'` (stable) or `'production'` (content-based) |
+| Option                    | Type   | Required | Default              | Description                                                |
+| ------------------------- | ------ | -------- | -------------------- | ----------------------------------------------------------- |
+| `entry`                   | string | No       | `'src/main.js'`       | Entry point file path                                        |
+| `outputDir`               | string | No       | `'dist/library'`      | Output directory                                             |
+| `themesDir`               | string | No       | `'src/themes'`        | Directory containing theme CSS files                          |
+| `hashMode`                | string | No       | `'development'`       | `'development'` (stable) or `'production'` (content-based)   |
+| `library.name`            | string | **Yes**  | -                     | Package name (e.g., `@myorg/my-components`)                  |
+| `library.version`         | string | No       | `'1.0.0'`             | Package version                                              |
+| `library.description`     | string | No       | Generated             | Package description                                          |
+| `library.author`          | string | No       | -                     | Package author                                               |
+| `library.license`         | string | No       | -                     | Package license                                              |
+| `library.defaultTheme`    | string | No       | First theme, or the project's own `themes.defaultTheme` if set | Default theme name for the packaged library — see the note above |
+| `library.packageJson`     | object | No       | -                     | Additional package.json fields                                |
 
 See full documentation in README.md.
