@@ -73,7 +73,10 @@ export function parseJsonLike(content) {
  */
 export function parseMorphFile(content) {
   try {
-    return parseFragment(content);
+    // sourceCodeLocationInfo is needed to recover the <style> block's real
+    // line number in the file, for dev-mode CSS source maps (see
+    // getStyleContentLocation()) — otherwise harmless/unused.
+    return parseFragment(content, { sourceCodeLocationInfo: true });
   } catch (error) {
     throw new Error(`Failed to parse morph file: ${error.message}`);
   }
@@ -167,6 +170,37 @@ export function extractStyleContent(document) {
   }
 
   return null;
+}
+
+/**
+ * Get the line number (1-based, relative to the full .morph file) where the
+ * <style> block's content begins. Used to build dev-mode CSS source maps that
+ * point browser DevTools back to the correct line in the original file.
+ * Requires parseMorphFile()'s sourceCodeLocationInfo to have been set.
+ * @param {import('../types/index.d.ts').Document} document - Parsed HTML document
+ * @returns {{startLine: number}|null} Location info, or null if unavailable
+ */
+export function getStyleContentLocation(document) {
+  function findStyleNodes(node) {
+    const nodes = [];
+    if (node.nodeName === 'style') {
+      nodes.push(node);
+    }
+    if (node.childNodes) {
+      for (const child of node.childNodes) {
+        nodes.push(...findStyleNodes(child));
+      }
+    }
+    return nodes;
+  }
+
+  const styleNodes = findStyleNodes(document);
+  if (styleNodes.length === 0) return null;
+
+  const textNode = styleNodes[0].childNodes?.[0];
+  if (!textNode?.sourceCodeLocation) return null;
+
+  return { startLine: textNode.sourceCodeLocation.startLine };
 }
 
 /**

@@ -11,6 +11,7 @@ import {
   extractScriptContent,
   extractStyleContent,
   extractHandshakeContent,
+  getStyleContentLocation,
   parseJsonLike,
 } from './parser.js';
 import { extractTemplateContent, extractRequiredHelpers } from './template.js';
@@ -66,6 +67,69 @@ function generateHmrHandlingCode(componentName) {
   ];
 }
 
+/**
+ * Build a `sourceMappingURL` comment that points browser DevTools back to the
+ * original .morph file for a component's dev-mode CSS. Embeds sourcesContent
+ * (the full raw .morph file text) directly in the map, since .morph files
+ * aren't fetchable over HTTP the way a regular .css asset would be — without
+ * that, DevTools would have no way to show the original source text.
+ * @param {Object} map - Raw PostCSS source map (maps postcss output -> its own input)
+ * @param {string} filePath - Absolute path to the .morph file
+ * @param {string} rootDir - Project root, for a readable relative source name
+ * @param {string} originalContent - Full raw .morph file text
+ * @returns {string} A CSS sourceMappingURL comment (base64 data URI)
+ */
+function buildDevCssSourceMapComment(map, filePath, rootDir, originalContent) {
+  const relPath = path.relative(rootDir, filePath).split(path.sep).join('/');
+  const mapWithSource = {
+    ...map,
+    sources: [relPath],
+    sourcesContent: [originalContent],
+  };
+  const base64 = Buffer.from(JSON.stringify(mapWithSource)).toString('base64');
+  return `/*# sourceMappingURL=data:application/json;base64,${base64} */`;
+}
+
+/**
+ * Wrap a component's CSS in its cascade layer (`libs` for node_modules-sourced
+ * components, `modules` for local/host ones) for the self-injecting <style>
+ * tag embedded in every compiled .morph module. This mirrors the layer
+ * wrapping css-collection.js already applies to the bundled/production CSS
+ * output — without it, this per-component injection path (which runs in
+ * every environment, not just dev) bypassed the 5-layer cascade entirely,
+ * so its rules always won regardless of `app`/`context` layer overrides.
+ *
+ * If a dev-mode sourceMappingURL comment is present, it's pulled out first
+ * and re-attached after the closing brace (must stay outside the block to
+ * be recognized), with its map shifted down one generated line to account
+ * for the new `@layer NAME {` line inserted above the original content.
+ * @param {string} css - Component CSS (possibly carrying a sourceMappingURL comment)
+ * @param {string} layerName - Cascade layer name ('libs' or 'modules')
+ * @returns {string} Layer-wrapped CSS
+ */
+function wrapCssLayerForInjection(css, layerName) {
+  const commentMatch = css.match(
+    /\n?\/\*# sourceMappingURL=data:application\/json;base64,([A-Za-z0-9+/=]+) \*\/\s*$/
+  );
+
+  if (!commentMatch) {
+    return `@layer ${layerName} {\n${css}\n}`;
+  }
+
+  const withoutComment = css.slice(0, commentMatch.index);
+  try {
+    const map = JSON.parse(
+      Buffer.from(commentMatch[1], 'base64').toString('utf-8')
+    );
+    map.mappings = ';' + map.mappings;
+    const shiftedComment = `/*# sourceMappingURL=data:application/json;base64,${Buffer.from(JSON.stringify(map)).toString('base64')} */`;
+    return `@layer ${layerName} {\n${withoutComment}\n}\n${shiftedComment}`;
+  } catch (e) {
+    // Malformed map (shouldn't happen) — drop it rather than ship a wrong one.
+    return `@layer ${layerName} {\n${withoutComment}\n}`;
+  }
+}
+
 function generateHelpersCode(helperFunctions, stylesMap) {
   const parts = [];
   if (!helperFunctions || Object.keys(helperFunctions).length === 0) {
@@ -113,7 +177,7 @@ function generateHelpersCode(helperFunctions, stylesMap) {
  * @param {import('../../types/index.d.ts').MorphPluginOptions} options - Plugin options
  * @returns {Promise<import('../../types/index.d.ts').ProcessingResult>} Processing result
  */
-export async function processMorphFile(content, filePath, options) {
+export async function processMorphFile(content, filePath, options = {}) {
   const startTime = Date.now();
 
   try {
@@ -121,8 +185,10 @@ export async function processMorphFile(content, filePath, options) {
     const { extractPlaceholdersFromHTML } = await import('./template.js');
     const rawPlaceholders = extractPlaceholdersFromHTML(content);
 
-    // Check cache first (include options in cache key for production mode differences)
-    const cacheKey = JSON.stringify({ content, options, version: 3 });
+    // Check cache first (filePath is included since componentName/source/layer
+    // are derived from it — two different files with identical content and
+    // options must not collide on the same cache entry)
+    const cacheKey = JSON.stringify({ content, filePath, options, version: 4 });
     const cached = getCachedResult(cacheKey);
 
     if (cached) {
@@ -165,17 +231,75 @@ export async function processMorphFile(content, filePath, options) {
       ? ''
       : filePath.split(/[/\\]/).pop().replace('.morph', '');
 
+    // Root directory for relative path calculations
+    const rootDir = options.rootDir || process.cwd();
+
     // Process CSS for scoping if present and not CSS-only
+    // css.enabled is the master switch for the CSS subsystem (scoping/layers/etc.);
+    // when false, raw unscoped CSS passes through untouched.
+    const cssEnabled = options?.css?.enabled !== false;
     let processedStyle = style;
     let scopedClasses = {};
     let componentsCSS = {};
-    if (style && !isCSSOnly) {
+    if (style && !isCSSOnly && cssEnabled) {
       const isProd = isProductionMode(options) || options?.hashMode === 'production';
       const hashMode = options?.hashMode || (isProd ? 'production' : 'development');
-      const scopedResult = scopeCss(style.css, componentName, { hashMode });
+      const generateScopedName = options?.css?.modules?.generateScopedName;
+      const postcssOptions = options?.css?.postcss || {};
+
+      // Dev-only: generate a CSS source map pointing browser DevTools back to
+      // the original .morph file. Not done for build/library output — that
+      // CSS is already bundled text, where per-.morph mapping matters less
+      // and would just bloat shipped output.
+      const devSourceMaps =
+        !!options.isDevServer && !options.test && postcssOptions.sourceMaps !== false;
+
+      // Pad the CSS with blank lines up to the <style> block's real starting
+      // line in the .morph file, so PostCSS's source-map generation (which
+      // tracks positions relative to whatever string it's handed) ends up
+      // using real file line numbers. Scoping's class-name substitution is a
+      // same-line, in-place string replace, so this padding survives it
+      // intact all the way through to PostCSS.
+      let cssToScope = style.css;
+      if (devSourceMaps) {
+        const location = getStyleContentLocation(document);
+        const padLines = location ? Math.max(0, location.startLine - 1) : 0;
+        cssToScope = '\n'.repeat(padLines) + style.css;
+      }
+
+      const scopedResult = scopeCss(cssToScope, componentName, {
+        hashMode,
+        ...(generateScopedName ? { generateScopedName } : {}),
+      });
+
+      // Run PostCSS (autoprefixer/minify/sourceMaps) after scoping, so plugins
+      // see the final scoped selectors rather than the authored ones.
+      let finalCss = scopedResult.scopedCss;
+      try {
+        const postcssResult = await processCss(finalCss, {
+          autoprefixer: postcssOptions.autoprefixer,
+          minify: postcssOptions.minify,
+          sourceMaps: postcssOptions.sourceMaps || devSourceMaps,
+          from: filePath,
+        });
+        finalCss = postcssResult.css;
+
+        if (devSourceMaps && postcssResult.map) {
+          finalCss +=
+            '\n' +
+            buildDevCssSourceMapComment(postcssResult.map, filePath, rootDir, content);
+        }
+      } catch (postcssError) {
+        warn(`PostCSS processing failed for ${filePath}: ${postcssError.message}`);
+        if (options?.css?.debug?.enabled) {
+          const { getCssDebugUtils } = await import('../utils/css-debug.js');
+          getCssDebugUtils().logCssError(postcssError, componentName);
+        }
+      }
+
       processedStyle = {
         css: style.css,
-        processedCss: scopedResult.scopedCss,
+        processedCss: finalCss,
         scopedClasses: scopedResult.scopedClasses,
       };
       scopedClasses = scopedResult.scopedClasses;
@@ -184,6 +308,16 @@ export async function processMorphFile(content, filePath, options) {
           componentsCSS[className] =
             `.${info.scoped} { ${info.content.replace(/^\.[a-zA-Z_-]+/, '').trim()} }`;
         }
+      }
+
+      if (options?.css?.debug?.enabled) {
+        const { getCssDebugUtils } = await import('../utils/css-debug.js');
+        getCssDebugUtils().logCssProcessing(componentName, {
+          originalLength: style.css.length,
+          scopedLength: scopedResult.scopedCss.length,
+          processedLength: finalCss.length,
+          scopedClasses: scopedResult.scopedClasses,
+        });
       }
     }
 
@@ -194,9 +328,6 @@ export async function processMorphFile(content, filePath, options) {
       transformedTemplateHtml = transformResult.html;
       componentsCSS = { ...componentsCSS, ...transformResult.componentsCSS };
     }
-
-    // Get root directory for relative path calculations
-    const rootDir = options.rootDir || process.cwd();
 
     // Build helpers object
     const helpers = {};
@@ -265,6 +396,8 @@ export async function processMorphFile(content, filePath, options) {
       usedVariables: template.usedVariables,
       templateObject,
       componentsCSS,
+      componentName,
+      processedCss: processedStyle?.processedCss,
       isCSSOnly,
       processingTime,
       metadata: {
@@ -446,8 +579,20 @@ function generateESModule(
 
     // Export processed CSS if present
     if (style) {
-      const processedCss = style.processedCss || style.css;
+      let processedCss = style.processedCss || style.css;
       const scopedClasses = style.scopedClasses || {};
+
+      // Only wrap when scoping/postcss actually ran (style.processedCss set) —
+      // when css.enabled is false, CSS passes through untouched, layers included.
+      const layersEnabled = options?.css?.layers?.enabled !== false;
+      if (layersEnabled && style.processedCss) {
+        const source =
+          filePath && filePath.includes('node_modules') ? 'library' : 'module';
+        processedCss = wrapCssLayerForInjection(
+          processedCss,
+          source === 'library' ? 'libs' : 'modules'
+        );
+      }
 
       parts.push('');
       parts.push('// Export processed CSS');
