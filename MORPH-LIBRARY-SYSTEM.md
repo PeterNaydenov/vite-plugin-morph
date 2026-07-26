@@ -195,7 +195,7 @@ git-morph-plugin/
 }
 ```
 
-**Library assets structure:**
+**Library assets structure:** (default output dir is `dist/library` per `LIBRARY_MODE.md`/`docs/library-mode.md` — shown as `dist/lib` below for brevity)
 
 ```
 dist/lib/
