@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.4.1] - 2026-08-07
+- [x] Dependency update. Acorn 8.18.0;
+- [x] Dev dependencies updates. Cssnano@8.0.4;
+- [x] Dev dependencies updates. Vite@8.2.1;
+
+
+
 ## [0.4.0] - 2026-07-25
 
 Aligns the implementation with the reconciled documentation (CSS architecture, theme system, config schema). Several breaking changes — see notes below.
