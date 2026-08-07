@@ -54,7 +54,7 @@
     "jsdoc": "^4.0.2",
     "postcss": "^8.5.16",
     "postcss-import": "^16.1.1",
-    "postcss-nested": "^7.0.2",
+    "postcss-nested": "^8.0.1",
     "prettier": "^3.9.6",
     "typedoc": "^0.28.20",
     "vite": "^8.2.1",
