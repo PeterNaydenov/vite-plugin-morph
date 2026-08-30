@@ -41,7 +41,7 @@ function parseHelperFunctions(scriptContent) {
             .replace(/\/\*[\s\S]*?\*\//g, '')
             .replace(/\/\/.*$/gm, '')
             .trim();
-          functions[node.id.name] = eval('(' + functionCode + ')');
+          functions[node.id.name] = new Function('return (' + functionCode + ')')();
           debug(`Parsed helper function: ${node.id.name}`);
         } catch (parseError) {
           warn(
@@ -64,7 +64,7 @@ function parseHelperFunctions(scriptContent) {
                   .replace(/\/\*[\s\S]*?\*\//g, '')
                   .replace(/\/\/.*$/gm, '')
                   .trim();
-                functions[varName] = eval('(' + functionCode + ')');
+                functions[varName] = new Function('return (' + functionCode + ')')();
                 debug(`Parsed helper function: ${varName}`);
               } catch (parseError) {
                 warn(
@@ -85,7 +85,7 @@ function parseHelperFunctions(scriptContent) {
                   .replace(/\/\*[\s\S]*?\*\//g, '')
                   .replace(/\/\/.*$/gm, '')
                   .trim();
-                functions[varName] = eval('(' + functionCode + ')');
+                functions[varName] = new Function('return (' + functionCode + ')')();
                 debug(`Parsed helper function: ${varName}`);
               } catch (parseError) {
                 warn(

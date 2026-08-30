@@ -7,7 +7,6 @@
 import { build } from 'vite';
 import { writeFile, mkdir, readFile, copyFile } from 'fs/promises';
 import { join, dirname, relative } from 'path';
-import { fileURLToPath } from 'url';
 import { glob } from 'glob';
 import { info, warn, debug } from '../utils/logger.js';
 import { getCssCollector } from './css-collection.js';
@@ -15,6 +14,7 @@ import {
   extractThemesFromDir,
   extractThemeVariables,
 } from './theme-variables.js';
+import { createMorphPlugin } from '../plugin/index.js';
 
 /**
  * Library Builder Service
@@ -162,7 +162,6 @@ ${exports}
    * @returns {Promise<void>}
    */
   async buildWithVite() {
-    const { createMorphPlugin } = await import('../plugin/index.js');
     const self = this;
 
     // postcss-import/postcss-nested are structural (needed regardless of user
@@ -293,8 +292,12 @@ ${exports}
 
             debug(`Copied ${cssFiles.length} CSS files from ${self.stylesDir}`);
 
-            // Copy runtime.js from plugin directory
-            const pluginDir = dirname(fileURLToPath(import.meta.url));
+            // Copy runtime.js from plugin directory. Prefer CJS `__dirname`
+            // when available so the bundler doesn't see `import.meta.*` access
+            // (which it would warn about in the CJS output). Fall back to
+            // `import.meta.dirname` (Node ≥ 20.11) for the ESM build.
+            const pluginDir =
+              typeof __dirname !== 'undefined' ? __dirname : import.meta.dirname;
             const runtimePath = join(pluginDir, '../client/runtime.js');
             try {
               const runtimeSource = await readFile(runtimePath, 'utf-8');

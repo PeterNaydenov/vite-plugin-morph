@@ -14,7 +14,7 @@ import {
   getStyleContentLocation,
   parseJsonLike,
 } from './parser.js';
-import { extractTemplateContent, extractRequiredHelpers } from './template.js';
+import { extractTemplateContent, extractRequiredHelpers, extractPlaceholdersFromHTML } from './template.js';
 import { processScriptContent } from './script.js';
 import {
   createMorphError,
@@ -182,7 +182,6 @@ export async function processMorphFile(content, filePath, options = {}) {
 
   try {
     // Extract template placeholders from raw content BEFORE HTML parsing
-    const { extractPlaceholdersFromHTML } = await import('./template.js');
     const rawPlaceholders = extractPlaceholdersFromHTML(content);
 
     // Check cache first (filePath is included since componentName/source/layer

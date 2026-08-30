@@ -8,13 +8,13 @@
 import path, { join } from 'path';
 import { createHash } from 'crypto';
 import fs from 'fs';
-import configModule, { resolveThemeDirectories } from './config.js';
+import configModule, { resolveThemeDirectories, validateConfig } from './config.js';
 import {
   startCssCollection,
   finalizeCssCollection,
   getCssCollector,
 } from '../services/css-collection.js';
-import { extractThemesFromDirs } from '../services/theme-variables.js';
+import { extractThemesFromDirs, extractThemesFromDir } from '../services/theme-variables.js';
 import {
   detectMorphLibraries,
   getImportedPackages,
@@ -23,6 +23,7 @@ import {
   findCachedFile,
   processLocalCss,
   getLocalCssCache,
+  processLibraryMainCSS,
 } from '../services/library-css-processor.js';
 import { buildCssRuleFromResult } from '../utils/shared.js';
 
@@ -670,12 +671,6 @@ export function createMorphPlugin(options = {}) {
       // Detect morph libraries and process their CSS
 
       try {
-        const {
-          detectMorphLibraries,
-          processLibraryMainCSS,
-          loadPostCSSConfig,
-        } = await import('../services/library-css-processor.js');
-
         const nodeModulesPath = path.join(rootDir, 'node_modules');
 
         const cacheDir = path.join(
@@ -773,8 +768,6 @@ export function createMorphPlugin(options = {}) {
 
         if (fs.existsSync(localThemesDir)) {
 
-          const { extractThemesFromDir } =
-            await import('../services/theme-variables.js');
           const localThemes = await extractThemesFromDir(localThemesDir);
 
           const localThemeNames = Object.keys(localThemes);
@@ -870,9 +863,7 @@ async function processMorphFile(code, id, options) {
  * @param {import('vite').ResolvedConfig} config - Vite config
  */
 function validatePluginConfig(options, config) {
-  import('./config.js').then(({ validateConfig }) => {
-    validateConfig(options, config);
-  });
+  validateConfig(options, config);
 }
 
 /**
