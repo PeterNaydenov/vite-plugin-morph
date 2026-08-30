@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.4.2 ] (2026-08-30) 
+
+**Dependencies**
+- [x] Reclassified the PostCSS pipeline as runtime dependencies. Moved `postcss`, `postcss-import`, `postcss-nested`, `autoprefixer`, and `cssnano` from `devDependencies` to `dependencies` in `package.json` — these packages were already imported by `src/core/css-processor.js`, just misclassified. No version changes;
+- [x] Bumped `cssnano` from `^8.0.6` to `^9.0.1`. ESM-only, simplified config loading, and a rewritten `postcss-calc`. No code or config changes required for this codebase (configured through the PostCSS config + an explicit `preset: 'default'` call, both of which v9 still accepts);
+
+**Build hygiene**
+- [x] Replaced direct `eval()` calls in `src/core/script.js` (3 occurrences in the helper-function extractor) with `new Function('return (' + code + ')')()`. Same semantics; silences Rolldown's `[EVAL]` warning and avoids minifier caveats;
+- [x] Removed redundant dynamic imports across `src/core/processor.js`, `src/services/library-builder.js`, and `src/plugin/index.js`. Five modules were both statically and dynamically imported in the same parent file; promoted the dynamic-imported names to the static import and dropped the now-redundant `await import(...)` calls;
+- [x] Replaced `import.meta.url`-based path resolution in `src/services/library-builder.js` with a CJS/ESM-safe form (`typeof __dirname !== 'undefined' ? __dirname : import.meta.dirname`);
+- [x] Pinned the CJS export shape in `vite.config.js` via `rollupOptions.output.exports: 'named'`. CJS consumers still access the default export under `.default` (same as before); the setting just makes the shape explicit and silences `[MIXED_EXPORTS]`;
+- [x] Added a `rollupOptions.onwarn` filter in `vite.config.js` to silence `[EMPTY_IMPORT_META]`. The bundler can't statically prove the `typeof __dirname` guard in `library-builder.js` is safe, but the runtime is correct; the same warning also fires from `node_modules/cssnano` (v9) for the same reason and is silenced by the same filter.
+
+
+
 ## [0.4.1] - 2026-08-07
 - [x] Dependency update. Acorn 8.18.0;
 - [x] Dev dependencies updates. Cssnano@8.0.4;
