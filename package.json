@@ -32,7 +32,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "cover": "vitest run --coverage",
-    "build": "npm run build:types && npm run build:lib",
+    "build": "npm run build:lib && npm run build:types",
     "build:types": "tsc",
     "build:lib": "vite build",
     "dev": "vite",
@@ -43,13 +43,13 @@
     "@peter.naydenov/morph": "^3.10.0",
     "acorn": "^8.19.0",
     "acorn-walk": "^8.3.5",
-    "parse5": "^8.0.1",
+    "autoprefixer": "^10.6.1",
+    "cssnano": "^9.5.0",
     "glob": "^13.0.6",
+    "parse5": "^8.0.1",
     "postcss": "^8.5.28",
     "postcss-import": "^17.0.0",
-    "postcss-nested": "^8.0.1",
-    "autoprefixer": "^10.6.1",
-    "cssnano": "^9.5.0"
+    "postcss-nested": "^8.0.1"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^5.0.3",
@@ -57,6 +57,7 @@
     "jsdoc": "^4.0.2",
     "prettier": "^3.9.10",
     "typedoc": "^0.28.20",
+    "typescript": "^7.0.2",
     "vite": "^8.3.4",
     "vitest": "^5.0.3"
   },

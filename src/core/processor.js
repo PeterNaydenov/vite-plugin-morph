@@ -360,13 +360,6 @@ export async function processMorphFile(content, filePath, options = {}) {
       handshake: handshake?.data || {},
     };
 
-    // Debug: log template content
-    console.log('Template object:', {
-      template: templateObject.template.substring(0, 100) + '...',
-      helpers: Object.keys(templateObject.helpers),
-      handshake: templateObject.handshake,
-    });
-
     // Store helpers separately for code generation
     const helperFunctions = helpers;
 

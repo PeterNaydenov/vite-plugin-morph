@@ -9,8 +9,9 @@ Plain HTML at the top of the file (no wrapper tag needed). Use these substitutio
 - `{{key}}` — direct binding. Resolves `data.key` (or `data['key']`).
 - `{{key : helperName}}` — run `data.key` through helper `helperName`. Helper receives `{ data, dependencies }` and returns the substitution value.
 - `{{key : helperName : placeholderName}}` — same, with the helper template's placeholder named (only meaningful for helper templates).
-- `{{#if key}}…{{/if}}` and `{{#each key}}…{{/each}}` — control flow, like upstream `@peter.naydenov/morph`.
-- `{{this}}` inside `{{#each}}` — current item.
+- `{{key : [], itemHelper}}` — loop: render each array item with `itemHelper`, then join the results with the `[]` mixing action. Inside a helper template, a primitive item is available as `{{text}}`.
+- Conditionals — use a helper function that returns markup or `''` (e.g. `{{isAdmin : adminButton}}`).
+- Morph has **no** block syntax: `{{#if}}`, `{{#each}}` and `{{this}}` are Handlebars, not morph, and do not work.
 
 > Don't wrap plain text in `{{ }}`. Only the placeholder names go inside braces.
 

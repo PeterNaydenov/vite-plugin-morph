@@ -115,10 +115,10 @@ This extension provides a **professional editing experience** with syntax highli
 ### 4. Use in Your Application
 
 ```javascript
-import Button, { styles } from './components/Button.morph';
+import Button, { styles, handshake } from './components/Button.morph';
 
 // Render with custom data
-const customButton = Button({
+const customButton = Button('render', {
   text: 'Save Changes',
   variant: 'primary',
   action: 'handleClick',
@@ -331,7 +331,7 @@ The plugin includes full TypeScript definitions. Import morph files directly in 
 import Button, { styles, handshake } from './components/Button.morph';
 
 // Type-safe component rendering
-const buttonHtml = Button({
+const buttonHtml = Button('render', {
   text: 'Submit',
   variant: 'primary',
   action: 'handleSubmit',
@@ -660,19 +660,28 @@ import Card from './components/Card.morph'; // CSS included
 
 ### Template Helpers
 
-Use powerful template helpers for dynamic content:
+Morph has no block syntax like `{{#if}}` or `{{#each}}`. Conditions and loops are expressed with actions: a helper function decides what to render, and a helper template is applied to each array item and mixed with `[]`:
 
 ```html
 <div class="user-card">
-  <h2>{{user.name}}</h2>
-  <p>{{user.email}}</p>
-  {{#if user.isAdmin}}
-  <button class="admin-btn">Admin Panel</button>
-  {{/if}} {{#each user.roles}}
-  <span class="role-{{this}}">{{this}}</span>
-  {{/each}}
+  <h2>{{ name }}</h2>
+  <p>{{ email }}</p>
+  {{ isAdmin : adminButton }}
+  {{ roles : [], role }}
 </div>
+
+<script>
+  // Conditional: return markup or an empty string
+  function adminButton({ data }) {
+    return data ? '<button class="admin-btn">Admin Panel</button>' : '';
+  }
+
+  // Loop: rendered once per array item, then joined by `[]`
+  const role = `<span class="role-{{text}}">{{text}}</span>`;
+</script>
 ```
+
+See [HELPERS_GUIDE.md](HELPERS_GUIDE.md) for the full action syntax.
 
 ### JavaScript Helpers
 
