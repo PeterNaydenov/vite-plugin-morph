@@ -62,7 +62,7 @@ export function parseJsonLike(content) {
     // Parse as JSON
     return JSON.parse(cleaned);
   } catch (error) {
-    throw new Error(`Failed to parse JSON-like content: ${error.message}`);
+    throw new Error(`Failed to parse JSON-like content: ${error.message}`, { cause: error });
   }
 }
 
@@ -78,7 +78,7 @@ export function parseMorphFile(content) {
     // getStyleContentLocation()) — otherwise harmless/unused.
     return parseFragment(content, { sourceCodeLocationInfo: true });
   } catch (error) {
-    throw new Error(`Failed to parse morph file: ${error.message}`);
+    throw new Error(`Failed to parse morph file: ${error.message}`, { cause: error });
   }
 }
 
@@ -91,7 +91,7 @@ export function parseHTMLFragment(content) {
   try {
     return parseFragment(content);
   } catch (error) {
-    throw new Error(`Failed to parse HTML fragment: ${error.message}`);
+    throw new Error(`Failed to parse HTML fragment: ${error.message}`, { cause: error });
   }
 }
 

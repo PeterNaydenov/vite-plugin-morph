@@ -297,6 +297,7 @@ ${exports}
             // (which it would warn about in the CJS output). Fall back to
             // `import.meta.dirname` (Node ≥ 20.11) for the ESM build.
             const pluginDir =
+              // eslint-disable-next-line no-undef
               typeof __dirname !== 'undefined' ? __dirname : import.meta.dirname;
             const runtimePath = join(pluginDir, '../client/runtime.js');
             try {

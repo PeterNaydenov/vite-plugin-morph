@@ -156,7 +156,6 @@ export function createMorphPlugin(options = {}) {
             mtime: result.mtime,
             fileName: result.fileName,
           };
-        } else {
         }
 
         if (fs.existsSync(cacheInfo.cachePath)) {
@@ -754,9 +753,6 @@ export function createMorphPlugin(options = {}) {
               }
             }
           }
-        }
-
-        for (const lib of morphLibraries) {
         }
 
         // Scan local themes directory

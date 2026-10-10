@@ -101,7 +101,7 @@ export class CSSProcessor {
       };
     } catch (err) {
       error(`CSS processing failed: ${err.message}`);
-      throw new Error(`CSS processing error: ${err.message}`);
+      throw new Error(`CSS processing error: ${err.message}`, { cause: err });
     }
   }
 
