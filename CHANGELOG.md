@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+### [0.5.1 ] (2026-10-10)
+- [x] Skill update;
+- [x] Fixed some comments and documents;
+- [x] Fixed: type definitions were missing from the published package;
+- [x] TypeScript 7 for the type build;
+- [x] Removed debug `console.log` that printed on every compile;
+
+
+
 ### [0.5.0 ] (2026-10-10)
 - [x] Dependency update. @peter.naydenov/morph 3.10.0;
 - [x] Dependency update. Cssnano 9.5.0;
