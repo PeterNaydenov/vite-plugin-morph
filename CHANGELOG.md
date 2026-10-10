@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+### [0.5.0 ] (2026-10-10)
+- [x] Dependency update. @peter.naydenov/morph 3.10.0;
+- [x] Dependency update. Cssnano 9.5.0;
+- [x] Dependency update. Acorn 8.19.0;
+- [x] Dependency update. Acorn-walk 8.3.5;
+- [x] Dependency update. Parse5 8.0.1;
+
+
+
 ## [0.4.3 ] (2026-09-23)
 - [x] Dependency update. Cssnano 9.0.5;
 
