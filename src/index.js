@@ -22,6 +22,3 @@ export const morph = morphPlugin;
 
 // Export library builder
 export { buildLibrary };
-
-// Export types for TypeScript users
-export * from './types/index.d.ts';
