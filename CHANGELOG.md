@@ -7,12 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [0.5.2 ] (2026-10-11)
+- [x] Fix: Blocked load;
+
+
+
 ### [0.5.1 ] (2026-10-10)
 - [x] Skill update;
 - [x] Fixed some comments and documents;
 - [x] Fixed: type definitions were missing from the published package;
 - [x] TypeScript 7 for the type build;
 - [x] Removed debug `console.log` that printed on every compile;
+- [ ] Bug: Blocked load;
 
 
 
