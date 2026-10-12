@@ -20,9 +20,14 @@
       "types": "./dist/types/client/runtime.d.ts"
     }
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PeterNaydenov/vite-plugin-morph.git"
+  },
   "files": [
     "src",
     "dist",
+    "skills",
     "README.md"
   ],
   "banner": {
