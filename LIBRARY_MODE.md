@@ -20,7 +20,6 @@ Create `scripts/build-library.js`:
 import { buildLibrary } from '@peter.naydenov/vite-plugin-morph';
 
 await buildLibrary({
-  entry: 'src/main.js',
   library: {
     name: '@myorg/my-components',
     version: '1.0.0',
@@ -167,7 +166,7 @@ The class `btn` maps to `Button_btn_x7k9p2` to prevent conflicts with host proje
 
 | Option                    | Type   | Required | Default              | Description                                                |
 | ------------------------- | ------ | -------- | -------------------- | ----------------------------------------------------------- |
-| `entry`                   | string | No       | `'src/main.js'`       | Entry point file path                                        |
+| `entry`                   | string | No       | temporary file        | Where to write the generated entry; never overwrites a file the builder didn't generate |
 | `outputDir`               | string | No       | `'dist/library'`      | Output directory                                             |
 | `themesDir`               | string | No       | `'src/themes'`        | Directory containing theme CSS files                          |
 | `hashMode`                | string | No       | `'development'`       | `'development'` (stable) or `'production'` (content-based)   |
