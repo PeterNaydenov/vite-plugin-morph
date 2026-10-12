@@ -22,29 +22,33 @@ let morphConfig = {
   },
 };
 
-// Theme registry - populated by libraries on load
-let themeRegistry = []; // [{libraryName, themes: [], defaultTheme}]
-let themeContent = {}; // {libraryName: {themeName: {variables, raw}}}
+// Theme registry and content live on window, populated by each library's
+// client.mjs (and the host's local themes) on load. They're read at call time:
+// a library's client.mjs imports this runtime before its own body creates the
+// globals, so a copy taken when this module loads would be a detached `[]`.
+// The local fallbacks only serve non-browser environments.
+const localThemeRegistry = []; // [{libraryName, themes: [], defaultTheme}]
+const localThemeContent = {}; // {libraryName: {themeName: {variables, raw}}}
+
+function getThemeRegistry() {
+  if (typeof window !== 'undefined' && window.__MORPH_THEME_REGISTRY__) {
+    return window.__MORPH_THEME_REGISTRY__;
+  }
+  return localThemeRegistry;
+}
+
+function getThemeContent() {
+  if (typeof window !== 'undefined' && window.__MORPH_THEMES__) {
+    return window.__MORPH_THEMES__;
+  }
+  return localThemeContent;
+}
 
 // Last theme actually applied via themesControl.set()/setDefault() (distinct from the configured default)
 let currentAppliedTheme = null;
 
 // Components CSS registry - populated by libraries and host components
 let componentsCSS = {}; // { 'Component/source': '.scoped { ... }' }
-
-// Initialize theme registry from global (set by libraries)
-function initializeThemeRegistry() {
-  if (typeof window === 'undefined') return;
-
-  // Always sync from window globals (they may have been updated by local themes)
-  if (window.__MORPH_THEME_REGISTRY__) {
-    themeRegistry = window.__MORPH_THEME_REGISTRY__;
-  }
-
-  if (window.__MORPH_THEMES__) {
-    themeContent = window.__MORPH_THEMES__;
-  }
-}
 
 // Initialize componentsCSS from global storage
 function initializeComponentsCSS() {
@@ -69,7 +73,6 @@ function ensureStyleElement(componentName, cssRule) {
 }
 
 // Initialize on module load
-initializeThemeRegistry();
 initializeComponentsCSS();
 
 // Load config from plugin if available
@@ -90,10 +93,8 @@ if (typeof import.meta !== 'undefined' && import.meta.env) {
 // Load local themes registration code
 if (typeof import.meta !== 'undefined' && import.meta.env) {
   try {
-    const localThemes = await import('virtual:morph-local-themes');
-
-    // Re-initialize theme registry after local themes are registered
-    initializeThemeRegistry();
+    // Registers the host's local themes on window (read lazily, see above)
+    await import('virtual:morph-local-themes');
   } catch (e) {
     // Local themes not available, that's fine
   }
@@ -146,7 +147,7 @@ function getConfig() {
 
 /**
  * Detect the current execution environment
- * @returns {'development' | 'build' | 'library'} Environment type
+ * @returns {'development' | 'build'} Environment type ('library' comes from config.environment)
  */
 export function detectEnvironment() {
   // Development: Vite dev server provides import.meta.hot
@@ -154,10 +155,10 @@ export function detectEnvironment() {
     return 'development';
   }
 
-  // Library: Global flag set by library bundler
-  if (typeof window !== 'undefined' && window.__MORPH_LIBRARY_MODE__) {
-    return 'library';
-  }
+  // Library: not detected here. A library's client.mjs sets
+  // `environment: 'library'` on its own runtime copy via setMorphConfig(). A
+  // window-wide flag would also flip the host's runtime (a separate copy on the
+  // same page) into library mode, skipping the host's general CSS.
 
   // Build: Default production/static mode
   return 'build';
@@ -341,7 +342,6 @@ if (typeof window !== 'undefined' && import.meta.hot) {
               variables,
               raw: css,
             };
-            themeContent['host'] = window.__MORPH_THEMES__['host'];
           }
         }
       } catch (e) {
@@ -355,7 +355,7 @@ if (typeof window !== 'undefined' && import.meta.hot) {
     const shouldReapply = libraryName === 'host' || currentTheme === themeName;
 
     if (shouldReapply) {
-      const themes = themeContent[libraryName];
+      const themes = getThemeContent()[libraryName];
       if (themes && themes[themeName]) {
         const { variables } = themes[themeName];
         const styleId = `morph-theme-${libraryName.replace('@', '').replace('/', '-')}`;
@@ -432,7 +432,7 @@ async function applyStylesBuild() {
 function applyThemeToLibrary(libraryName, themeName) {
   if (typeof document === 'undefined') return false;
 
-  const themes = themeContent[libraryName];
+  const themes = getThemeContent()[libraryName];
   if (!themes || !themes[themeName]) {
     return false;
   }
@@ -469,7 +469,7 @@ function applyThemeToLibrary(libraryName, themeName) {
  * @returns {boolean} True if theme was applied
  */
 function applyProjectDefaultTheme(libraryName) {
-  const registry = themeRegistry.find((r) => r.libraryName === libraryName);
+  const registry = getThemeRegistry().find((r) => r.libraryName === libraryName);
   const defaultTheme =
     (registry && registry.defaultTheme) || morphConfig.defaultTheme || 'default';
 
@@ -509,7 +509,7 @@ export const themesControl = {
    */
   list() {
     const allThemes = new Set();
-    for (const registry of themeRegistry) {
+    for (const registry of getThemeRegistry()) {
       for (const theme of registry.themes) {
         allThemes.add(theme);
       }
@@ -536,7 +536,7 @@ export const themesControl = {
     }
 
     // Then apply to other libraries
-    for (const registry of themeRegistry) {
+    for (const registry of getThemeRegistry()) {
       if (registry.libraryName === 'host') continue; // Skip host, already tried
       if (applyThemeToLibrary(registry.libraryName, themeName)) {
         applied++;
@@ -592,6 +592,7 @@ export const themesControl = {
    * @returns {string[]} Array of theme names
    */
   listForLibrary(libraryName) {
+    const themeRegistry = getThemeRegistry();
     if (!libraryName) {
       // Return first library's themes if no name specified
       if (themeRegistry.length > 0) {

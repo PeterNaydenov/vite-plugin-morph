@@ -16,8 +16,6 @@ import {
 } from '../services/css-collection.js';
 import { extractThemesFromDirs, extractThemesFromDir } from '../services/theme-variables.js';
 import {
-  detectMorphLibraries,
-  getImportedPackages,
   loadPostCSSConfig,
   isCacheValid,
   findCachedFile,
@@ -26,6 +24,11 @@ import {
   processLibraryMainCSS,
 } from '../services/library-css-processor.js';
 import { buildCssRuleFromResult } from '../utils/shared.js';
+import {
+  configure as configureLogger,
+  warn as logWarn,
+  error as logError,
+} from '../utils/logger.js';
 
 /**
  * Process a morph file and return compiled result
@@ -47,6 +50,7 @@ async function processMorphFileForHmr(code, id, options) {
  */
 export function createMorphPlugin(options = {}) {
   const resolvedOptions = resolveOptions(options);
+  configureLogger({ level: resolvedOptions.logLevel });
   let discoveredThemes = null;
   let rootDir = process.cwd();
   let cssDependencies = new Map(); // Track CSS dependencies
@@ -572,9 +576,7 @@ export function createMorphPlugin(options = {}) {
                 }
               }
             } catch (e) {
-              console.warn(
-                `Could not find importers for ${context.file}: ${e.message}`
-              );
+              logWarn(`Could not find importers for ${context.file}: ${e.message}`);
             }
           }
 
@@ -623,7 +625,7 @@ export function createMorphPlugin(options = {}) {
 
         return null;
       } catch (error) {
-        console.warn(`HMR update failed for ${context.file}:`, error.message);
+        logWarn(`HMR update failed for ${context.file}: ${error.message}`);
         return null;
       }
     },
@@ -680,78 +682,27 @@ export function createMorphPlugin(options = {}) {
         );
         const postcssConfig = await loadPostCSSConfig(rootDir);
 
-        if (fs.existsSync(nodeModulesPath)) {
-          const packages = fs.readdirSync(nodeModulesPath);
+        // Fresh per build, so watch-mode rebuilds don't accumulate duplicates
+        morphLibraries.length = 0;
+        libraryCssUrls.clear();
 
-          for (const pkg of packages) {
-            if (pkg.startsWith('@')) {
-              const scopedPath = path.join(nodeModulesPath, pkg);
-              if (fs.existsSync(scopedPath)) {
-                const scopedPackages = fs.readdirSync(scopedPath);
-                for (const scopedPkg of scopedPackages) {
-                  const pkgPath = path.join(
-                    scopedPath,
-                    scopedPkg,
-                    'package.json'
-                  );
-                  if (fs.existsSync(pkgPath)) {
-                    try {
-                      const pkgJson = JSON.parse(
-                        fs.readFileSync(pkgPath, 'utf-8')
-                      );
-                      if (pkgJson.isMorphLibrary) {
-                        const fullName = `${pkg}/${scopedPkg}`;
+        for (const library of findMorphLibraries(nodeModulesPath)) {
+          morphLibraries.push(library);
 
-                        morphLibraries.push({
-                          name: fullName,
-                          path: path.join(scopedPath, scopedPkg),
-                          cssEntry: 'assets/main.css',
-                        });
+          // A library ships assets/main.css only when it had a src/styles/main.css
+          if (!fs.existsSync(path.join(library.path, library.cssEntry))) continue;
 
-                        // Process CSS immediately for dev mode
-                        const library =
-                          morphLibraries[morphLibraries.length - 1];
-                        const result = await processLibraryMainCSS(
-                          library,
-                          cacheDir,
-                          postcssConfig
-                        );
-                        libraryCssUrls.add(library.name, result.cssUrl);
-                      }
-                    } catch (e) {
-                      // Skip invalid package.json
-                    }
-                  }
-                }
-              }
-            } else {
-              const pkgPath = path.join(nodeModulesPath, pkg, 'package.json');
-              if (fs.existsSync(pkgPath)) {
-                try {
-                  const pkgJson = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
-                  if (pkgJson.isMorphLibrary) {
-
-                    morphLibraries.push({
-                      name: pkg,
-                      path: path.join(nodeModulesPath, pkg),
-                      cssEntry: 'assets/main.css',
-                    });
-
-                    // Process CSS immediately for dev mode
-                    const library = morphLibraries[morphLibraries.length - 1];
-                    const result = await processLibraryMainCSS(
-                      library,
-                      cacheDir,
-                      postcssConfig
-                    );
-                    libraryCssUrls.set(library.name, result.cssUrl);
-                    libraryCssUrls.set(library.name, result.cssUrl);
-                  }
-                } catch (e) {
-                  // Skip invalid package.json
-                }
-              }
-            }
+          try {
+            const result = await processLibraryMainCSS(
+              library,
+              cacheDir,
+              postcssConfig
+            );
+            libraryCssUrls.set(library.name, result.cssUrl);
+          } catch (error) {
+            logWarn(
+              `Failed to process CSS of morph library ${library.name}: ${error.message}`
+            );
           }
         }
 
@@ -795,11 +746,8 @@ if (typeof window !== 'undefined') {
           }
         }
       } catch (error) {
-        console.error(
-          '[vite-plugin-morph] ❌ Error detecting morph libraries:',
-          error.message,
-          error.stack
-        );
+        logError(`Error detecting morph libraries: ${error.message}`);
+        logError(error.stack);
       }
     },
 
@@ -808,8 +756,9 @@ if (typeof window !== 'undefined') {
       await finalizeCssCollection();
     },
 
-    // Copy processed CSS to dist/assets for production builds
-    generateBundle(options, bundle) {
+    // Copy processed CSS to dist/assets for production builds. Emitted via
+    // emitFile: Rolldown (Vite 8) ignores direct assignments into `bundle`.
+    generateBundle() {
       const cacheDir = path.join(rootDir, '.vite', 'cache', 'morph-processed');
 
       for (const [libraryName, cssUrl] of libraryCssUrls.entries()) {
@@ -820,16 +769,53 @@ if (typeof window !== 'undefined') {
           const css = fs.readFileSync(cachePath, 'utf-8');
           const assetName = `morph-${libraryName.replace(/[^a-z0-9]/gi, '-')}.css`;
 
-          bundle[assetName] = {
+          this.emitFile({
             type: 'asset',
             fileName: `assets/${assetName}`,
             source: css,
-          };
-
+          });
         }
       }
     },
   };
+}
+
+/**
+ * Find installed morph libraries (packages whose package.json has
+ * `isMorphLibrary: true`), including scoped ones, in a node_modules directory
+ * @param {string} nodeModulesPath - Absolute node_modules path
+ * @returns {Array<{name: string, path: string, cssEntry: string}>} Libraries
+ */
+export function findMorphLibraries(nodeModulesPath) {
+  if (!fs.existsSync(nodeModulesPath)) return [];
+
+  const packageNames = [];
+  for (const entry of fs.readdirSync(nodeModulesPath)) {
+    if (entry.startsWith('@')) {
+      for (const scoped of fs.readdirSync(path.join(nodeModulesPath, entry))) {
+        packageNames.push(`${entry}/${scoped}`);
+      }
+    } else if (!entry.startsWith('.')) {
+      packageNames.push(entry);
+    }
+  }
+
+  const libraries = [];
+  for (const name of packageNames) {
+    const libraryPath = path.join(nodeModulesPath, name);
+    const pkgPath = path.join(libraryPath, 'package.json');
+    if (!fs.existsSync(pkgPath)) continue;
+
+    try {
+      const pkgJson = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+      if (pkgJson.isMorphLibrary) {
+        libraries.push({ name, path: libraryPath, cssEntry: 'assets/main.css' });
+      }
+    } catch {
+      // Skip invalid package.json
+    }
+  }
+  return libraries;
 }
 
 /**
@@ -911,7 +897,7 @@ async function generateCssUpdate(filePath, content, options) {
       };
     }
   } catch (error) {
-    console.warn('Failed to generate CSS update:', error.message);
+    logWarn(`Failed to generate CSS update: ${error.message}`);
   }
   return null;
 }
@@ -924,13 +910,16 @@ async function generateCssUpdate(filePath, content, options) {
  */
 function mergeOptions(defaults, options) {
   const result = { ...defaults };
+  const isPlainObject = (value) =>
+    value !== null && typeof value === 'object' && !Array.isArray(value);
 
+  // Deep merge, so e.g. { css: { postcss: { minify: true } } } keeps the
+  // other postcss defaults; arrays and primitives replace
   for (const key in options) {
-    if (typeof options[key] === 'object' && !Array.isArray(options[key])) {
-      result[key] = { ...defaults[key], ...options[key] };
-    } else {
-      result[key] = options[key];
-    }
+    result[key] =
+      isPlainObject(options[key]) && isPlainObject(defaults?.[key])
+        ? mergeOptions(defaults[key], options[key])
+        : options[key];
   }
 
   return result;

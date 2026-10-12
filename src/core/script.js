@@ -35,12 +35,9 @@ function parseHelperFunctions(scriptContent) {
           // Extract the function code
           const start = node.start;
           const end = node.end;
-          let functionCode = scriptContent.slice(start, end).trim();
-          // Remove comments that might be included in the AST range
-          functionCode = functionCode
-            .replace(/\/\*[\s\S]*?\*\//g, '')
-            .replace(/\/\/.*$/gm, '')
-            .trim();
+          // Comments stay: the AST range never ends inside one, and regex
+          // stripping would corrupt strings that contain '//' (e.g. URLs)
+          const functionCode = scriptContent.slice(start, end).trim();
           functions[node.id.name] = new Function('return (' + functionCode + ')')();
           debug(`Parsed helper function: ${node.id.name}`);
         } catch (parseError) {
@@ -58,12 +55,9 @@ function parseHelperFunctions(scriptContent) {
               try {
                 const start = declarator.init.start;
                 const end = declarator.init.end;
-                let functionCode = scriptContent.slice(start, end).trim();
-                // Remove comments that might be included in the AST range
-                functionCode = functionCode
-                  .replace(/\/\*[\s\S]*?\*\//g, '')
-                  .replace(/\/\/.*$/gm, '')
-                  .trim();
+                // Comments stay: the AST range never ends inside one, and regex
+                // stripping would corrupt strings that contain '//' (e.g. URLs)
+                const functionCode = scriptContent.slice(start, end).trim();
                 functions[varName] = new Function('return (' + functionCode + ')')();
                 debug(`Parsed helper function: ${varName}`);
               } catch (parseError) {
@@ -79,12 +73,9 @@ function parseHelperFunctions(scriptContent) {
               try {
                 const start = declarator.init.start;
                 const end = declarator.init.end;
-                let functionCode = scriptContent.slice(start, end).trim();
-                // Remove comments that might be included in the AST range
-                functionCode = functionCode
-                  .replace(/\/\*[\s\S]*?\*\//g, '')
-                  .replace(/\/\/.*$/gm, '')
-                  .trim();
+                // Comments stay: the AST range never ends inside one, and regex
+                // stripping would corrupt strings that contain '//' (e.g. URLs)
+                const functionCode = scriptContent.slice(start, end).trim();
                 functions[varName] = new Function('return (' + functionCode + ')')();
                 debug(`Parsed helper function: ${varName}`);
               } catch (parseError) {
@@ -234,7 +225,6 @@ function isWellFormedTemplate(templateContent) {
  */
 export function processScriptContent(scriptContent) {
   if (!scriptContent) {
-    console.log('[vite-plugin-morph] No script content to process');
     return {
       code: '',
       functions: {},
@@ -242,18 +232,13 @@ export function processScriptContent(scriptContent) {
     };
   }
 
-  console.log(
-    '[vite-plugin-morph] Processing script content:',
-    scriptContent.substring(0, 200) + '...'
-  );
-
   // Parse helper functions
   const functions = parseHelperFunctions(scriptContent);
-  console.log('[vite-plugin-morph] Parsed functions:', Object.keys(functions));
+  debug(`Parsed functions: ${Object.keys(functions).join(', ') || '(none)'}`);
 
   // Parse helper templates
   const templates = parseHelperTemplates(scriptContent);
-  console.log('[vite-plugin-morph] Parsed templates:', Object.keys(templates));
+  debug(`Parsed templates: ${Object.keys(templates).join(', ') || '(none)'}`);
 
   return {
     code: scriptContent,

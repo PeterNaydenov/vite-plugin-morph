@@ -39,9 +39,6 @@ class FileWatcher {
         { recursive: false },
         (eventType, filename) => {
           debug(`File change detected: ${eventType} - ${filename}`);
-          console.log(
-            `[DEBUG] Watch listener triggered for ${path}, event: ${eventType}`
-          );
 
           // Debounce rapid changes
           this.debounceChange(path, callback, eventType, filename);
@@ -76,7 +73,7 @@ class FileWatcher {
    */
   debounceChange(path, callback, eventType, filename) {
     const key = `${eventType}:${filename}`;
-    console.log(`[DEBUG] Debouncing change for ${key}`);
+    debug(`Debouncing change for ${key}`);
 
     // Clear existing timer
     if (this.debounceTimers.has(key)) {
@@ -86,7 +83,7 @@ class FileWatcher {
     // Set new timer
     const timer = setTimeout(() => {
       try {
-        console.log(`[DEBUG] Executing watcher callback for ${path}`);
+        debug(`Executing watcher callback for ${path}`);
         callback({ eventType, filename, path });
       } catch (err) {
         warn(`File watcher callback error for ${path}: ${err.message}`);

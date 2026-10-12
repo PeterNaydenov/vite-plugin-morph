@@ -98,8 +98,11 @@ const defaultConfig = {
     exclude: [], // Files to exclude
   },
 
+  // Plugin console output: 'debug' | 'info' | 'warn' | 'error' | 'silent'
+  logLevel: 'info',
+
   production: {
-    removeHandshake: true,
+    removeHandshake: false, // Opt-in: strips handshake (demo data) from build output
     minifyCSS: true,
   },
 
@@ -188,6 +191,11 @@ export function validateConfig(config) {
     if (config.globalCSS.exclude && !Array.isArray(config.globalCSS.exclude)) {
       errors.push('globalCSS.exclude must be an array');
     }
+  }
+
+  const logLevels = ['debug', 'info', 'warn', 'error', 'silent'];
+  if (!logLevels.includes(config.logLevel)) {
+    errors.push(`logLevel must be one of: ${logLevels.join(', ')}`);
   }
 
   // Validate legacy production configuration

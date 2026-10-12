@@ -23,7 +23,7 @@ import {
   extractLocationFromPostCssError,
 } from './errors.js';
 import { getCachedResult, setCachedResult } from '../utils/cache.js';
-import { debug, info, error, warn } from '../utils/logger.js';
+import { debug, error, warn } from '../utils/logger.js';
 import { isProductionMode } from '../utils/shared.js';
 import { scopeCss, transformHtmlClasses } from '../core/css-scoper.js';
 import { processCss } from '../core/css-processor.js';
@@ -140,13 +140,13 @@ function generateHelpersCode(helperFunctions, stylesMap) {
   for (const [name, helper] of Object.entries(helperFunctions)) {
     try {
       if (!/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(name)) {
-        console.warn(`[vite-plugin-morph] Skipping helper with invalid name: ${name}`);
+        warn(`Skipping helper with invalid name: ${name}`);
         continue;
       }
 
       if (typeof helper === 'function') {
         try {
-          let funcCode = helper.toString().replace(/\/\/.*$/gm, '').trim();
+          const funcCode = helper.toString().trim();
           if (funcCode.startsWith('function ')) {
             const funcName = funcCode.match(/function\s+(\w+)/)[1];
             parts.push(
@@ -158,13 +158,13 @@ function generateHelpersCode(helperFunctions, stylesMap) {
             );
           }
         } catch (funcError) {
-          console.warn(`[vite-plugin-morph] Cannot serialize function helper ${name}: ${funcError.message}`);
+          warn(`Cannot serialize function helper ${name}: ${funcError.message}`);
         }
       } else if (typeof helper === 'string') {
         parts.push(`template.helpers.${name} = ${JSON.stringify(helper)};`);
       }
     } catch (helperError) {
-      console.warn(`[vite-plugin-morph] Error processing helper ${name}: ${helperError.message}`);
+      warn(`Error processing helper ${name}: ${helperError.message}`);
     }
   }
   return parts;
@@ -191,7 +191,7 @@ export async function processMorphFile(content, filePath, options = {}) {
     const cached = getCachedResult(cacheKey);
 
     if (cached) {
-      info(`Using cached result for ${filePath}`);
+      debug(`Using cached result for ${filePath}`);
       return cached;
     }
 
@@ -215,9 +215,16 @@ export async function processMorphFile(content, filePath, options = {}) {
     // Extract template content (everything that's not script or style)
     const template = extractTemplateContent(document, content, rawPlaceholders);
 
-    // Extract handshake data from script
+    // Extract handshake data from script. Handshake is demo data, so builds
+    // drop it when production.removeHandshake is set; the dev server keeps it.
+    const stripHandshake =
+      options?.production?.removeHandshake === true && !options.isDevServer;
     const handshakeRaw = extractHandshakeContent(document, 'application/json');
-    const handshake = handshakeRaw ? { data: parseJsonLike(handshakeRaw) } : {};
+    const handshake =
+      handshakeRaw && !stripHandshake ? { data: parseJsonLike(handshakeRaw) } : {};
+    // A stripped handshake still exports an empty object, so
+    // `import { handshake }` keeps resolving in production builds.
+    const handshakeExport = handshakeRaw && stripHandshake ? {} : handshake?.data;
 
     // Check for CSS variable usage
     const usesCssVariables = style && /var\(--[^)]+\)/.test(style.css);
@@ -241,7 +248,7 @@ export async function processMorphFile(content, filePath, options = {}) {
     let scopedClasses = {};
     let componentsCSS = {};
     if (style && !isCSSOnly && cssEnabled) {
-      const isProd = isProductionMode(options) || options?.hashMode === 'production';
+      const isProd = isProductionMode() || options?.hashMode === 'production';
       const hashMode = options?.hashMode || (isProd ? 'production' : 'development');
       const generateScopedName = options?.css?.modules?.generateScopedName;
       const postcssOptions = options?.css?.postcss || {};
@@ -342,8 +349,9 @@ export async function processMorphFile(content, filePath, options = {}) {
     const hasParsedHelpers = Object.keys(helpers).length > 0;
     if (hasParsedHelpers) {
       const requiredHelpers = extractRequiredHelpers(template.html);
+      // 'escape' is built into morph; 'raw' is an engine flag, not a helper
       const missingHelpers = requiredHelpers.filter(
-        (name) => !(name in helpers)
+        (name) => !(name in helpers) && name !== 'escape' && name !== 'raw'
       );
 
       if (missingHelpers.length > 0) {
@@ -357,7 +365,7 @@ export async function processMorphFile(content, filePath, options = {}) {
     const templateObject = {
       template: transformedTemplateHtml,
       helpers: Object.keys(helpers).length > 0 ? helpers : {},
-      handshake: handshake?.data || {},
+      ...(stripHandshake ? {} : { handshake: handshake?.data || {} }),
     };
 
     // Store helpers separately for code generation
@@ -368,7 +376,7 @@ export async function processMorphFile(content, filePath, options = {}) {
       templateObject,
       helperFunctions,
       processedStyle,
-      handshake?.data,
+      handshakeExport,
       options,
       isCSSOnly,
       componentName,
@@ -406,7 +414,7 @@ export async function processMorphFile(content, filePath, options = {}) {
     // Cache result
     setCachedResult(cacheKey, result);
 
-    info(`Successfully processed ${filePath} in ${processingTime}ms`);
+    debug(`Successfully processed ${filePath} in ${processingTime}ms`);
     return result;
   } catch (err) {
     const errorResult = createMorphError(err, filePath || 'unknown-file');
@@ -450,9 +458,7 @@ function isValidFunctionCode(funcCode) {
     new Function(`return ${funcCode}`);
     return true;
   } catch (error) {
-    console.warn(
-      `[vite-plugin-morph] Function code validation failed: ${error.message}`
-    );
+    warn(`Function code validation failed: ${error.message}`);
     return false;
   }
 }
@@ -561,6 +567,9 @@ function generateESModule(
     parts.push('');
     parts.push('// Export template object as named export');
     parts.push('export { template };');
+
+    // Scoped class map, for consumer code that needs the hashed class names
+    parts.push('export { styles };');
 
     // Export handshake data if present
     if (handshakeData) {

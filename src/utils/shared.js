@@ -6,11 +6,12 @@
  */
 
 /**
- * Check if running in production mode
- * @param {import('../types/index.d.ts').MorphPluginOptions} options - Plugin options
+ * Check if running in production mode (NODE_ENV or --production flag).
+ * Plugin options deliberately don't factor in: `production.removeHandshake`
+ * controls handshake stripping only, not CSS hashing.
  * @returns {boolean} Whether in production mode
  */
-export function isProductionMode(options) {
+export function isProductionMode() {
   // Handle undefined process.env or process.argv
   const nodeEnv = process.env?.NODE_ENV;
   const argv = process.argv || [];
@@ -19,18 +20,10 @@ export function isProductionMode(options) {
   const isNodeEnvProduction =
     nodeEnv && ['production', 'PRODUCTION', 'Production'].includes(nodeEnv);
 
-  // If NODE_ENV is explicitly set to development, we're not in production
-  const isExplicitlyDevelopment =
-    nodeEnv === 'development' || nodeEnv === 'dev';
-
   // Check command line arguments
   const hasProductionFlag = argv.includes('--production');
 
-  // Check options - only consider if NODE_ENV is not explicitly set to development
-  const optionsIndicateProduction =
-    !isExplicitlyDevelopment && options?.production?.removeHandshake === true;
-
-  return isNodeEnvProduction || hasProductionFlag || optionsIndicateProduction;
+  return isNodeEnvProduction || hasProductionFlag;
 }
 
 /**

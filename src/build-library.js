@@ -10,7 +10,9 @@ import { info } from './utils/logger.js';
 /**
  * Build a distributable component library
  * @param {Object} config - Build configuration
- * @param {string} [config.entry='src/main.js'] - Entry point file
+ * @param {string} [config.entry] - Where to write the generated entry module.
+ *   Omit it to generate the entry in a temporary directory. An existing file
+ *   there that the builder didn't generate is never overwritten (the build throws)
  * @param {Object} config.library - Library configuration
  * @param {string} config.library.name - Package name
  * @param {string} [config.library.version] - Package version
@@ -30,7 +32,6 @@ import { info } from './utils/logger.js';
  * import { buildLibrary } from '@peter.naydenov/vite-plugin-morph';
  *
  * await buildLibrary({
- *   entry: 'src/index.js',
  *   library: {
  *     name: '@myorg/my-components',
  *     version: '1.0.0',
@@ -43,7 +44,7 @@ import { info } from './utils/logger.js';
  */
 export async function buildLibrary(config = {}) {
   const {
-    entry = 'src/main.js',
+    entry,
     library = {},
     outputDir = 'dist/library',
     rootDir = process.cwd(),
@@ -58,7 +59,7 @@ export async function buildLibrary(config = {}) {
   }
 
   info(`Building library: ${library.name}`);
-  info(`Entry: ${entry}`);
+  info(`Entry: ${entry || '(generated in a temporary directory)'}`);
   info(`Output: ${outputDir}`);
 
   // Create builder instance

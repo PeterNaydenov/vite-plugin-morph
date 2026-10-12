@@ -11,7 +11,7 @@ import autoprefixer from 'autoprefixer';
 import cssnano from 'cssnano';
 import postcssImport from 'postcss-import';
 import postcssNested from 'postcss-nested';
-import { debug, info, warn, error } from '../utils/logger.js';
+import { debug, warn, error } from '../utils/logger.js';
 
 /**
  * CSS Processing Service with PostCSS integration
@@ -26,11 +26,12 @@ export class CSSProcessor {
    * @param {boolean} [options.autoprefixer=true] - Enable autoprefixer
    */
   constructor(options = {}) {
+    // Spread first: an explicit `undefined` must not override the defaults
     this.options = {
+      ...options,
       minify: options.minify || false,
       sourceMaps: options.sourceMaps !== false, // Enable by default
       autoprefixer: options.autoprefixer !== false,
-      ...options,
     };
 
     this.processor = this.createProcessor();
@@ -92,7 +93,7 @@ export class CSSProcessor {
           : false,
       });
 
-      info(`CSS processed successfully (${result.css.length} chars output)`);
+      debug(`CSS processed successfully (${result.css.length} chars output)`);
 
       return {
         css: result.css,

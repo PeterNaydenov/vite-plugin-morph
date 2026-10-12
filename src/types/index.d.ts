@@ -18,11 +18,14 @@ export interface MorphPluginOptions {
     /** File patterns to exclude */
     exclude?: string[];
   };
+  /** Plugin console output level (default: 'info') */
+  logLevel?: 'debug' | 'info' | 'warn' | 'error' | 'silent';
   /** Hash mode for CSS scoping */
   hashMode?: 'development' | 'production';
   /** Production optimization settings */
   production?: {
-    /** Remove handshake data in production builds */
+    /** Remove handshake data in production builds (default: false). The
+     * `handshake` export stays, as an empty object. */
     removeHandshake?: boolean;
     /** Minify generated CSS */
     minifyCSS?: boolean;
@@ -352,8 +355,9 @@ export interface MorphPluginOptions {
  */
 
 /**
- * Detect current execution environment
- * @returns {'development' | 'build' | 'library'} Environment type
+ * Detect current execution environment ('library' is never detected; a
+ * library's runtime gets it from MorphConfig.environment)
+ * @returns {'development' | 'build'} Environment type
  */
 
 /**

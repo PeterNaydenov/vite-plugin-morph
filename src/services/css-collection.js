@@ -535,12 +535,14 @@ export function getCssCollector(options = {}) {
 }
 
 /**
- * Initialize CSS collection for build
+ * Initialize CSS collection for build. Starts a fresh collector, so each build
+ * gets its own options and no components left over from an earlier build in
+ * the same process.
  */
 export function startCssCollection(options = {}) {
-  const collector = getCssCollector(options);
-  collector.startCollection();
-  return collector;
+  globalCssCollector = new CSSCollectionService(options);
+  globalCssCollector.startCollection();
+  return globalCssCollector;
 }
 
 /**

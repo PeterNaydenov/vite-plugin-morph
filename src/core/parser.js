@@ -6,6 +6,7 @@
  */
 
 import { parseFragment } from 'parse5';
+import { debug } from '../utils/logger.js';
 
 function findScriptNodes(node, scriptType) {
   const nodes = [];
@@ -42,28 +43,70 @@ export function parseJsonLike(content) {
     // First, try parsing as regular JSON to see if it's already valid
     try {
       return JSON.parse(content.trim());
-    } catch (jsonError) {
-      // If JSON.parse fails, try to clean up comments and single quotes
+    } catch {
+      // Not strict JSON - normalize the JSON-like extensions below
     }
 
-    // Remove single-line comments
-    let cleaned = content.replace(/\/\/.*$/gm, '');
-
-    // Remove multi-line comments
-    cleaned = cleaned.replace(/\/\*[\s\S]*?\*\//g, '');
-
-    // Trim whitespace
-    cleaned = cleaned.trim();
-
-    // Basic single quote to double quote conversion (simple cases)
-    // This is not perfect but handles common cases
-    cleaned = cleaned.replace(/'([^']*)'/g, '"$1"');
-
-    // Parse as JSON
-    return JSON.parse(cleaned);
+    return JSON.parse(normalizeJsonLike(content));
   } catch (error) {
     throw new Error(`Failed to parse JSON-like content: ${error.message}`, { cause: error });
   }
+}
+
+/**
+ * Convert JSON-like text to strict JSON: drop comments, turn single-quoted
+ * strings into double-quoted ones and remove trailing commas. Scans
+ * character by character so string contents (e.g. "https://...") are
+ * never mistaken for comments or quotes.
+ * @param {string} content - JSON-like text
+ * @returns {string} Strict JSON text
+ */
+function normalizeJsonLike(content) {
+  let out = '';
+  let i = 0;
+
+  while (i < content.length) {
+    const ch = content[i];
+    const next = content[i + 1];
+
+    if (ch === '"') {
+      // Double-quoted string: copy verbatim, honouring escapes
+      let j = i + 1;
+      while (j < content.length && content[j] !== '"') {
+        j += content[j] === '\\' ? 2 : 1;
+      }
+      out += content.slice(i, j + 1);
+      i = j + 1;
+    } else if (ch === "'") {
+      // Single-quoted string: re-quote with double quotes
+      let value = '';
+      let j = i + 1;
+      while (j < content.length && content[j] !== "'") {
+        if (content[j] === '\\') {
+          value += content[j + 1] === "'" ? "'" : content.slice(j, j + 2);
+          j += 2;
+        } else {
+          value += content[j] === '"' ? '\\"' : content[j];
+          j += 1;
+        }
+      }
+      out += `"${value}"`;
+      i = j + 1;
+    } else if (ch === '/' && next === '/') {
+      while (i < content.length && content[i] !== '\n') i += 1;
+    } else if (ch === '/' && next === '*') {
+      const end = content.indexOf('*/', i + 2);
+      i = end === -1 ? content.length : end + 2;
+    } else if (ch === '}' || ch === ']') {
+      out = out.replace(/,\s*$/, '') + ch; // trailing comma
+      i += 1;
+    } else {
+      out += ch;
+      i += 1;
+    }
+  }
+
+  return out.trim();
 }
 
 /**
@@ -103,40 +146,18 @@ export function parseHTMLFragment(content) {
  */
 export function extractScriptContent(document, scriptType) {
   const scriptNodes = findScriptNodes(document, scriptType);
-
-  console.log(
-    '[vite-plugin-morph] Found',
-    scriptNodes.length,
-    'script nodes for type:',
-    scriptType
-  );
-
-  if (scriptNodes.length > 0) {
-    // Return the concatenated content of all script tags
-    const scriptContent = scriptNodes
-      .map((node) => {
-        const content = node.childNodes
-          .map((child) => child.nodeValue || child.value || '')
-          .join('');
-        console.log(
-          '[vite-plugin-morph] Script content extracted:',
-          content.substring(0, 200) + '...'
-        );
-        return content;
-      })
-      .join('');
-    console.log(
-      '[vite-plugin-morph] Extracted script content:',
-      scriptContent.substring(0, 200) + '...'
-    );
-    return scriptContent;
+  if (scriptNodes.length === 0) {
+    return null;
   }
 
-  console.log(
-    '[vite-plugin-morph] No script content found for type:',
-    scriptType
-  );
-  return null;
+  // Return the concatenated content of all script tags
+  const scriptContent = scriptNodes
+    .map((node) =>
+      node.childNodes.map((child) => child.nodeValue || child.value || '').join('')
+    )
+    .join('');
+  debug(`Extracted ${scriptNodes.length} script node(s) of type ${scriptType}`);
+  return scriptContent;
 }
 
 /**
@@ -211,47 +232,18 @@ export function getStyleContentLocation(document) {
  */
 export function extractHandshakeContent(document, scriptType) {
   const scriptNodes = findScriptNodes(document, scriptType);
-
-  console.log(
-    '[vite-plugin-morph] Found',
-    scriptNodes.length,
-    'handshake script nodes for type:',
-    scriptType
-  );
-
-  if (scriptNodes.length > 0) {
-    // Return the concatenated content of all script tags
-    const handshakeContent = scriptNodes
-      .map((node) => {
-        console.log(
-          '[vite-plugin-morph] Handshake script node childNodes:',
-          node.childNodes.length
-        );
-        return node.childNodes
-          .map((child) => {
-            console.log(
-              '[vite-plugin-morph] Handshake child node:',
-              child.nodeName,
-              'value:',
-              child.nodeValue || child.value
-            );
-            return child.nodeValue || child.value || '';
-          })
-          .join('');
-      })
-      .join('');
-    console.log(
-      '[vite-plugin-morph] Extracted handshake content:',
-      handshakeContent.substring(0, 200) + '...'
-    );
-    return handshakeContent;
+  if (scriptNodes.length === 0) {
+    return null;
   }
 
-  console.log(
-    '[vite-plugin-morph] No handshake content found for type:',
-    scriptType
-  );
-  return null;
+  // Return the concatenated content of all script tags
+  const handshakeContent = scriptNodes
+    .map((node) =>
+      node.childNodes.map((child) => child.nodeValue || child.value || '').join('')
+    )
+    .join('');
+  debug(`Extracted ${scriptNodes.length} handshake node(s) of type ${scriptType}`);
+  return handshakeContent;
 }
 
 /**

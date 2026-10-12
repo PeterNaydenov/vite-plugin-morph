@@ -15,6 +15,7 @@ export const LogLevel = {
   INFO: 'info',
   WARN: 'warn',
   ERROR: 'error',
+  SILENT: 'silent',
 };
 
 /**
@@ -29,12 +30,23 @@ const currentConfig = {
 };
 
 /**
+ * Log levels in ascending severity; 'silent' suppresses everything
+ * @type {string[]}
+ */
+const levels = [
+  LogLevel.DEBUG,
+  LogLevel.INFO,
+  LogLevel.WARN,
+  LogLevel.ERROR,
+  LogLevel.SILENT,
+];
+
+/**
  * Check if message should be logged
  * @param {string} level - Log level
  * @returns {boolean} Whether to log
  */
 function shouldLog(level) {
-  const levels = [LogLevel.DEBUG, LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR];
   const currentLevelIndex = levels.indexOf(currentConfig.level);
   const messageLevelIndex = levels.indexOf(level);
 
@@ -54,8 +66,12 @@ function log(level, message, context) {
 
   const timestamp = new Date().toISOString();
   const contextStr = context ? ` ${JSON.stringify(context)}` : '';
-  // eslint-disable-next-line no-console
-  console.log(`[${timestamp}] [${level}] ${message}${contextStr}`);
+  const line = `[${timestamp}] [${level}] ${message}${contextStr}`;
+  /* eslint-disable no-console */
+  if (level === LogLevel.ERROR) console.error(line);
+  else if (level === LogLevel.WARN) console.warn(line);
+  else console.log(line);
+  /* eslint-enable no-console */
 }
 
 /**
@@ -99,5 +115,14 @@ export function error(message, context) {
  * @param {Object} config - Configuration options
  */
 export function configure(config) {
-  Object.assign(currentConfig, config);
+  const { level, ...rest } = config;
+  Object.assign(currentConfig, rest);
+  if (level !== undefined) {
+    if (!levels.includes(level)) {
+      throw new Error(
+        `Invalid log level "${level}". Expected one of: ${levels.join(', ')}`
+      );
+    }
+    currentConfig.level = level;
+  }
 }
