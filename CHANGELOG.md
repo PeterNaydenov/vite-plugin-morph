@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 **Other**
 - [x] Each build starts a fresh CSS collector, so options from an earlier build in the same process no longer stick;
 - [x] Docs: README, LIBRARY_MODE.md and skill references updated; library-mode "Known limitations" removed;
+- [x] Dependency update. Cssnano 9.6.0;
 
 **Breaking**
 - [x] Library CommonJS entry renamed `index.js` → `index.cjs`. Imports through the package `exports` map are unaffected;
