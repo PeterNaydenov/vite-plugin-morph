@@ -93,7 +93,7 @@ describe('Shared Utilities', () => {
       expect(result).toBe(false);
     });
 
-    it('should return true when options.production.removeHandshake is true', () => {
+    it('should ignore options.production.removeHandshake', () => {
       const options = {
         production: {
           removeHandshake: true,
@@ -102,7 +102,7 @@ describe('Shared Utilities', () => {
 
       const result = isProductionMode(options);
 
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
 
     it('should return false when options.production.removeHandshake is false', () => {
@@ -289,7 +289,7 @@ describe('Shared Utilities', () => {
 
       const result = isProductionMode(complexOptions);
 
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
 
     it('should handle performance with repeated calls', () => {

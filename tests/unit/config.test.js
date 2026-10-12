@@ -133,6 +133,20 @@ describe('Plugin configuration', () => {
       ).toThrow();
     });
 
+    it('should reject an unknown logLevel', () => {
+      expect(() =>
+        validateConfig({ ...configModule.defaultConfig, logLevel: 'verbose' })
+      ).toThrow();
+    });
+
+    it('should accept every supported logLevel', () => {
+      for (const logLevel of ['debug', 'info', 'warn', 'error', 'silent']) {
+        expect(() =>
+          validateConfig({ ...configModule.defaultConfig, logLevel })
+        ).not.toThrow();
+      }
+    });
+
     it('should accept a valid default config without throwing', () => {
       expect(() => validateConfig(configModule.defaultConfig)).not.toThrow();
     });

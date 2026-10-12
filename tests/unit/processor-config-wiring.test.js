@@ -222,3 +222,58 @@ describe('processMorphFile - CSS layer wrapping for the self-injecting <style> t
     expect(minLine).toBe(3);
   });
 });
+
+const HANDSHAKE_MORPH = `
+<div>{{title}}</div>
+<script type="application/json">
+  {"title": "Demo Title"}
+</script>
+`;
+
+describe('processMorphFile - production.removeHandshake wiring', () => {
+  it('should keep handshake data by default', async () => {
+    const result = await processMorphFile(HANDSHAKE_MORPH, 'Card.morph', {});
+
+    expect(result.code).toContain('export const handshake');
+    expect(result.code).toContain('Demo Title');
+  });
+
+  it('should strip handshake data from build output when enabled', async () => {
+    const result = await processMorphFile(HANDSHAKE_MORPH, 'Card.morph', {
+      production: { removeHandshake: true },
+    });
+
+    expect(result.code).toContain('export const handshake = {};');
+    expect(result.code).not.toContain('Demo Title');
+    expect(result.templateObject).not.toHaveProperty('handshake');
+  });
+
+  it('should not add a handshake export to files without one', async () => {
+    const result = await processMorphFile('<div>{{title}}</div>', 'Plain.morph', {
+      production: { removeHandshake: true },
+    });
+
+    expect(result.code).not.toContain('export const handshake');
+  });
+
+  it('should keep handshake data on the dev server even when enabled', async () => {
+    const result = await processMorphFile(HANDSHAKE_MORPH, 'Card.morph', {
+      production: { removeHandshake: true },
+      isDevServer: true,
+    });
+
+    expect(result.code).toContain('export const handshake');
+    expect(result.code).toContain('Demo Title');
+  });
+
+  it('should not change CSS hashing', async () => {
+    const opts = { hashMode: 'development' };
+    const plain = await processMorphFile(BUTTON_MORPH, 'Button.morph', opts);
+    const stripped = await processMorphFile(BUTTON_MORPH, 'Button.morph', {
+      ...opts,
+      production: { removeHandshake: true },
+    });
+
+    expect(stripped.processedCss).toBe(plain.processedCss);
+  });
+});

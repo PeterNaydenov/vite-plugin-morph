@@ -25,7 +25,7 @@ describe('Library Builder', () => {
       const builder = createLibraryBuilder();
 
       expect(builder).toBeDefined();
-      expect(builder.entry).toBe('src/main.js');
+      expect(builder.entry).toBeNull();
       expect(builder.outputDir).toBe('dist/library');
     });
 

@@ -63,12 +63,12 @@ describe('Complex Morph File Processing', () => {
     expect(result.templateObject.handshake).toEqual({ test: true });
   });
 
-  it('should include handshake data in production mode', async () => {
+  it('should remove handshake data when production.removeHandshake is set', async () => {
     const morphContent = `<p>Test content</p><script>const test = () => {}</script><script type="application/json">{"test": true}</script>`;
 
     const result = await processMorphFile(morphContent, 'test.morph', {
       production: { removeHandshake: true },
     });
-    expect(result.templateObject.handshake).toEqual({ test: true });
+    expect(result.templateObject.handshake).toBeUndefined();
   });
 });

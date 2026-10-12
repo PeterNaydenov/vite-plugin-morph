@@ -1,0 +1,56 @@
+{
+  "description": "Scenarios for testing the vite-plugin-morph agent skill with real agents (run each with and without the skill, and with several models). Each expected_behavior item is checked by reading the agent's output; most can also be confirmed by running skills/vite-plugin-morph/scripts/check-morph.mjs on the produced file.",
+  "evals": [
+    {
+      "skills": ["vite-plugin-morph"],
+      "query": "Create a CommentCard.morph component that shows a comment's author name, the comment text, a link to the author's profile (/users/<username>), and a 'pinned' badge when the comment is pinned. Then show how to render it into #comments for an array of comments from our API.",
+      "files": [],
+      "expected_behavior": [
+        "Every placeholder showing API data is escaped ({{ x : escape }} or useHelper('escape', ...) inside function helpers), including the username inside the href attribute",
+        "The profile URL value is URL-encoded and escaped (e.g. {{ username : escape, >urlEncode }} or encodeURIComponent inside a helper)",
+        "The pinned badge is a function helper returning '' when not pinned; no {{#if}} syntax",
+        "The consumer calls CommentCard('render', comment), not CommentCard(comment) or CommentCard('view', ...)",
+        "The handshake contains demo values for every placeholder and no real data",
+        "check-morph.mjs reports 0 errors for the produced file"
+      ]
+    },
+    {
+      "skills": ["vite-plugin-morph"],
+      "query": "Add a TagList.morph that renders a list of tags (array of objects with name and color: 'red' | 'green' | 'gray') as <li> elements, each with a colored pill style. Colors must be styled in the component's CSS.",
+      "files": [],
+      "expected_behavior": [
+        "The list uses {{ tags : [], tagItem }} with tagItem as a FUNCTION helper (not a string helper template) because it renders user data",
+        "tagItem reads data.name (data is the list item) and escapes it with useHelper('escape', ...)",
+        "The color class comes from styles[data.color] (scoped class map), not interpolated raw into class=\"...\"",
+        "Color classes are hyphenated or single words (e.g. .pill-red or .red), not names like .pill_red_x, and every selector starts with a class",
+        "No @layer in the component <style>; colors use var(--token, fallback)",
+        "check-morph.mjs reports 0 errors and 0 warnings"
+      ]
+    },
+    {
+      "skills": ["vite-plugin-morph"],
+      "query": "Set up vite-plugin-morph in our Vite app: global styles live in src/styles (main.css imports tokens.css and reset.css), we want light and dark themes, minified component CSS in production, and demo data stripped from builds. Add a Vitest test for src/components/Card.morph.",
+      "files": [],
+      "expected_behavior": [
+        "vite.config uses morphPlugin with globalCSS.include: ['main.css'] (or equivalent) so imported files are not duplicated in builds",
+        "Sets css.postcss.minify: true and production.removeHandshake: true; does not rely on dead options such as production.minifyCSS, css.treeShaking or development.cssHmr",
+        "Theme files are placed in src/themes (light.css, dark.css) and switched with themesControl.set(...)",
+        "App startup calls applyStyles() once from '@peter.naydenov/vite-plugin-morph/client' and index.html declares @layer vendors, libs, modules, app, context",
+        "The test imports the .morph file, calls Card('render', data), and includes a hostile-data case asserting no <img or <script survives",
+        "Vitest config includes morphPlugin (logLevel: 'silent' optional); does not require jsdom just to assert strings"
+      ]
+    },
+    {
+      "skills": ["vite-plugin-morph"],
+      "query": "Turn our src/components/*.morph files into a publishable npm package @acme/ui and show how another app uses the Button component and switches to the dark theme.",
+      "files": [],
+      "expected_behavior": [
+        "Uses buildLibrary({ library: { name: '@acme/ui', version } }) in a build script and publishes from dist/library",
+        "Warns that buildLibrary overwrites the entry file (default src/main.js) and does not hand-write exports into it",
+        "The consumer imports { Button } from '@acme/ui' and calls Button('render', data); does not claim component CSS needs applyStyles()",
+        "Theme switching uses themesControl.set('dark') and checks its return value (known registry limitation)",
+        "Does not claim the host re-layers, minifies or tree-shakes the library's CSS"
+      ]
+    }
+  ]
+}

@@ -241,3 +241,36 @@ describe('client/runtime.js - applyGeneralStyles()', () => {
     expect(styleElements.size).toBe(2);
   });
 });
+
+describe('client/runtime.js - theme registry is read at call time', () => {
+  it("sees a registry created after the runtime loaded (a library's client.mjs does this)", async () => {
+    const { mod } = await loadRuntimeWithGlobals({});
+
+    globalThis.window.__MORPH_THEME_REGISTRY__ = [
+      { libraryName: 'libA', themes: ['light', 'dark'], defaultTheme: 'light' },
+    ];
+    globalThis.window.__MORPH_THEMES__ = {
+      libA: { dark: { variables: { '--bg': '#000' }, raw: '' } },
+    };
+
+    expect(mod.themesControl.list()).toEqual(['light', 'dark']);
+    expect(mod.themesControl.set('dark')).toBe(1);
+  });
+});
+
+describe('client/runtime.js - environment detection', () => {
+  it('a window-wide library flag does not switch the host runtime to library mode', async () => {
+    const { mod, styleElements } = await loadRuntimeWithGlobals({});
+    globalThis.window.__MORPH_LIBRARY_MODE__ = true;
+
+    try {
+      mod.setMorphConfig({ generalCss: 'body { margin: 0; }' });
+
+      expect(mod.detectEnvironment()).toBe('build');
+      await mod.applyStyles();
+      expect(styleElements.get('morph-css-general-host').textContent).toContain('margin');
+    } finally {
+      delete globalThis.window.__MORPH_LIBRARY_MODE__;
+    }
+  });
+});
