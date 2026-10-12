@@ -33,6 +33,18 @@ A Vite plugin for processing `.morph` files with HTML-like syntax, CSS modules, 
 npm install @peter.naydenov/vite-plugin-morph --save-dev
 ```
 
+### AI agent skill
+
+The package ships an [agent skill](skills/vite-plugin-morph/SKILL.md) that teaches coding agents to write `.morph` files correctly: escaping user data, helper rules, scoped classes, and plugin options. It includes a checker script that compiles and renders a component and reports problems. The skill's version always matches the installed plugin.
+
+Make it discoverable to Claude Code by linking it into the project:
+
+```bash
+mkdir -p .claude/skills && ln -s ../../node_modules/@peter.naydenov/vite-plugin-morph/skills/vite-plugin-morph .claude/skills/vite-plugin-morph
+```
+
+For other agents, point them at `node_modules/@peter.naydenov/vite-plugin-morph/skills/vite-plugin-morph/SKILL.md` (for example, from your `AGENTS.md`).
+
 ## Quick Start
 
 ### 1. Configure Vite
@@ -479,7 +491,7 @@ export default defineConfig({
 });
 ```
 
-Controls local theme discovery for this project (used by `themeRuntime` in local mode — see [Library Lifecycle](#library-lifecycle-two-theme-runtimes)). Full option reference: [plugin-config.md](.agents/skills/vite-plugin-morph/references/plugin-config.md); full walkthrough: [setup-component-library.md](setup-component-library.md).
+Controls local theme discovery for this project (used by `themeRuntime` in local mode — see [Library Lifecycle](#library-lifecycle-two-theme-runtimes)). Full option reference: [plugin-config.md](skills/vite-plugin-morph/references/plugin-config.md); full walkthrough: [setup-component-library.md](setup-component-library.md).
 
 ### Production Optimization
 
@@ -496,6 +508,23 @@ export default defineConfig({
   ],
 });
 ```
+
+`removeHandshake` (default `false`) strips handshake demo data from `vite build` output. The dev server always keeps it. Components that had a handshake still export `handshake`, as an empty object, so `import { handshake }` keeps working.
+
+### Logging
+
+```javascript
+// vite.config.js
+export default defineConfig({
+  plugins: [
+    morphPlugin({
+      logLevel: 'warn', // 'debug' | 'info' (default) | 'warn' | 'error' | 'silent'
+    }),
+  ],
+});
+```
+
+Use `'debug'` to see per-file processing details.
 
 ### Development Settings
 
@@ -732,7 +761,6 @@ Both share the same method vocabulary — `list()`, `getCurrent()`, `getDefault(
 import { buildLibrary } from '@peter.naydenov/vite-plugin-morph';
 
 await buildLibrary({
-  entry: 'src/main.js',
   library: {
     name: '@myorg/my-components',
     version: '1.0.0',
@@ -740,15 +768,7 @@ await buildLibrary({
 });
 ```
 
-**2. Define library exports** (`src/main.js`):
-
-```javascript
-export { default as Button } from './components/Button.morph';
-export {
-  applyStyles,
-  themesControl,
-} from '@peter.naydenov/vite-plugin-morph/client';
-```
+**2. Library exports are generated**: every `src/**/*.morph` component is exported under its PascalCase name, plus `applyStyles` and `themesControl`. The entry module is generated in a temporary directory, so your `src/main.js` is never touched.
 
 **3. Build**: `npm run build:lib`
 
@@ -1059,7 +1079,7 @@ setMorphConfig({
 });
 ```
 
-This is a partial example — the full config shape (including `css`, `themes`, `defaultTheme`, `themeUrls`, `cssUrls`) is documented in the skill's [runtime-api.md](.agents/skills/vite-plugin-morph/references/runtime-api.md#getmorphconfig--setmorphconfigconfig).
+This is a partial example — the full config shape (including `css`, `themes`, `defaultTheme`, `themeUrls`, `cssUrls`) is documented in the skill's [runtime-api.md](skills/vite-plugin-morph/references/runtime-api.md#environment-and-config).
 
 ### Global Storage
 
@@ -1077,7 +1097,7 @@ window.__MORPH_THEMES__ = { '@myorg/ui': { light: { ... }, dark: { ... } } };
 window.__MORPH_CONFIG__ = { /* the current MorphConfig, as set by setMorphConfig() above */ };
 ```
 
-This list mirrors the skill's [runtime-api.md](.agents/skills/vite-plugin-morph/references/runtime-api.md#global-storage-layout) — treat these as an internal contract; use the API functions above rather than reading/writing them directly.
+This list mirrors the skill's [runtime-api.md](skills/vite-plugin-morph/references/runtime-api.md#globals) — treat these as an internal contract; use the API functions above rather than reading/writing them directly.
 
 ## Version History
 
